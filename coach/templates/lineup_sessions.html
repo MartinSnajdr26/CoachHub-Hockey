@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Seznam sestav{% endblock %}
+
+{% block content %}
+<h1>Seznam sestav</h1>
+
+<p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <a href="{{ url_for('lines') }}"><button>⚙️ Otevřít lajny</button></a>
+  <span style="font-size:12px; opacity:0.8;">Smazání záznamu odstraní i PDF.</span>
+  </p>
+
+<div class="cards">
+  {% for s in sessions %}
+    <div class="card">
+      <h2>{{ s.title }}</h2>
+      <p><b>Vytvořeno:</b> {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      {% set abs = url_for('static', filename='exports/' ~ s.filename, _external=True) %}
+      <p>
+        <a href="{{ url_for('static', filename='exports/' ~ s.filename) }}" download><button>⬇️ Stáhnout PDF</button></a>
+        <a href="{{ url_for('static', filename='exports/' ~ s.filename) }}" target="_blank"><button>👁 Otevřít</button></a>
+        <a href="https://api.whatsapp.com/send?text={{ ('Sestava: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
+        <button type="button" onclick="sharePdf('{{ abs }}','{{ s.filename }}')">📎 Sdílet soubor</button>
+      </p>
+      <form method="post" action="{{ url_for('delete_lineup_session', sess_id=s.id) }}" onsubmit="return confirm('Smazat sestavu? PDF bude odstraněno.');">
+        <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat</button>
+      </form>
+    </div>
+  {% else %}
+    <p><i>Zatím žádné uložené sestavy</i></p>
+  {% endfor %}
+</div>
+
+<script>
+async function sharePdf(url, filename){
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const name = filename && filename.endsWith('.pdf') ? filename : (filename || 'sestava.pdf');
+    const file = new File([blob], name, { type: blob.type || 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name, text: name });
+      return;
+    }
+  } catch (e) {}
+  const msg = encodeURIComponent('Sestava: ' + (filename || '') + ' ' + url);
+  window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+}
+</script>
+
+{% endblock %}
+

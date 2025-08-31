@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Rozdělení do lajn{% endblock %}
+
+{% block content %}
+<h1>Rozdělení hráčů do lajn</h1>
+
+<div class="lines-container">
+    <!-- LEVÝ sloupec – formulář -->
+    <div class="lines-form">
+        <form method="POST">
+            {% for line in range(1,5) %}
+                <h2>{{ line }}. lajna</h2>
+
+                <p>
+                    <label>LW:
+                        <select name="L{{line}}LW">
+                            <option value="">-- vyber hráče --</option>
+                            {% for r in roster if r.player.position == "F" %}
+                                <option value="{{ r.player.id }}"
+                                    {% if assignments.get("L" ~ line ~ "LW") == r.player.id %}selected{% endif %}>
+                                    {{ r.player.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>C:
+                        <select name="L{{line}}C">
+                            <option value="">-- vyber hráče --</option>
+                            {% for r in roster if r.player.position == "F" %}
+                                <option value="{{ r.player.id }}"
+                                    {% if assignments.get("L" ~ line ~ "C") == r.player.id %}selected{% endif %}>
+                                    {{ r.player.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>RW:
+                        <select name="L{{line}}RW">
+                            <option value="">-- vyber hráče --</option>
+                            {% for r in roster if r.player.position == "F" %}
+                                <option value="{{ r.player.id }}"
+                                    {% if assignments.get("L" ~ line ~ "RW") == r.player.id %}selected{% endif %}>
+                                    {{ r.player.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </p>
+
+                <p>
+                    <label>LD:
+                        <select name="D{{line}}LD">
+                            <option value="">-- vyber hráče --</option>
+                            {% for r in roster if r.player.position == "D" %}
+                                <option value="{{ r.player.id }}"
+                                    {% if assignments.get("D" ~ line ~ "LD") == r.player.id %}selected{% endif %}>
+                                    {{ r.player.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>RD:
+                        <select name="D{{line}}RD">
+                            <option value="">-- vyber hráče --</option>
+                            {% for r in roster if r.player.position == "D" %}
+                                <option value="{{ r.player.id }}"
+                                    {% if assignments.get("D" ~ line ~ "RD") == r.player.id %}selected{% endif %}>
+                                    {{ r.player.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </p>
+                <hr>
+            {% endfor %}
+
+            <h2>Brankáři</h2>
+            <p>
+                <label>G1:
+                    <select name="G1">
+                        <option value="">-- vyber hráče --</option>
+                        {% for r in roster if r.player.position == "G" %}
+                            <option value="{{ r.player.id }}"
+                                {% if assignments.get("G1") == r.player.id %}selected{% endif %}>
+                                {{ r.player.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label>G2:
+                    <select name="G2">
+                        <option value="">-- vyber hráče --</option>
+                        {% for r in roster if r.player.position == "G" %}
+                            <option value="{{ r.player.id }}"
+                                {% if assignments.get("G2") == r.player.id %}selected{% endif %}>
+                                {{ r.player.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </p>
+
+            <br>
+            <button type="submit">💾 Uložit lajny</button>
+        </form>
+    </div>
+
+    <!-- PRAVÝ sloupec – aktuální rozdělení -->
+    <div class="lines-preview">
+        <h2>Aktuální rozdělení</h2>
+        {% for line in range(1,5) %}
+            <h3>{{ line }}. lajna</h3>
+            <p>
+                Útok:
+                {% set lw = assignments.get("L" ~ line ~ "LW") %}
+                {% set c  = assignments.get("L" ~ line ~ "C") %}
+                {% set rw = assignments.get("L" ~ line ~ "RW") %}
+                {{ (roster|selectattr("player_id","equalto",lw)|map(attribute="player.name")|first) or "-" }}
+                –
+                {{ (roster|selectattr("player_id","equalto",c)|map(attribute="player.name")|first) or "-" }}
+                –
+                {{ (roster|selectattr("player_id","equalto",rw)|map(attribute="player.name")|first) or "-" }}
+            </p>
+            <p>
+                Obrana:
+                {% set ld = assignments.get("D" ~ line ~ "LD") %}
+                {% set rd = assignments.get("D" ~ line ~ "RD") %}
+                {{ (roster|selectattr("player_id","equalto",ld)|map(attribute="player.name")|first) or "-" }}
+                –
+                {{ (roster|selectattr("player_id","equalto",rd)|map(attribute="player.name")|first) or "-" }}
+            </p>
+        {% endfor %}
+
+        <h3>Brankáři</h3>
+        <p>
+            G1:
+            {% set g1 = assignments.get("G1") %}
+            {{ (roster|selectattr("player_id","equalto",g1)|map(attribute="player.name")|first) or "-" }}
+        </p>
+        <p>
+            G2:
+            {% set g2 = assignments.get("G2") %}
+            {{ (roster|selectattr("player_id","equalto",g2)|map(attribute="player.name")|first) or "-" }}
+        </p>
+
+        <hr>
+        <h2>Export sestavy do PDF</h2>
+        <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+            <label>Soupeř<br>
+                <input type="text" name="opponent" placeholder="Soupeř" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
+            </label>
+            <label>Datum<br>
+                <input type="date" name="date" value="{{ (namespace().today if false else '') }}" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
+            </label>
+            <button type="submit">📄 Exportovat PDF a uložit</button>
+            <a href="{{ url_for('lineup_sessions') }}"><button type="button">🗂 Seznam sestav</button></a>
+        </form>
+    </div>
+</div>
+
+<!-- Skript pro blokování hráče po výběru -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const selects = document.querySelectorAll("select");
+
+    function updateOptions() {
+        const selectedValues = Array.from(selects)
+            .map(s => s.value)
+            .filter(v => v !== "");
+
+        selects.forEach(select => {
+            Array.from(select.options).forEach(opt => {
+                if (opt.value === "") return;
+                if (selectedValues.includes(opt.value) && opt.value !== select.value) {
+                    opt.disabled = true;
+                } else {
+                    opt.disabled = false;
+                }
+            });
+        });
+    }
+
+    selects.forEach(select => {
+        select.addEventListener("change", updateOptions);
+    });
+
+    updateOptions();
+});
+</script>
+{% endblock %}

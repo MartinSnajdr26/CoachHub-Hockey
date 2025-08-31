@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Export dokončen{% endblock %}
+
+{% block content %}
+<h1>Export dokončen</h1>
+
+<p>
+  Soubor byl vytvořen: <b>{{ filename }}</b>
+</p>
+
+<p style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <a href="{{ file_url }}" download><button>⬇️ Stáhnout PDF</button></a>
+  <a href="{{ file_url }}" target="_blank"><button>👁 Otevřít</button></a>
+  <a href="https://api.whatsapp.com/send?text={{ ('Tréninky PDF: ' + abs_url) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz (WhatsApp)</button></a>
+  <button type="button" onclick="sharePdf('{{ abs_url }}','{{ filename }}')">📎 Sdílet soubor (pokud lze)</button>
+  <a href="{{ url_for('drills_select') }}"><button>↩️ Zpět na výběr</button></a>
+  <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
+  <span style="font-size:12px; opacity:0.8;">Pozn.: Sdílení funguje, pokud je aplikace dostupná externě.</span>
+</p>
+
+<iframe src="{{ file_url }}" style="width:100%; max-width:1000px; height:70vh; border:2px solid #d4c76f; border-radius:8px; background:#fff;"></iframe>
+
+<script>
+async function sharePdf(url, filename){
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const name = filename && filename.endsWith('.pdf') ? filename : (filename || 'trenink.pdf');
+    const file = new File([blob], name, { type: blob.type || 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name, text: name });
+      return;
+    }
+  } catch (e) {}
+  // Fallback: otevři WhatsApp s odkazem
+  const msg = encodeURIComponent('Tréninková jednotka: ' + (filename || '') + ' ' + url);
+  window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+}
+</script>
+
+{% endblock %}

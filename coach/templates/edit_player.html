@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Upravit hráče{% endblock %}
+
+{% block content %}
+<h1>Upravit hráče</h1>
+
+<form method="POST">
+    <p>
+        <label>Jméno:</label><br>
+        <input type="text" name="name" value="{{ player.name }}" required>
+    </p>
+    <p>
+        <label>Pozice:</label><br>
+        <select name="position" required>
+            <option value="F" {% if player.position == "F" %}selected{% endif %}>Útočník</option>
+            <option value="D" {% if player.position == "D" %}selected{% endif %}>Obránce</option>
+            <option value="G" {% if player.position == "G" %}selected{% endif %}>Brankář</option>
+        </select>
+    </p>
+    <button type="submit">💾 Uložit změny</button>
+    <a href="{{ url_for('players') }}">← Zpět na soupisku</a>
+</form>
+{% endblock %}

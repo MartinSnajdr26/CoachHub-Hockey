@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Seznam tréninkových jednotek{% endblock %}
+
+{% block content %}
+<h1>Seznam tréninkových jednotek</h1>
+
+<p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <a href="{{ url_for('drills_select') }}"><button>➕ Nový export</button></a>
+  <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
+  <span style="font-size:12px; opacity:0.8;">Staré neuložené exporty se mažou automaticky.</span>
+  </p>
+
+<div class="cards">
+  {% for s in sessions %}
+    <div class="card">
+      <h2>{{ s.title }}</h2>
+      <p><b>Vytvořeno:</b> {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      {% set abs = url_for('static', filename='exports/' ~ s.filename, _external=True) %}
+      <p>
+        <a href="{{ url_for('static', filename='exports/' ~ s.filename) }}" download><button>⬇️ Stáhnout PDF</button></a>
+        <a href="{{ url_for('static', filename='exports/' ~ s.filename) }}" target="_blank"><button>👁 Otevřít</button></a>
+        <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
+        <button type="button" onclick="sharePdf('{{ abs }}','{{ s.filename }}')">📎 Sdílet soubor</button>
+      </p>
+      {% set ids = (s.drill_ids or '') %}
+      {% set id_list = ids.split(',') if ids else [] %}
+      {% if id_list %}
+        <p><b>Obsahuje cvičení:</b></p>
+        <ul>
+        {% for sid in id_list %}
+          {% set did = sid|int if sid else None %}
+          {% set d = drills_by_id.get(did) %}
+          {% if d %}
+            <li><a href="{{ url_for('drill_detail', drill_id=d.id) }}">{{ d.name }}</a> <span style="opacity:0.7;">({{ d.category or '-' }})</span></li>
+          {% endif %}
+        {% endfor %}
+        </ul>
+      {% endif %}
+      <form method="post" action="{{ url_for('delete_drill_session', sess_id=s.id) }}" onsubmit="return confirm('Smazat záznam exportu? PDF bude odstraněno.');">
+        <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat</button>
+      </form>
+    </div>
+  {% else %}
+    <p><i>Zatím žádné exportované tréninkové jednotky</i></p>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+<script>
+async function sharePdf(url, filename){
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const name = filename && filename.endsWith('.pdf') ? filename : (filename || 'trenink.pdf');
+    const file = new File([blob], name, { type: blob.type || 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name, text: name });
+      return;
+    }
+  } catch (e) {}
+  const msg = encodeURIComponent('Tréninková jednotka: ' + (filename || '') + ' ' + url);
+  window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+}
+</script>

@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}Nové cvičení{% endblock %}
+
+{% block content %}
+<h1>Nové cvičení</h1>
+
+<form method="POST" action="{{ url_for('save_drill') }}">
+    <p><b>Název:</b> <input type="text" name="name" required></p>
+    <p><b>Kategorie:</b> <input type="text" name="category" required></p>
+    <p><b>Popis:</b><br><textarea name="description" rows="3" style="width:100%;"></textarea></p>
+    <p><b>Doba (min):</b> <input type="number" name="duration" min="1"></p>
+
+    <!-- 🎚 Slider na velikost rink canvasu -->
+    <p>
+        Velikost plochy:
+        <input type="range" id="canvasSize" min="600" max="2000" value="1400" step="50">
+    </p>
+
+    <!-- Toolbar + canvas -->
+    <div style="display:flex; gap:20px; align-items:flex-start;">
+        <div id="toolbar" style="display:flex; flex-direction:column; gap:8px;">
+            <button type="button" onclick="setTool('straight')">─ Pohyb bez puku</button>
+            <button type="button" onclick="setTool('curve')">〰 Pohyb volný</button>
+            <button type="button" onclick="setTool('wave')">≈ Pohyb s pukem</button>
+            <button type="button" onclick="setTool('zigzag')">^^^^ Jízda vzad</button>
+            <button type="button" onclick="setTool('double')">══ Střela</button>
+            <button type="button" onclick="setTool('dotted')">⋯⋯ Nahrávka</button>
+            <button type="button" onclick="setTool('puck')">⚫ Puk</button>
+            <button type="button" onclick="setTool('pucks')">⚫⚫ Zásoba puků</button>
+            <button type="button" onclick="setTool('cone')">🔺 Kužel</button>
+            <button type="button" onclick="setTool('circleF')">🔵 F</button>
+            <button type="button" onclick="setTool('circleD')">🔺 D</button>
+            <button type="button" onclick="setTool('circleG')">⚫ G</button>
+            <button type="button" onclick="setTool('triangle')">🔻 Trojúhelník</button>
+            <div style="margin-top:8px; font-size:14px;">
+                <style>
+                    .toggle-label { padding:6px 8px; border-radius:6px; background:#eee; color:#000; cursor:pointer; }
+                    .toggle-label.active { background:#3bb273; color:#fff; }
+                    .toggle-label.off { background:#c44747; color:#fff; }
+                    .pill { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; margin-top:6px; }
+                    .pill.on { background:#3bb273; color:#fff; }
+                    .pill.off { background:#c44747; color:#fff; }
+                </style>
+                <label id="lblPassSyncNext" class="toggle-label" style="display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="passSyncNext"> Sync po přihrávce (2 pohyby)
+                </label>
+                <div style="font-size:12px; opacity:0.8; color:#000;">Platí pro nástroje Nahrávka/Střela</div>
+                <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+                    <label id="lblSyncStart" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="syncStart"> Začít synchronizaci hráčů
+                    </label>
+                    <label id="lblSyncEnd" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="syncEnd"> Ukončit synchronizaci hráčů
+                    </label>
+                    <span id="syncStatus" class="pill off">Současně: vypnuto</span>
+                </div>
+                <div style="font-size:12px; opacity:0.8; color:#000;">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
+            </div>
+        </div>
+
+        <canvas id="board" style="border:2px solid #d4c76f; border-radius:8px; background:white;"></canvas>
+    </div>
+
+    <input type="hidden" name="image_data" id="image_data">
+    <input type="hidden" name="path_data" id="path_data">
+
+    <p style="margin-top:15px;">
+        <button type="button" onclick="clearCanvas()">🧹 Vymazat</button>
+        <button type="button" onclick="undo()">↩️ Zpět</button>
+        <button type="submit" onclick="saveImage()">💾 Uložit cvičení</button>
+    </p>
+</form>
+
+<p style="margin-top:20px;"><a href="{{ url_for('drills') }}">← Zpět na seznam cvičení</a></p>
+
+<script>
+let canvas = document.getElementById("board");
+let ctx = canvas.getContext("2d");
+let currentTool = "straight";
+let drawing = false;
+let startX, startY;
+let pathPoints = [];
+let history = [];
+let drawData = []; // pro uložení cesty
+let dataHistory = [];
+let syncActive = false; // běžící skupina hráčských tahů
+let syncCounter = 0;    // identifikátor skupiny
+
+let rink = new Image();
+rink.src = "/static/rink.png";
+rink.onload = () => { resizeCanvas(1400); saveState(); };
+
+document.getElementById("canvasSize").addEventListener("input", e => resizeCanvas(e.target.value));
+ 
+// Ovládání synchronizační skupiny
+document.addEventListener('DOMContentLoaded', ()=>{
+  const startChk = document.getElementById('syncStart');
+  const endChk = document.getElementById('syncEnd');
+  const lblStart = document.getElementById('lblSyncStart');
+  const lblEnd = document.getElementById('lblSyncEnd');
+  const pill = document.getElementById('syncStatus');
+  const passChk = document.getElementById('passSyncNext');
+  const lblPass = document.getElementById('lblPassSyncNext');
+
+  function updateSyncIndicators(){
+    if(syncActive){
+      lblStart.classList.add('active');
+      lblEnd.classList.remove('active');
+      lblStart.classList.remove('off');
+      lblEnd.classList.add('off');
+      pill.classList.remove('off');
+      pill.classList.add('on');
+      pill.textContent = 'Současně: zapnuto';
+    } else {
+      lblStart.classList.remove('active');
+      lblEnd.classList.add('active');
+      lblStart.classList.add('off');
+      lblEnd.classList.remove('off');
+      pill.classList.remove('on');
+      pill.classList.add('off');
+      pill.textContent = 'Současně: vypnuto';
+    }
+    if(passChk){
+      if(passChk.checked) lblPass.classList.add('active');
+      else lblPass.classList.remove('active');
+    }
+  }
+  updateSyncIndicators();
+  if(startChk){
+    startChk.addEventListener('change', ()=>{
+      if(startChk.checked){
+        if(!syncActive){ syncCounter += 1; syncActive = true; }
+        startChk.checked = false; // funguje jako tlačítko
+        updateSyncIndicators();
+      }
+    });
+  }
+  if(endChk){
+    endChk.addEventListener('change', ()=>{
+      if(endChk.checked){ syncActive = false; endChk.checked = false; updateSyncIndicators(); }
+    });
+  }
+  if(passChk){ passChk.addEventListener('change', updateSyncIndicators); }
+  // inicializuj prázdný log
+  try { renderSeqLog(); } catch(_) {}
+});
+
+
+function resizeCanvas(width) {
+    canvas.width = width;
+    canvas.height = (canvas.width / rink.width) * rink.height;
+    ctx.drawImage(rink, 0, 0, canvas.width, canvas.height);
+}
+
+function setTool(t) { currentTool = t; }
+function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(rink,0,0,canvas.width,canvas.height); drawData = []; saveState(); renderSeqLog(); }
+function saveState() {
+    history.push(canvas.toDataURL());
+    dataHistory.push(JSON.stringify(drawData));
+    if(history.length>30){ history.shift(); dataHistory.shift(); }
+}
+function undo() {
+    if(history.length>1){
+        history.pop();
+        dataHistory.pop();
+        const prevData = dataHistory.at(-1);
+        try { drawData = JSON.parse(prevData || '[]'); } catch(_) { drawData = []; }
+        let img=new Image();
+        img.src=history.at(-1);
+        img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);};
+        renderSeqLog();
+    }
+}
+function saveImage(){document.getElementById("image_data").value=canvas.toDataURL();document.getElementById("path_data").value=JSON.stringify(drawData);} 
+
+function getCanvasCoords(e){ if(e.touches){let t=e.touches[0];return [t.clientX-canvas.getBoundingClientRect().left,t.clientY-canvas.getBoundingClientRect().top];} else return [e.offsetX,e.offsetY]; }
+
+// Mouse
+canvas.addEventListener("mousedown",e=>{drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);});
+canvas.addEventListener("mousemove",e=>{
+    if(!drawing) return;
+    let [x,y] = getCanvasCoords(e);
+    if(["wave","zigzag"].includes(currentTool)){
+        // Původní chování: při kreslení vykresluj jednoduchou linku
+        pathPoints.push([x,y]);
+        ctx.lineTo(x,y);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    } else if(currentTool === "curve"){
+        // Free draw – sbírej body, vyhladíme až na konci
+        pathPoints.push([x,y]);
+    }
+});
+canvas.addEventListener("mouseup",e=>{if(!drawing)return;drawing=false;let[x,y]=getCanvasCoords(e);handleDrawingEnd(x,y);saveState();});
+
+// Touch
+canvas.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);});
+canvas.addEventListener("touchmove",e=>{e.preventDefault();if(!drawing)return;let[x,y]=getCanvasCoords(e);if(["wave","zigzag"].includes(currentTool)){pathPoints.push([x,y]);ctx.lineTo(x,y);ctx.strokeStyle="black";ctx.lineWidth=2;ctx.stroke();} else if(currentTool==="curve"){pathPoints.push([x,y]);}});
+canvas.addEventListener("touchend",e=>{e.preventDefault();if(!drawing)return;drawing=false;let[x,y]=pathPoints.at(-1);handleDrawingEnd(x,y);saveState();});
+
+// -------------------------------
+// Drawing logic + ukládání do drawData
+// -------------------------------
+function handleDrawingEnd(x,y){
+    const tol = Math.max(2, canvas.width * 0.003);
+    if(currentTool==="straight"){ ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.strokeStyle="black";ctx.lineWidth=2;ctx.stroke();drawArrowHead(startX,startY,x,y,"black"); const sg = syncActive ? syncCounter : null; const obj = {tool:"player_move",path:[[startX,startY],[x,y]]}; if(sg) obj.sync_group = sg; drawData.push(obj); }
+    else if(currentTool==="curve"&&pathPoints.length>1){
+        const sp = smoothAndSimplify(pathPoints, tol);
+        drawSmoothedLine(sp);
+        const [ax,ay] = sp[sp.length-2] || sp[0];
+        const [bx,by] = sp[sp.length-1];
+        drawArrowHead(ax,ay,bx,by,"black");
+        const syncGroup = syncActive ? syncCounter : null;
+        const obj = {tool:"player_move",path:sp};
+        if(syncGroup) obj.sync_group = syncGroup;
+        drawData.push(obj);
+    }
+    else if(currentTool==="wave"&&pathPoints.length>1){
+        // Původní chování: použij původní body bez vyhlazení
+        drawWavyLine(pathPoints,10,40);
+        let[sx,sy]=pathPoints.at(-2);
+        drawArrowHead(sx,sy,x,y,"black");
+        const syncGroup = syncActive ? syncCounter : null;
+        const obj = {tool:"player_move_puck",path:pathPoints};
+        if(syncGroup) obj.sync_group = syncGroup;
+        drawData.push(obj);
+    }
+    else if(currentTool==="zigzag"&&pathPoints.length>1){
+        // Původní chování: použij původní body bez vyhlazení
+        drawZigZagLine(pathPoints,10,40);
+        let[sx,sy]=pathPoints.at(-2);
+        drawArrowHead(sx,sy,x,y,"black");
+        const syncGroup = syncActive ? syncCounter : null;
+        const obj = {tool:"player_move",path:pathPoints};
+        if(syncGroup) obj.sync_group = syncGroup;
+        drawData.push(obj);
+    }
+    else if(currentTool==="double"){ctx.beginPath();ctx.arc(startX,startY,6,0,2*Math.PI);ctx.fill();ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",shot:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
+    else if(currentTool==="dotted"){ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();ctx.setLineDash([]);drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",pass:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
+    else if(currentTool==="puck"){ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"puck_static",x,y});}
+    else if(currentTool==="pucks"){ctx.fillStyle="black";for(let i=-1;i<=1;i++){for(let j=-1;j<=1;j++){if(i||j){ctx.beginPath();ctx.arc(x+i*12,y+j*12,5,0,2*Math.PI);ctx.fill();}}}ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"pucks_cluster",x,y});}
+    else if(currentTool==="cone"){ctx.fillStyle="orange";ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-10,y+20);ctx.lineTo(x+10,y+20);ctx.closePath();ctx.fill();drawData.push({tool:"cone",x,y});}
+    else if(currentTool.startsWith("circle")){
+        let label=(currentTool==="circleF")?"F":(currentTool==="circleD")?"D":"G";
+        if(currentTool==="circleD"){
+            // Obránce jako trojúhelník (červený)
+            ctx.fillStyle="red";
+            ctx.beginPath();
+            ctx.moveTo(x, y-18);
+            ctx.lineTo(x-18, y+18);
+            ctx.lineTo(x+18, y+18);
+            ctx.closePath();
+            ctx.fill();
+            // popisek D uprostřed
+            ctx.fillStyle="white";ctx.font="12px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("D",x,y+2);
+        } else {
+            // Útočník/Brankář jako kolečko (modré/černé)
+            ctx.beginPath();ctx.arc(x,y,18,0,2*Math.PI);
+            ctx.fillStyle=(currentTool==="circleF")?"blue":"black";
+            ctx.fill();
+            ctx.fillStyle="white";ctx.font="12px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(label,x,y);
+        }
+        drawData.push({tool:"player_icon",role:label,x,y});
+    }
+    else if(currentTool==="triangle"){ctx.fillStyle="purple";ctx.beginPath();ctx.moveTo(x,y-15);ctx.lineTo(x-15,y+15);ctx.lineTo(x+15,y+15);ctx.closePath();ctx.fill();drawData.push({tool:"triangle",x,y});}
+    renderSeqLog();
+}
+
+// Utility kreslení
+function drawArrowHead(x1,y1,x2,y2,color){let a=Math.atan2(y2-y1,x2-x1);ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-10*Math.cos(a-Math.PI/6),y2-10*Math.sin(a-Math.PI/6));ctx.lineTo(x2-10*Math.cos(a+Math.PI/6),y2-10*Math.sin(a+Math.PI/6));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function simplifyPath(points,tol){
+    if(points.length<=2) return points.slice();
+    const pts = points.map(p=>({x:p[0],y:p[1]}));
+    function distToSeg(p,a,b){
+        const A=p.x-a.x,B=p.y-a.y,C=b.x-a.x,D=b.y-a.y;
+        const dot=A*C+B*D,len=C*C+D*D; const t=Math.max(0,Math.min(1,len?dot/len:0));
+        const xx=a.x+t*C, yy=a.y+t*D; const dx=p.x-xx, dy=p.y-yy; return Math.hypot(dx,dy);
+    }
+    function rdp(arr, s, e, tol, out){
+        let maxD=0, idx=-1;
+        for(let i=s+1;i<e;i++){ const d=distToSeg(arr[i], arr[s], arr[e]); if(d>maxD){maxD=d;idx=i;} }
+        if(maxD>tol && idx>0){ rdp(arr,s,idx,tol,out); rdp(arr,idx,e,tol,out); }
+        else { out.push(arr[s]); }
+    }
+    const out=[]; rdp(pts,0,pts.length-1,tol,out); out.push(pts[pts.length-1]);
+    return out.map(p=>[p.x,p.y]);
+}
+function smoothAndSimplify(points,tol){
+    const simp = simplifyPath(points,tol);
+    // jemné vyhlazení klouzavým průměrem
+    const w=2; const res=[];
+    for(let i=0;i<simp.length;i++){
+        let sx=0, sy=0, c=0;
+        for(let k=-w;k<=w;k++){
+            const j=Math.min(simp.length-1, Math.max(0,i+k)); sx+=simp[j][0]; sy+=simp[j][1]; c++;
+        }
+        res.push([sx/c, sy/c]);
+    }
+    return res;
+}
+function drawSmoothedLine(points){
+    if(points.length<2) return;
+    ctx.beginPath();
+    ctx.strokeStyle="black"; ctx.lineWidth=2;
+    ctx.moveTo(points[0][0], points[0][1]);
+    for(let i=1;i<points.length-1;i++){
+        const xc=(points[i][0]+points[i+1][0])/2;
+        const yc=(points[i][1]+points[i+1][1])/2;
+        ctx.quadraticCurveTo(points[i][0], points[i][1], xc, yc);
+    }
+    ctx.lineTo(points[points.length-1][0], points[points.length-1][1]);
+    ctx.stroke();
+}
+function drawWavyLine(points,a,w){let r=resamplePath(points,5);ctx.beginPath();for(let i=1;i<r.length;i++){let[x1,y1]=r[i-1];let[x2,y2]=r[i];let ang=Math.atan2(y2-y1,x2-x1);let nx=-Math.sin(ang),ny=Math.cos(ang);let off=Math.sin((i*5)/w*2*Math.PI)*a;ctx.lineTo(x2+nx*off,y2+ny*off);}ctx.stroke();}
+function drawZigZagLine(points,a,w){let r=resamplePath(points,w);ctx.beginPath();for(let i=0;i<r.length;i++){let[x,y]=r[i];if(i===0)ctx.moveTo(x,y);else{let[px,py]=r[i-1];let ang=Math.atan2(y-py,x-px);let nx=-Math.sin(ang),ny=Math.cos(ang);let off=(i%2===0?a:-a);ctx.lineTo(x+nx*off,y+ny*off);}}ctx.stroke();}
+function resamplePath(points,step){let r=[points[0]],dist=0;for(let i=1;i<points.length;i++){let[x1,y1]=points[i-1];let[x2,y2]=points[i];let dx=x2-x1,dy=y2-y1;let len=Math.sqrt(dx*dx+dy*dy);let steps=Math.floor((dist+len)/step);for(let s=1;s<=steps;s++){let t=(s*step-dist)/len;if(t>=0&&t<=1)r.push([x1+dx*t,y1+dy*t]);}dist=(dist+len)%step;}return r;}
+
+function saveImage() {
+    document.getElementById("image_data").value = canvas.toDataURL();
+    document.getElementById("path_data").value = JSON.stringify(drawData);  // ✅ ukládáme animaci
+}
+
+// ----- Log sekvencí (současné skupiny) -----
+function renderSeqLog(){
+    let html = '';
+    let seqNum = 0;
+    let currentGroup = null; // {id, items:[]}
+    function labelOf(it){
+        if(it.tool === 'player_move_puck') return 'pohyb s pukem';
+        if(it.tool === 'player_move') return 'pohyb bez puku';
+        if(it.tool === 'puck') return it.shot ? 'střela' : 'nahrávka';
+        return it.tool;
+    }
+    function flushGroup(){
+        if(!currentGroup) return;
+        seqNum += 1;
+        const items = currentGroup.items.map(labelOf).join(', ');
+        html += `<div>sekvence ${seqNum}: ${items}</div>`;
+        currentGroup = null;
+    }
+    for(const it of drawData){
+        const sg = parseInt(it.sync_group||0,10)||0;
+        if(sg>0){
+            if(!currentGroup || currentGroup.id !== sg){ flushGroup(); currentGroup = {id: sg, items: []}; }
+            currentGroup.items.push(it);
+        } else {
+            flushGroup();
+            seqNum += 1;
+            html += `<div>sekvence ${seqNum}: ${labelOf(it)}</div>`;
+        }
+    }
+    flushGroup();
+    let logBox = document.getElementById('seqLog');
+    if(!logBox){
+        logBox = document.createElement('div');
+        logBox.id = 'seqLog';
+        logBox.style.marginTop = '10px';
+        logBox.style.padding = '8px';
+        logBox.style.border = '1px dashed #000';
+        logBox.style.background = '#f8f8f8';
+        logBox.style.color = '#000';
+        canvas.parentElement.appendChild(logBox);
+    }
+    logBox.innerHTML = `<b>Log sekvencí:</b><div style="margin-top:6px; font-size:14px;">${html || '—'}</div>`;
+}
+
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Coach Manager – Domů{% endblock %}
+
+{% block content %}
+<h1>Vítej v Coach Manageru</h1>
+<p>Vyber si sekci z horní navigace nebo klikni na kartu:</p>
+
+<div class="cards">
+    <div class="card">
+        <h2>👥 Hráči</h2>
+        <p>Správa kádru, přidávání a mazání hráčů.</p>
+        <a href="/players"><button>Otevřít</button></a>
+    </div>
+    <div class="card">
+        <h2>📋 Soupiska</h2>
+        <p>Vyber nominaci na zápas a připrav soupisku.</p>
+        <a href="/roster"><button>Otevřít</button></a>
+    </div>
+    <div class="card">
+        <h2>🏒 Lajny</h2>
+        <p>Rozděl hráče do lajn a sestav útoky i obrany.</p>
+        <a href="/lines"><button>Otevřít</button></a>
+    </div>
+    <div class="card">
+        <h2>📝 Tréninky</h2>
+        <p>Vytvářej a ukládej cvičení, plánuj tréninky.</p>
+        <a href="/drills"><button>Otevřít</button></a>
+    </div>
+</div>
+{% endblock %}

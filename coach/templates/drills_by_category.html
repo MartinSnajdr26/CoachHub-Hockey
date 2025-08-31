@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ category }} – Tréninky{% endblock %}
+
+{% block content %}
+<h1>Kategorie: {{ category }}</h1>
+
+<!-- 🔎 Search bar -->
+<form method="get" style="margin-bottom:20px;">
+    <input type="text" name="q" value="{{ query }}" placeholder="Hledat cvičení..." 
+           style="padding:5px 10px; width:300px; border-radius:6px; border:1px solid #ccc;">
+    <button type="submit">🔍 Hledat</button>
+</form>
+
+<div class="cards">
+    {% for drill in drills %}
+        <div class="card">
+            <h2>{{ drill.name }}</h2>
+            <p><b>Doba:</b> {{ drill.duration or 0 }} min</p>
+
+            {% if drill.image_data %}
+                <img src="{{ drill.image_data }}" style="max-width:100%; border:2px solid #d4c76f; border-radius:8px; margin:10px 0;">
+            {% endif %}
+
+            <p><a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><button>👁 Otevřít detail</button></a></p>
+
+            <form action="{{ url_for('delete_drill', drill_id=drill.id) }}" method="POST" style="margin-top:10px;">
+                <button type="submit" onclick="return confirm('Opravdu smazat {{ drill.name }}?')">🗑 Smazat</button>
+            </form>
+        </div>
+    {% else %}
+        <p><i>Zatím žádná cvičení v této kategorii</i></p>
+    {% endfor %}
+</div>
+
+<p style="margin-top:20px;">
+    <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
+</p>
+{% endblock %}

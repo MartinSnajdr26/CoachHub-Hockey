@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Tréninky – Kategorie{% endblock %}
+
+{% block content %}
+<h1>Seznam kategorií tréninků</h1>
+
+<div class="cards">
+    {% for cat in categories %}
+        <div class="card">
+            <h2>{{ cat }}</h2>
+            <p>
+                <a href="{{ url_for('drills_by_category', category=cat) }}">
+                    <button>📂 Otevřít kategorii</button>
+                </a>
+            </p>
+        </div>
+    {% else %}
+        <p><i>Zatím žádné kategorie</i></p>
+    {% endfor %}
+</div>
+
+<p style="margin-top:20px;">
+    <a href="{{ url_for('new_drill') }}"><button>➕ Vytvořit nový trénink</button></a>
+</p>
+
+<p style="margin-top:20px;">
+    <a href="/">← Zpět na hlavní stránku</a>
+</p>
+{% endblock %}

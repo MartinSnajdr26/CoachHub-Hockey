@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Vybrat tréninky k exportu{% endblock %}
+
+{% block content %}
+<h1>Vybrat tréninky k exportu (PDF)</h1>
+
+<form method="get" style="margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+  <input type="text" name="q" value="{{ query }}" placeholder="Hledat podle názvu, popisu, kategorie" style="padding:6px 10px; width:320px; border-radius:6px; border:1px solid #ccc;">
+  <button type="submit">🔍 Hledat</button>
+  <a href="{{ url_for('drills_select') }}"><button type="button">✖️ Vyčistit</button></a>
+  <a href="{{ url_for('drills') }}" style="margin-left:auto;">← Zpět na kategorie</a>
+  <a href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>
+  </form>
+
+<form method="post" action="{{ url_for('export_drills_pdf') }}" id="exportForm">
+  <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <label>
+      Název exportu:
+      <input type="text" name="session_title" value="{{ default_title }}" placeholder="Tréninková jednotka YYYY-MM-DD" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; min-width:280px;">
+    </label>
+  </div>
+  <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <button type="submit">📄 Vytvořit PDF</button>
+    <button type="button" onclick="toggleAll(true)">☑️ Zaškrtnout vše</button>
+    <button type="button" onclick="toggleAll(false)">⬜ Odškrtnout vše</button>
+    <span id="selCount" style="font-size:14px; opacity:0.8;">0 vybráno</span>
+  </div>
+
+  <div class="cards">
+    {% for d in drills %}
+      <div class="card" style="position:relative;">
+        <label style="position:absolute; top:10px; right:10px; background:#d4c76f; color:#000; padding:4px 8px; border-radius:6px; cursor:pointer;">
+          <input type="checkbox" name="drill_ids" value="{{ d.id }}" onchange="updateCount()"> Vybrat
+        </label>
+        <h2>{{ d.name }}</h2>
+        <p><b>Kategorie:</b> {{ d.category or '-' }} | <b>Čas:</b> {{ d.duration or 0 }} min</p>
+        {% if d.image_data %}
+          <img src="{{ d.image_data }}" style="max-width:100%; border:2px solid #d4c76f; border-radius:8px; margin:10px 0;">
+        {% else %}
+          <p><i>Bez náhledu</i></p>
+        {% endif %}
+      </div>
+    {% else %}
+      <p><i>Žádné cvičení nenalezeno</i></p>
+    {% endfor %}
+  </div>
+  <div style="margin-top:12px;">
+    <button type="submit">📄 Vytvořit PDF</button>
+  </div>
+</form>
+
+<script>
+  function toggleAll(state){
+    document.querySelectorAll('input[name="drill_ids"]').forEach(cb=>{ cb.checked = !!state; });
+    updateCount();
+  }
+  function updateCount(){
+    const n = Array.from(document.querySelectorAll('input[name="drill_ids"]')).filter(cb=>cb.checked).length;
+    const el = document.getElementById('selCount');
+    if(el) el.textContent = n + ' vybráno';
+  }
+  document.addEventListener('DOMContentLoaded', updateCount);
+</script>
+{% endblock %}

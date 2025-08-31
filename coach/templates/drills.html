@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Seznam tréninků{% endblock %}
+
+{% block content %}
+<h1>Seznam tréninků</h1>
+
+<p><a href="{{ url_for('new_drill') }}"><button>➕ Vytvořit nový trénink</button></a></p>
+
+<div class="cards">
+    {% for drill in drills %}
+    <div class="card">
+        <h2>{{ drill.name }}</h2>
+        <p><b>Kategorie:</b> {{ drill.category or "-" }}</p>
+        <p><b>Doba:</b> {{ drill.duration or 0 }} min</p>
+
+        {% if drill.image_data %}
+            <img src="{{ drill.image_data }}" style="max-width:100%; border:2px solid #d4c76f; border-radius:8px; margin:10px 0;">
+        {% endif %}
+
+        <p>
+            <a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><button>👁 Otevřít detail</button></a>
+        </p>
+        <form action="{{ url_for('delete_drill', drill_id=drill.id) }}" method="POST" style="margin-top:10px;">
+            <button type="submit" onclick="return confirm('Opravdu smazat {{ drill.name }}?')">🗑 Smazat</button>
+        </form>
+    </div>
+    {% else %}
+    <p><i>Zatím žádná cvičení</i></p>
+    {% endfor %}
+</div>
+
+<p style="margin-top:20px;">
+    <a href="/">← Zpět na hlavní stránku</a>
+</p>
+{% endblock %}

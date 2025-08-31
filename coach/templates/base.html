@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}HC SMÍCHOV 1913 – Coach Manager{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Černý vršek s logem -->
+    <header class="header-top">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo klubu">
+            <h1>HC SMÍCHOV 1913 – COACH MANAGER</h1>
+        </div>
+        <a href="{{ url_for('home') }}" class="app-top-right-logo-link" aria-label="Domů">
+            <img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo" class="app-top-right-logo">
+        </a>
+    </header>
+
+    <!-- Bílý pruh s navigací -->
+    <div class="header-bottom">
+  <nav>
+    <ul class="nav-left">
+      <li><a href="{{ url_for('home') }}">🏠 Domů</a></li>
+      <li><a href="{{ url_for('players') }}">👥 Hráči</a></li>
+      <li><a href="{{ url_for('roster') }}">📋 Soupiska</a></li>
+      <li class="dropdown">
+        <a href="{{ url_for('lines') }}">🔀 Lajny</a>
+        <div class="dropdown-menu">
+          <a href="{{ url_for('lines') }}">⚙️ Nastavit lajny</a>
+          <a href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
+        </div>
+      </li>
+      <li class="dropdown">
+        <a href="{{ url_for('drills') }}">🏒 Tréninky</a>
+        <div class="dropdown-menu">
+          <a href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>
+          <a href="{{ url_for('drills') }}">📂 Kategorie</a>
+          <a href="{{ url_for('drills_select') }}">📄 Export vybraná cvičení</a>
+          <a href="{{ url_for('drill_sessions') }}">🗂 Seznam tréninků</a>
+          {% if nav_drill_categories %}
+            <div class="dropdown-sep"></div>
+            {% for cat in nav_drill_categories %}
+              <a href="{{ url_for('drills_by_category', category=cat) }}"># {{ cat }}</a>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </li>
+    </ul>
+
+    <ul class="nav-right">
+      <li><a href="https://app.tymuj.cz/" target="_blank">📅 Týmuj</a></li>
+      <li><a href="https://www.instagram.com/hc_smichov_1913/" target="_blank">📸 Instagram</a></li>
+      <li><a href="https://hcsmichov.cz/team?TeamID=muzi" target="_blank">🌐 HC Smíchov</a></li>
+    </ul>
+  </nav>
+</div>
+
+    <!-- Zlatý obsah -->
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+</body>
+</html>

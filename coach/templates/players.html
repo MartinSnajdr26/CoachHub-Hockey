@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Soupiska hráčů{% endblock %}
+
+{% block content %}
+<h1>Soupiska hráčů</h1>
+
+<!-- Formulář pro přidání hráče -->
+<form action="{{ url_for('add_player') }}" method="POST" style="margin-bottom:20px;">
+    <input type="text" name="name" placeholder="Jméno hráče" required>
+    <select name="position" required>
+        <option value="">Pozice</option>
+        <option value="F">Útočník</option>
+        <option value="D">Obránce</option>
+        <option value="G">Brankář</option>
+    </select>
+    <button type="submit">➕ Přidat hráče</button>
+</form>
+
+<div class="players-grid">
+    <!-- Útočníci -->
+    <div>
+        <h2>Útočníci</h2>
+        <ul>
+        {% for p in players if p.position == "F" %}
+            <li>
+                {{ p.name }}
+                <!-- Úprava -->
+                <a href="{{ url_for('edit_player', player_id=p.id) }}" title="Upravit">✏️</a>
+                <!-- Mazání -->
+                <form action="{{ url_for('delete_player', player_id=p.id) }}" method="POST" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Opravdu smazat hráče {{ p.name }}?')" title="Smazat">❌</button>
+                </form>
+            </li>
+        {% else %}
+            <li><i>Žádní útočníci</i></li>
+        {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Obránci -->
+    <div>
+        <h2>Obránci</h2>
+        <ul>
+        {% for p in players if p.position == "D" %}
+            <li>
+                {{ p.name }}
+                <a href="{{ url_for('edit_player', player_id=p.id) }}" title="Upravit">✏️</a>
+                <form action="{{ url_for('delete_player', player_id=p.id) }}" method="POST" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Opravdu smazat hráče {{ p.name }}?')" title="Smazat">❌</button>
+                </form>
+            </li>
+        {% else %}
+            <li><i>Žádní obránci</i></li>
+        {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Brankáři -->
+    <div>
+        <h2>Brankáři</h2>
+        <ul>
+        {% for p in players if p.position == "G" %}
+            <li>
+                {{ p.name }}
+                <a href="{{ url_for('edit_player', player_id=p.id) }}" title="Upravit">✏️</a>
+                <form action="{{ url_for('delete_player', player_id=p.id) }}" method="POST" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Opravdu smazat hráče {{ p.name }}?')" title="Smazat">❌</button>
+                </form>
+            </li>
+        {% else %}
+            <li><i>Žádní gólmani</i></li>
+        {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

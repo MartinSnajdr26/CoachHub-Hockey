@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Nominace na zápas{% endblock %}
+
+{% block content %}
+<h1>Nominace na zápas</h1>
+
+<form method="POST">
+    <div class="players-grid">
+        <!-- Útočníci -->
+        <div>
+            <h2>Útočníci</h2>
+            <ul>
+            {% for p in players if p.position == "F" %}
+                <li>
+                    <input type="checkbox" name="players" value="{{ p.id }}"
+                        {% if p.id in roster_ids %}checked{% endif %}>
+                    {{ p.name }}
+                </li>
+            {% else %}
+                <li><i>Žádní útočníci</i></li>
+            {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Obránci -->
+        <div>
+            <h2>Obránci</h2>
+            <ul>
+            {% for p in players if p.position == "D" %}
+                <li>
+                    <input type="checkbox" name="players" value="{{ p.id }}"
+                        {% if p.id in roster_ids %}checked{% endif %}>
+                    {{ p.name }}
+                </li>
+            {% else %}
+                <li><i>Žádní obránci</i></li>
+            {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Brankáři -->
+        <div>
+            <h2>Brankáři</h2>
+            <ul>
+            {% for p in players if p.position == "G" %}
+                <li>
+                    <input type="checkbox" name="players" value="{{ p.id }}"
+                        {% if p.id in roster_ids %}checked{% endif %}>
+                    {{ p.name }}
+                </li>
+            {% else %}
+                <li><i>Žádní gólmani</i></li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <button type="submit" style="margin-top:15px;">💾 Uložit soupisku</button>
+</form>
+
+<hr>
+
+<h2>Aktuální nominace</h2>
+<ul>
+{% for r in roster %}
+    <li>
+        {{ r.player.name }} ({{ r.player.position }})
+        <!-- ✏ edit zatím jen placeholder -->
+        <a href="#" title="Upravit">✏</a>
+
+        <!-- ❌ smaže hráče ze soupisky -->
+        <form action="{{ url_for('delete_from_roster', roster_id=r.id) }}" method="POST" style="display:inline;">
+            <button type="submit" title="Odebrat">❌</button>
+        </form>
+    </li>
+{% else %}
+    <li><i>Zatím žádní hráči v soupisce</i></li>
+{% endfor %}
+</ul>
+{% endblock %}
