@@ -13,6 +13,7 @@
   </form>
 
 <form method="post" action="{{ url_for('export_drills_pdf') }}" id="exportForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <label>
       Název exportu:
@@ -20,9 +21,13 @@
     </label>
   </div>
   <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <button type="submit">📄 Vytvořit PDF</button>
-    <button type="button" onclick="toggleAll(true)">☑️ Zaškrtnout vše</button>
-    <button type="button" onclick="toggleAll(false)">⬜ Odškrtnout vše</button>
+    {% if current_user.is_authenticated and current_user.role == 'coach' %}
+      <button type="submit">📄 Vytvořit PDF</button>
+    {% else %}
+      <button type="button" disabled title="Pouze trenér může exportovat">📄 Vytvořit PDF</button>
+    {% endif %}
+    <button type="button" class="btn-toggle-all" data-state="true">☑️ Zaškrtnout vše</button>
+    <button type="button" class="btn-toggle-all" data-state="false">⬜ Odškrtnout vše</button>
     <span id="selCount" style="font-size:14px; opacity:0.8;">0 vybráno</span>
   </div>
 
@@ -30,7 +35,7 @@
     {% for d in drills %}
       <div class="card" style="position:relative;">
         <label style="position:absolute; top:10px; right:10px; background:#d4c76f; color:#000; padding:4px 8px; border-radius:6px; cursor:pointer;">
-          <input type="checkbox" name="drill_ids" value="{{ d.id }}" onchange="updateCount()"> Vybrat
+          <input type="checkbox" name="drill_ids" value="{{ d.id }}"> Vybrat
         </label>
         <h2>{{ d.name }}</h2>
         <p><b>Kategorie:</b> {{ d.category or '-' }} | <b>Čas:</b> {{ d.duration or 0 }} min</p>
@@ -45,20 +50,13 @@
     {% endfor %}
   </div>
   <div style="margin-top:12px;">
-    <button type="submit">📄 Vytvořit PDF</button>
+    {% if current_user.is_authenticated and current_user.role == 'coach' %}
+      <button type="submit">📄 Vytvořit PDF</button>
+    {% else %}
+      <button type="button" disabled title="Pouze trenér může exportovat">📄 Vytvořit PDF</button>
+    {% endif %}
   </div>
 </form>
 
-<script>
-  function toggleAll(state){
-    document.querySelectorAll('input[name="drill_ids"]').forEach(cb=>{ cb.checked = !!state; });
-    updateCount();
-  }
-  function updateCount(){
-    const n = Array.from(document.querySelectorAll('input[name="drill_ids"]')).filter(cb=>cb.checked).length;
-    const el = document.getElementById('selCount');
-    if(el) el.textContent = n + ' vybráno';
-  }
-  document.addEventListener('DOMContentLoaded', updateCount);
-</script>
+{# moved to static/app.js #}
 {% endblock %}

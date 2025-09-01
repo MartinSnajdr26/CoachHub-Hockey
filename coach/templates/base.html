@@ -2,18 +2,26 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}HC SMÍCHOV 1913 – Coach Manager{% endblock %}</title>
+    <title>{% block title %}{{ brand.team_name or 'CoachHub' }} – Coach Manager{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }};">
 
     <!-- Černý vršek s logem -->
     <header class="header-top">
         <div class="logo">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo klubu">
-            <h1>HC SMÍCHOV 1913 – COACH MANAGER</h1>
+            <img src="{{ brand.logo_url or url_for('static', filename='logo.png') }}" alt="Logo klubu">
+            <h1>{{ brand.team_name or 'CoachHub' }} – COACH MANAGER</h1>
         </div>
+        {% if current_user.is_authenticated %}
+        <div class="header-user">
+            <div class="welcome-left">
+                <span>Vítej, {{ current_user.username or current_user.email }}</span>
+                
+            </div>
+        </div>
+        {% endif %}
         <a href="{{ url_for('home') }}" class="app-top-right-logo-link" aria-label="Domů">
             <img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo" class="app-top-right-logo">
         </a>
@@ -23,46 +31,76 @@
     <div class="header-bottom">
   <nav>
     <ul class="nav-left">
-      <li><a href="{{ url_for('home') }}">🏠 Domů</a></li>
-      <li><a href="{{ url_for('players') }}">👥 Hráči</a></li>
-      <li><a href="{{ url_for('roster') }}">📋 Soupiska</a></li>
-      <li class="dropdown">
-        <a href="{{ url_for('lines') }}">🔀 Lajny</a>
-        <div class="dropdown-menu">
-          <a href="{{ url_for('lines') }}">⚙️ Nastavit lajny</a>
-          <a href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
-        </div>
-      </li>
-      <li class="dropdown">
-        <a href="{{ url_for('drills') }}">🏒 Tréninky</a>
-        <div class="dropdown-menu">
-          <a href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>
-          <a href="{{ url_for('drills') }}">📂 Kategorie</a>
-          <a href="{{ url_for('drills_select') }}">📄 Export vybraná cvičení</a>
-          <a href="{{ url_for('drill_sessions') }}">🗂 Seznam tréninků</a>
-          {% if nav_drill_categories %}
-            <div class="dropdown-sep"></div>
-            {% for cat in nav_drill_categories %}
-              <a href="{{ url_for('drills_by_category', category=cat) }}"># {{ cat }}</a>
-            {% endfor %}
-          {% endif %}
-        </div>
-      </li>
+      {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('home') }}">🏠 Domů</a></li>
+        <li><a href="{{ url_for('players') }}">👥 Hráči</a></li>
+        <li><a href="{{ url_for('roster') }}">📋 Soupiska</a></li>
+        <li class="dropdown">
+          <a href="{{ url_for('lines') }}">🔀 Lajny</a>
+          <div class="dropdown-menu">
+            <a href="{{ url_for('lines') }}">⚙️ Nastavit lajny</a>
+            <a href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
+          </div>
+        </li>
+        <li class="dropdown">
+          <a href="{{ url_for('drills') }}">🏒 Tréninky</a>
+          <div class="dropdown-menu">
+            <a href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>
+            <a href="{{ url_for('drills') }}">📂 Kategorie</a>
+            <a href="{{ url_for('drills_select') }}">📄 Export vybraná cvičení</a>
+            <a href="{{ url_for('drill_sessions') }}">🗂 Seznam tréninků</a>
+            {% if nav_drill_categories %}
+              <div class="dropdown-sep"></div>
+              {% for cat in nav_drill_categories %}
+                <a href="{{ url_for('drills_by_category', category=cat) }}"># {{ cat }}</a>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </li>
+      {% else %}
+        <li><span class="nav-disabled">🏠 Domů</span></li>
+        <li><span class="nav-disabled">👥 Hráči</span></li>
+        <li><span class="nav-disabled">📋 Soupiska</span></li>
+        <li><span class="nav-disabled">🔀 Lajny</span></li>
+        <li><span class="nav-disabled">🏒 Tréninky</span></li>
+      {% endif %}
     </ul>
 
     <ul class="nav-right">
-      <li><a href="https://app.tymuj.cz/" target="_blank">📅 Týmuj</a></li>
-      <li><a href="https://www.instagram.com/hc_smichov_1913/" target="_blank">📸 Instagram</a></li>
-      <li><a href="https://hcsmichov.cz/team?TeamID=muzi" target="_blank">🌐 HC Smíchov</a></li>
+      {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('settings') }}">⚙️ Nastavení</a></li>
+        {% if current_user.is_team_admin %}
+          <li><a href="{{ url_for('audit_log') }}">🧾 Audit log</a></li>
+        {% endif %}
+      {% endif %}
+      {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('logout') }}">🚪 Odhlásit</a></li>
+      {% else %}
+        <li><a href="{{ url_for('auth') }}">🔐 Přihlásit</a></li>
+      {% endif %}
     </ul>
   </nav>
 </div>
 
     <!-- Zlatý obsah -->
     <main>
+        {% with msgs = get_flashed_messages(with_categories=true) %}
+          {% if msgs %}
+            <div style="margin:10px 0;">
+              {% for cat, m in msgs %}
+                <div style="padding:10px 14px; border-radius:8px; margin-bottom:6px; background: {{ 'rgba(196,71,71,0.2)' if cat=='error' else 'rgba(0,0,0,0.2)' }}; border:2px solid {{ '#c44747' if cat=='error' else '#000' }}; color:#000;">
+                  {{ m }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
         {% block content %}
         {% endblock %}
     </main>
+
+    {% block scripts %}{% endblock %}
+    <script src="{{ url_for('static', filename='app.js') }}" nonce="{{ csp_nonce }}"></script>
 
 </body>
 </html>

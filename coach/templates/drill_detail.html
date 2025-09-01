@@ -11,9 +11,9 @@
 <canvas id="board" style="border:2px solid #d4c76f; border-radius:8px; background:white;"></canvas>
 
 <p style="margin-top:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <button onclick="playAnimation()">▶️ Přehrát</button>
-    <button onclick="pauseAnimation()">⏸ Pauza</button>
-    <button onclick="stopAnimation()">⏹ Stop</button>
+    <button type="button" class="btn-anim" data-action="play">▶️ Přehrát</button>
+    <button type="button" class="btn-anim" data-action="pause">⏸ Pauza</button>
+    <button type="button" class="btn-anim" data-action="stop">⏹ Stop</button>
     <label style="margin-left:10px;">
         Režim:
         <select id="animMode">
@@ -41,14 +41,17 @@
         <input type="checkbox" id="showAnchors" checked>
         Kotvy
     </label>
-    <button onclick="restartAndPlay()">⟲ Restart + Přehrát</button>
+    <button type="button" class="btn-anim" data-action="restart">⟲ Restart + Přehrát</button>
 </p>
 
+{% if current_user.is_authenticated and current_user.role == 'coach' %}
 <form method="POST" action="{{ url_for('delete_drill', drill_id=drill.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" style="color:red;">🗑 Smazat cvičení</button>
 </form>
+{% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
     const canvas = document.getElementById("board");
     const ctx = canvas.getContext("2d");
     const rink = new Image();

@@ -9,7 +9,7 @@ body {
 
 /* ====== Hlavička ====== */
 .header-top {
-    background-color: #000;
+    background-color: var(--brand-secondary, #000);
     color: #d4c76f;
     padding: 15px 20px;
     display: flex;
@@ -32,13 +32,21 @@ body {
     margin: 0;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: #d4c76f;
+    color: var(--brand-primary, #d4c76f);
 }
+
+/* Welcome block in header, aligned left */
+.header-user { width: 100%; margin-top: 6px; }
+.header-user .welcome-left { display: flex; align-items: center; gap: 10px; }
+.header-user .welcome-left span { color: #fff; font-weight: 700; }
+
 /* ====== Spodní pruh s navigací ====== */
 .header-bottom {
-    background: #d4c76f;           /* celé pozadí pruhu zlaté */
+    background: var(--brand-primary, #d4c76f);           /* celé pozadí pruhu zlaté */
     border-top: 3px solid #000;    /* tenká černá linka nahoře */
     border-bottom: 3px solid #000; /* tenká černá linka dole */
+  position: relative;
+  z-index: 5; /* nad plovoucím logem vpravo nahoře */
 }
 
 .header-bottom nav {
@@ -67,12 +75,22 @@ body {
 }
 
 .header-bottom a:hover {
-    background: #000;     /* při hoveru černé pozadí */
+    background: var(--brand-secondary, #000);     /* při hoveru sekundární barva */
     color: #d4c76f;       /* a zlatý text */
 }
 
+/* Disabled nav items when logged out */
+.nav-disabled {
+    color: #444;
+    opacity: 0.6;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: not-allowed;
+    font-weight: 700;
+}
+
 /* App logo vpravo nahoře */
-.app-top-right-logo-link { position:absolute; right:20px; top:15px; display:block; }
+.app-top-right-logo-link { position:absolute; right:20px; top:15px; display:block; z-index:1; }
 .app-top-right-logo { height: 240px; width: auto; border: none; background: transparent; }
 @media (max-width: 600px){
   .app-top-right-logo { height: 168px; }
@@ -112,7 +130,7 @@ body {
 /* ====== Hlavní obsah (teď zlaté pozadí místo bílé) ====== */
 main {
     padding: 30px;
-    background-color: #d4c76f;  /* zlaté pozadí */
+    background-color: var(--brand-primary, #d4c76f);  /* zlaté pozadí */
     color: #000;                /* černý text pro kontrast */
 }
 
@@ -127,7 +145,7 @@ a:hover {
 
 /* ====== Tlačítka ====== */
 button {
-    background: #d4c76f;
+    background: var(--brand-primary, #d4c76f);
     color: #000;
     font-weight: bold;
     border: none;
@@ -158,13 +176,13 @@ li {
 }
 
 .card {
-    background: #111;
-    border: 2px solid #d4c76f;
+    background: var(--brand-secondary, #111);
+    border: 2px solid var(--brand-primary, #d4c76f);
     border-radius: 12px;
     padding: 25px;
     text-align: center;
     transition: transform 0.2s, background 0.3s;
-    color: #d4c76f;
+    color: var(--brand-primary, #d4c76f);
 }
 
 .card:hover {
@@ -173,12 +191,12 @@ li {
 }
 
 .card h2 {
-    color: #d4c76f;
+    color: var(--brand-primary, #d4c76f);
     margin-bottom: 10px;
 }
 
 .card p {
-    color: #d4c76f;
+    color: var(--brand-primary, #d4c76f);
 }
 
 /* ====== Layout pro lajny ====== */
@@ -189,18 +207,18 @@ li {
     margin-top: 20px;
 }
 .lines-form, .lines-preview {
-    background: #111;
+    background: var(--brand-secondary, #111);
     padding: 20px;
-    border: 2px solid #d4c76f;
+    border: 2px solid var(--brand-primary, #d4c76f);
     border-radius: 10px;
-    color: #d4c76f;  /* celý text uvnitř zlatý */
+    color: var(--brand-primary, #d4c76f);  /* celý text uvnitř zlatý */
 }
 
 .lines-form label,
 .lines-preview p,
 .lines-preview h2,
 .lines-preview h3 {
-    color: #d4c76f; /* explicitně pro jistotu */
+    color: var(--brand-primary, #d4c76f); /* explicitně pro jistotu */
 }
 
 /* ====== Tři sloupce pro hráče ====== */
@@ -211,18 +229,18 @@ li {
     margin-top: 20px;
 }
 .players-grid h2 {
-    color: #d4c76f;
-    border-bottom: 2px solid #d4c76f;
+    color: var(--brand-primary, #d4c76f);
+    border-bottom: 2px solid var(--brand-primary, #d4c76f);
     padding-bottom: 5px;
     margin-bottom: 10px;
 }
 /* ====== Detail cvičení ====== */
 .drill-detail {
-    background: #111;
-    border: 2px solid #d4c76f;
+    background: var(--brand-secondary, #111);
+    border: 2px solid var(--brand-primary, #d4c76f);
     border-radius: 10px;
     padding: 20px;
-    color: #d4c76f;
+    color: var(--brand-primary, #d4c76f);
     max-width: 1000px;
 }
 
@@ -246,7 +264,7 @@ li {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: #111;
+    background: var(--brand-secondary, #111);
     padding: 10px;
     border: 2px solid #d4c76f;
     border-radius: 8px;

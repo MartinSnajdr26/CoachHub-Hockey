@@ -4,7 +4,8 @@
 {% block content %}
 <h1>Nové cvičení</h1>
 
-<form method="POST" action="{{ url_for('save_drill') }}">
+<form id="newDrillForm" method="POST" action="{{ url_for('save_drill') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p><b>Název:</b> <input type="text" name="name" required></p>
     <p><b>Kategorie:</b> <input type="text" name="category" required></p>
     <p><b>Popis:</b><br><textarea name="description" rows="3" style="width:100%;"></textarea></p>
@@ -19,19 +20,19 @@
     <!-- Toolbar + canvas -->
     <div style="display:flex; gap:20px; align-items:flex-start;">
         <div id="toolbar" style="display:flex; flex-direction:column; gap:8px;">
-            <button type="button" onclick="setTool('straight')">─ Pohyb bez puku</button>
-            <button type="button" onclick="setTool('curve')">〰 Pohyb volný</button>
-            <button type="button" onclick="setTool('wave')">≈ Pohyb s pukem</button>
-            <button type="button" onclick="setTool('zigzag')">^^^^ Jízda vzad</button>
-            <button type="button" onclick="setTool('double')">══ Střela</button>
-            <button type="button" onclick="setTool('dotted')">⋯⋯ Nahrávka</button>
-            <button type="button" onclick="setTool('puck')">⚫ Puk</button>
-            <button type="button" onclick="setTool('pucks')">⚫⚫ Zásoba puků</button>
-            <button type="button" onclick="setTool('cone')">🔺 Kužel</button>
-            <button type="button" onclick="setTool('circleF')">🔵 F</button>
-            <button type="button" onclick="setTool('circleD')">🔺 D</button>
-            <button type="button" onclick="setTool('circleG')">⚫ G</button>
-            <button type="button" onclick="setTool('triangle')">🔻 Trojúhelník</button>
+            <button type="button" class="btn-tool" data-tool="straight">─ Pohyb bez puku</button>
+            <button type="button" class="btn-tool" data-tool="curve">〰 Pohyb volný</button>
+            <button type="button" class="btn-tool" data-tool="wave">≈ Pohyb s pukem</button>
+            <button type="button" class="btn-tool" data-tool="zigzag">^^^^ Jízda vzad</button>
+            <button type="button" class="btn-tool" data-tool="double">══ Střela</button>
+            <button type="button" class="btn-tool" data-tool="dotted">⋯⋯ Nahrávka</button>
+            <button type="button" class="btn-tool" data-tool="puck">⚫ Puk</button>
+            <button type="button" class="btn-tool" data-tool="pucks">⚫⚫ Zásoba puků</button>
+            <button type="button" class="btn-tool" data-tool="cone">🔺 Kužel</button>
+            <button type="button" class="btn-tool" data-tool="circleF">🔵 F</button>
+            <button type="button" class="btn-tool" data-tool="circleD">🔺 D</button>
+            <button type="button" class="btn-tool" data-tool="circleG">⚫ G</button>
+            <button type="button" class="btn-tool" data-tool="triangle">🔻 Trojúhelník</button>
             <div style="margin-top:8px; font-size:14px;">
                 <style>
                     .toggle-label { padding:6px 8px; border-radius:6px; background:#eee; color:#000; cursor:pointer; }
@@ -65,15 +66,19 @@
     <input type="hidden" name="path_data" id="path_data">
 
     <p style="margin-top:15px;">
-        <button type="button" onclick="clearCanvas()">🧹 Vymazat</button>
-        <button type="button" onclick="undo()">↩️ Zpět</button>
-        <button type="submit" onclick="saveImage()">💾 Uložit cvičení</button>
+        <button type="button" class="btn-clear">🧹 Vymazat</button>
+        <button type="button" class="btn-undo">↩️ Zpět</button>
+        {% if current_user.is_authenticated and current_user.role == 'coach' %}
+            <button type="submit" class="btn-save-drill">💾 Uložit cvičení</button>
+        {% else %}
+            <button type="button" disabled title="Uložení je dostupné jen pro trenéra">💾 Uložit cvičení</button>
+        {% endif %}
     </p>
 </form>
 
 <p style="margin-top:20px;"><a href="{{ url_for('drills') }}">← Zpět na seznam cvičení</a></p>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let canvas = document.getElementById("board");
 let ctx = canvas.getContext("2d");
 let currentTool = "straight";
@@ -206,8 +211,8 @@ function handleDrawingEnd(x,y){
     const tol = Math.max(2, canvas.width * 0.003);
     if(currentTool==="straight"){ ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.strokeStyle="black";ctx.lineWidth=2;ctx.stroke();drawArrowHead(startX,startY,x,y,"black"); const sg = syncActive ? syncCounter : null; const obj = {tool:"player_move",path:[[startX,startY],[x,y]]}; if(sg) obj.sync_group = sg; drawData.push(obj); }
     else if(currentTool==="curve"&&pathPoints.length>1){
-        const sp = smoothAndSimplify(pathPoints, tol);
-        drawSmoothedLine(sp);
+        const sp = processCurvePath(pathPoints);
+        drawCatmullRomLine(sp);
         const [ax,ay] = sp[sp.length-2] || sp[0];
         const [bx,by] = sp[sp.length-1];
         drawArrowHead(ax,ay,bx,by,"black");
@@ -286,30 +291,47 @@ function simplifyPath(points,tol){
     const out=[]; rdp(pts,0,pts.length-1,tol,out); out.push(pts[pts.length-1]);
     return out.map(p=>[p.x,p.y]);
 }
-function smoothAndSimplify(points,tol){
-    const simp = simplifyPath(points,tol);
-    // jemné vyhlazení klouzavým průměrem
-    const w=2; const res=[];
-    for(let i=0;i<simp.length;i++){
-        let sx=0, sy=0, c=0;
-        for(let k=-w;k<=w;k++){
-            const j=Math.min(simp.length-1, Math.max(0,i+k)); sx+=simp[j][0]; sy+=simp[j][1]; c++;
+function processCurvePath(points){
+    // 1) lehké zředění/normalizace krokem 3px pro menší kostrbatost
+    const step = 3; // px
+    let res = resamplePath(points, step);
+    // 2) jemný klouzavý průměr (okno 1) – drží tvar, potlačí šum
+    if(res.length > 2){
+        const out=[]; const w=1;
+        for(let i=0;i<res.length;i++){
+            let sx=0, sy=0, c=0;
+            for(let k=-w;k<=w;k++){
+                const j=Math.min(res.length-1, Math.max(0,i+k)); sx+=res[j][0]; sy+=res[j][1]; c++;
+            }
+            out.push([sx/c, sy/c]);
         }
-        res.push([sx/c, sy/c]);
+        res = out;
     }
     return res;
 }
-function drawSmoothedLine(points){
-    if(points.length<2) return;
+function drawCatmullRomLine(points){
+    if(points.length < 2){ return; }
     ctx.beginPath();
-    ctx.strokeStyle="black"; ctx.lineWidth=2;
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    // Duplicate endpoints for boundary conditions
+    const pts = points.slice();
+    const p0 = points[0];
+    const pn = points[points.length-1];
+    pts.unshift(p0);
+    pts.push(pn);
     ctx.moveTo(points[0][0], points[0][1]);
-    for(let i=1;i<points.length-1;i++){
-        const xc=(points[i][0]+points[i+1][0])/2;
-        const yc=(points[i][1]+points[i+1][1])/2;
-        ctx.quadraticCurveTo(points[i][0], points[i][1], xc, yc);
+    for(let i=1;i<pts.length-2;i++){
+        const p0 = pts[i-1], p1 = pts[i], p2 = pts[i+1], p3 = pts[i+2];
+        // Catmull-Rom to Bezier (uniform, s=1/6*1)
+        const c1x = p1[0] + (p2[0]-p0[0]) / 6;
+        const c1y = p1[1] + (p2[1]-p0[1]) / 6;
+        const c2x = p2[0] - (p3[0]-p1[0]) / 6;
+        const c2y = p2[1] - (p3[1]-p1[1]) / 6;
+        ctx.bezierCurveTo(c1x, c1y, c2x, c2y, p2[0], p2[1]);
     }
-    ctx.lineTo(points[points.length-1][0], points[points.length-1][1]);
     ctx.stroke();
 }
 function drawWavyLine(points,a,w){let r=resamplePath(points,5);ctx.beginPath();for(let i=1;i<r.length;i++){let[x1,y1]=r[i-1];let[x2,y2]=r[i];let ang=Math.atan2(y2-y1,x2-x1);let nx=-Math.sin(ang),ny=Math.cos(ang);let off=Math.sin((i*5)/w*2*Math.PI)*a;ctx.lineTo(x2+nx*off,y2+ny*off);}ctx.stroke();}

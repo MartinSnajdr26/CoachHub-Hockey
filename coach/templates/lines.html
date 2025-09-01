@@ -8,6 +8,7 @@
     <!-- LEVÝ sloupec – formulář -->
     <div class="lines-form">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% for line in range(1,5) %}
                 <h2>{{ line }}. lajna</h2>
 
@@ -148,8 +149,10 @@
         </p>
 
         <hr>
+        {% if current_user.is_authenticated and current_user.role == 'coach' %}
         <h2>Export sestavy do PDF</h2>
-        <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <form method="post" action="{{ url_for('export_lines_pdf') }}"
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
             <label>Soupeř<br>
                 <input type="text" name="opponent" placeholder="Soupeř" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
             </label>
@@ -159,36 +162,9 @@
             <button type="submit">📄 Exportovat PDF a uložit</button>
             <a href="{{ url_for('lineup_sessions') }}"><button type="button">🗂 Seznam sestav</button></a>
         </form>
+        {% endif %}
     </div>
 </div>
 
-<!-- Skript pro blokování hráče po výběru -->
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const selects = document.querySelectorAll("select");
-
-    function updateOptions() {
-        const selectedValues = Array.from(selects)
-            .map(s => s.value)
-            .filter(v => v !== "");
-
-        selects.forEach(select => {
-            Array.from(select.options).forEach(opt => {
-                if (opt.value === "") return;
-                if (selectedValues.includes(opt.value) && opt.value !== select.value) {
-                    opt.disabled = true;
-                } else {
-                    opt.disabled = false;
-                }
-            });
-        });
-    }
-
-    selects.forEach(select => {
-        select.addEventListener("change", updateOptions);
-    });
-
-    updateOptions();
-});
-</script>
+{# moved to static/app.js #}
 {% endblock %}

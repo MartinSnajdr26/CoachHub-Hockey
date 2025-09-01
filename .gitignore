@@ -2,10 +2,17 @@ __pycache__/
 *.py[cod]
 *.pyo
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+coverage.xml
 
 .DS_Store
 .idea/
 .vscode/
+Thumbs.db
 
 .venv/
 venv/
@@ -17,6 +24,8 @@ coach/pyvenv.cfg
 
 coach/players.db
 coach/static/exports/
+coach/static/uploads/
+coach/protected_exports/
 
 coach.zip
 
@@ -24,3 +33,18 @@ build/
 dist/
 *.egg-info/
 python_pandas/playground/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Instance/DB files
+instance/
+data/
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/

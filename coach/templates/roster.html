@@ -5,6 +5,7 @@
 <h1>Nominace na zápas</h1>
 
 <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="players-grid">
         <!-- Útočníci -->
         <div>
@@ -70,6 +71,7 @@
 
         <!-- ❌ smaže hráče ze soupisky -->
         <form action="{{ url_for('delete_from_roster', roster_id=r.id) }}" method="POST" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" title="Odebrat">❌</button>
         </form>
     </li>

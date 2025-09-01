@@ -1,6 +1,6 @@
 # CoachHub – Hockey Team Manager & Drill Board
 
-Moderní webová aplikace ve Flasku pro správu hráčů, nominací, lajn a především tvorbu a přehrávání tréninkových cvičení s možností exportu do PDF, sdílení i komunitního „drill boardu“ mezi trenéry.
+Moderní webová aplikace ve Flasku pro správu hráčů, nominací, lajn a především tvorbu a přehrávání tréninkových cvičení s možností exportu do PDF, sdílení i komunitního „drill boardu“ mezi trenéry. Aplikace podporuje více týmů (multi‑team), potvrzení e‑mailu, reset hesla a chráněné exporty.
 
 ## 🎬 Quick demo (placeholders)
 > Nahraď odkazy svými soubory v `docs/screenshots/`.
@@ -22,24 +22,26 @@ Moderní webová aplikace ve Flasku pro správu hráčů, nominací, lajn a pře
 - Seznam exportů: přehled uložených tréninkových jednotek i sestav.
 - Sdílení: WhatsApp odkaz nebo Web Share API (na mobilech).
 - Automatické mazání starých exportů (pokud nejsou přiřazené).
+- Kalendář událostí týmu (tréninky/zápasy) s 24h časem.
+- Admin Audit log (schvalování členů, změny rolí, reset hesla, změny brandingu).
 
-## 🏒 Nové rozšíření (Multi-team)
-Pozn.: Tato část je plán/roadmapa, implementace probíhá.
-- Registrace a login: username + heslo, každý trenér má svůj účet.
-- Týmový profil: logo, primární a sekundární barva.
-- Oddělená data per tým: hráči, cvičení, lajny i exporty jsou unikátní.
-- Branding: UI aplikace se zobrazuje v barvách a s logem týmu.
-- Sdílení cvičení mezi týmy: trenér může cvičení označit jako shared; ostatní týmy ho uvidí v komunitní knihovně (volitelné).
+## 🏒 Multi‑team režim
+- Registrace + přihlašování (hesla pásmovaná přes bcrypt).
+- Týmy mají oddělená data (hráči, cvičení, lajny, kalendář, exporty).
+- Branding (logo + barvy) na úrovni týmu, upload loga s validací a konverzí na PNG.
+- Admin týmu schvaluje nové členy, nastavuje role (coach/player).
 
 ## ⚙️ Požadavky
 - Python 3.10+
 - Balíčky viz `requirements.txt`
 
-## Instalace
+## Instalace (dev)
 ```
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
+cp .env.example .env   # vyplň podle potřeby (dev)
 ```
 
 ## Spuštění
@@ -47,7 +49,18 @@ pip install -r requirements.txt
 python3 coach/app.py
 ```
 Aplikace běží na http://127.0.0.1:5000/.
-První spuštění vytvoří SQLite DB `coach/players.db`.
+
+Databáze: v dev se vytvoří dle `DB_URL` (např. `sqlite:///data/dev.sqlite3`).
+
+Alembic migrace (doporučeno pro existující DB):
+```
+FLASK_APP=coach/app.py flask db upgrade
+```
+
+E‑maily (ověření, reset hesla) – nastav SMTP v `.env`:
+```
+SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_SENDER
+```
 
 ## 🗂 Navigace (horní menu)
 - Domů
@@ -57,9 +70,9 @@ První spuštění vytvoří SQLite DB `coach/players.db`.
 - Tréninky (nové cvičení, kategorie, export PDF, seznam uložených tréninků, shared drills)
 
 ## 📄 Exporty
-- Cvičení: vybraná cvičení → PDF → uloží se do `static/exports/` (v multi-team režimu do `static/exports/<team_id>/`).
-- Lajny: aktuální sestava → PDF → uloží se do `static/exports/` (v multi-team režimu do `static/exports/<team_id>/`).
-- Sdílení přes WhatsApp / Web Share API.
+- Exporty se ukládají do chráněné složky `coach/protected_exports/` (mimo `/static`).
+- Stahování výhradně přes chráněnou trasu `/exports/<filename>` po přihlášení a ověření příslušnosti k týmu.
+- Sdílení přes WhatsApp / Web Share API (odkazy jsou chráněné — příjemce musí mít přístup).
 
 ## 🖼️ Screenshots (placeholders)
 > Nahraď tyto cesty vlastními obrázky v `docs/screenshots/`.
@@ -89,3 +102,20 @@ První spuštění vytvoří SQLite DB `coach/players.db`.
 
 Autor: CoachHub Hockey – nástroj pro trenéry, hráče a kluby.
 Logo: (placeholder)
+
+---
+
+## 🔐 Bezpečnost (shrnutí)
+- CSRF ochrana (Flask‑WTF) pro všechny formuláře.
+- Rate limiting (globální + přísnější na login/reset).
+- Hesla hashovaná přes bcrypt.
+- Verifikace e‑mailu přes časově omezený token (ItsDangerous).
+- Reset hesla přes časově omezený token.
+- RBAC: operace coach‑only; admin může schvalovat/odebírat členy a role.
+- Oddělení dat per tým ve všech dotazech a zápisech.
+- Chráněné exporty PDF (mimo `/static`, kontrola příslušnosti k týmu, ochrana proti path traversal).
+- Bezpečné cookies (Secure/HttpOnly/SameSite) + HSTS v produkci.
+- Security headers: CSP, X‑Frame‑Options, X‑Content‑Type‑Options, Referrer‑Policy, Permissions‑Policy.
+- Audit log klíčových administrativních akcí.
+
+Pozn.: V dev režimu je CSP tolerantnější kvůli inline skriptům; postupně přesouváme editor do externích JS souborů.

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+
+{% block content %}
+<h1>Audit log</h1>
+<p style="opacity:0.8; margin:8px 0 16px;">Posledních 200 záznamů pro váš tým.</p>
+
+{% if logs %}
+<div style="overflow:auto;">
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Čas</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Akce</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Kdo</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Cíl</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in logs %}
+        <tr>
+          <td style="border-bottom:1px solid #ccc; padding:6px; white-space:nowrap;">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.action }}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">
+            {% set a = users_by_id.get(l.actor_user_id) %}
+            {{ (a.username or a.email) if a else '-' }}
+          </td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">
+            {% set t = users_by_id.get(l.target_user_id) %}
+            {{ (t.username or t.email) if t else '-' }}
+          </td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.details or '' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% else %}
+  <p><i>Žádné záznamy</i></p>
+{% endif %}
+
+{% endblock %}
+

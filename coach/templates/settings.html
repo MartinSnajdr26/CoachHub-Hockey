@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Nastavení – {{ brand.team_name or 'CoachHub' }}{% endblock %}
+
+{% block content %}
+<h1>Nastavení týmu</h1>
+
+<div class="cards">
+  <div class="card" style="text-align:left;">
+    <h2>🎨 Barvy a logo</h2>
+    <form method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; max-width:520px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="brand">
+      <div style="display:flex; align-items:end; gap:16px; flex-wrap:wrap;">
+        <label>Primární barva<br>
+          <input id="primCol" type="color" name="primary_color" value="{{ brand.primary or '#d4c76f' }}" style="width:60px; height:36px; padding:0; border:none;">
+        </label>
+        <button type="button" id="btnSwapColors" style="height:36px; align-self:flex-end;">↔ Prohodit barvy</button>
+        <label>Sekundární barva<br>
+          <input id="secCol" type="color" name="secondary_color" value="{{ brand.secondary or '#000000' }}" style="width:60px; height:36px; padding:0; border:none;">
+        </label>
+      </div>
+      <label>Logo týmu (PNG/JPG)<br>
+        <input type="file" name="team_logo" accept="image/*">
+      </label>
+      <button type="submit">💾 Uložit změny</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Aktuální logo</h2>
+    {% if brand.logo_url %}
+      <img src="{{ brand.logo_url }}" alt="Team Logo" style="max-width:300px; background:#fff; border-radius:8px; border:2px solid var(--brand-primary, #d4c76f);">
+    {% else %}
+      <p><i>Zatím žádné logo</i></p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="text-align:left;">
+    <h2>👤 Účet</h2>
+    <form method="POST" style="display:flex; flex-direction:column; gap:12px; max-width:520px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="account">
+      <label>Email<br>
+        <input type="email" name="email" value="{{ current_user.email }}">
+      </label>
+      <label>Uživatelské jméno (username)<br>
+        <input type="text" name="username" value="{{ current_user.username or '' }}" placeholder="volitelné">
+      </label>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <label>Aktuální heslo<br>
+          <input type="password" name="current_password" placeholder="vyžadováno pro změnu hesla">
+        </label>
+        <label>Nové heslo<br>
+          <input type="password" name="new_password" placeholder="ponech prázdné, pokud nechceš měnit">
+        </label>
+      </div>
+      <button type="submit">💾 Uložit změny účtu</button>
+    </form>
+    <form method="POST" class="form-confirm" data-message="Opravdu smazat profil? Tato akce je nevratná." style="margin-top:12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="delete">
+      <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat profil</button>
+    </form>
+  </div>
+
+  {% if current_user.is_team_admin %}
+  <div class="card" style="text-align:left; grid-column: 1 / -1;">
+    <h2>👥 Členové týmu</h2>
+    {% if members %}
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left; border-bottom:1px solid #666;">
+            <th>Jméno</th>
+            <th>Email</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Schválen</th>
+            <th>Admin</th>
+            <th>Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in members %}
+            <tr style="border-bottom:1px solid #333;">
+              <td>{{ (u.first_name or '') ~ (' ' if u.first_name and u.last_name else '') ~ (u.last_name or '') }}</td>
+              <td>{{ u.email }}</td>
+              <td>{{ u.username or '-' }}</td>
+              <td>
+                <form method="POST" action="{{ url_for('team_members_action') }}" style="display:inline-flex; gap:6px; align-items:center;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="user_id" value="{{ u.id }}">
+                  <input type="hidden" name="action" value="set_role">
+                  <select name="value">
+                    <option value="coach" {% if u.role=='coach' %}selected{% endif %}>coach</option>
+                    <option value="player" {% if u.role=='player' %}selected{% endif %}>player</option>
+                  </select>
+                  <button type="submit">Uložit</button>
+                </form>
+              </td>
+              <td>{{ 'Ano' if u.is_approved else 'Ne' }}</td>
+              <td>{{ 'Ano' if u.is_team_admin else 'Ne' }}</td>
+              <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                {% if not u.is_approved %}
+                  <form method="POST" action="{{ url_for('team_members_action') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="approve">
+                    <button type="submit">✔ Schválit</button>
+                  </form>
+                {% else %}
+                  <form method="POST" action="{{ url_for('team_members_action') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="revoke">
+                    <button type="submit">⏸ Odebrat přístup</button>
+                  </form>
+                {% endif %}
+                {% if not u.is_team_admin %}
+                  <form method="POST" action="{{ url_for('team_members_action') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="make_admin">
+                    <button type="submit">⭐ Udělit admin</button>
+                  </form>
+                {% else %}
+                  <form method="POST" action="{{ url_for('team_members_action') }}" class="form-confirm" data-message="Odebrat admin práva?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="remove_admin">
+                    <button type="submit">☆ Odebrat admin</button>
+                  </form>
+                {% endif %}
+                {% if u.id != current_user.id %}
+                  <form method="POST" action="{{ url_for('team_members_action') }}" class="form-confirm" data-message="Odebrat člena z týmu?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="remove_member">
+                    <button type="submit" style="background:#b33; color:#fff;">🗑 Odebrat z týmu</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p><i>Žádní členové</i></p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}{% endblock %}
