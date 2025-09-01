@@ -44,6 +44,8 @@ instance/
 data/
 *.sqlite
 *.sqlite3
+coach/dev.db
+*.db
 
 # Logs
 *.log
