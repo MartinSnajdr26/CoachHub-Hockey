@@ -21,10 +21,10 @@
     input, select{width:100%; padding:10px 12px; border-radius:8px; border:1px solid #bbb; font-size:16px;}
     button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
     button:hover{filter:brightness(0.95);}
-    .hero-strip{background:#000; position:relative; height:110px; display:block;}
-    .hero-logo{position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); height:420px; width:auto;}
+    .hero-strip{background:#000; display:flex; align-items:center; justify-content:center; padding:12px 16px;}
+    .hero-logo{height:300x; width:auto;}
     .helper{color:#666; font-size:14px; text-align:center; margin:6px 0 8px;}
-    .wrap{display:flex; align-items:flex-start; justify-content:center; padding:12px 16px 24px; margin-top:140px;}
+    .wrap{display:flex; align-items:flex-start; justify-content:center; padding:12px 16px 24px;}
     .panel{width:100%; max-width:1100px; display:grid; grid-template-columns: 1fr 1fr; gap:18px;}
     .card{border:2px solid var(--tertiary); border-radius:12px; padding:20px; background:#fff;}
     .card form{display:flex; flex-direction:column; gap:10px;}
@@ -32,7 +32,7 @@
     input, select{width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid #bbb; font-size:16px; background:#fff;}
     button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
     button:hover{filter:brightness(0.95);}
-    @media (max-width: 900px){ .panel{grid-template-columns: 1fr;} .hero-logo{height:280px;} .wrap{margin-top:120px;} }
+    @media (max-width: 900px){ .panel{grid-template-columns: 1fr;} .hero-logo{height:200px;} }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -47,49 +47,23 @@
       <div class="card">
         <h2>🔐 Přihlášení</h2>
         <form method="POST" action="{{ url_for('login') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Email<br><input type="email" name="email" required></label>
           <label>Heslo<br><input type="password" name="password" required></label>
           <button type="submit">Přihlásit</button>
         </form>
-        <div style="margin-top:8px;"><a href="{{ url_for('password_forgot') }}">Zapomenuté heslo?</a></div>
       </div>
 
       <div class="card">
         <h2>🆕 Registrace</h2>
         <form method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Email<br><input type="email" name="email" required></label>
           <label>Heslo<br><input type="password" name="password" required></label>
+          <label>Název týmu (vytvoří nový)<br><input type="text" name="team_name" placeholder="HC Smíchov"></label>
           <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <label>Jméno<br><input type="text" name="first_name" placeholder="Jméno"></label>
-            <label>Příjmení<br><input type="text" name="last_name" placeholder="Příjmení"></label>
+            <label>Primární barva<br><input type="color" name="primary_color" value="#ffffff" style="width:60px; height:36px; padding:0; border:none;"></label>
+            <label>Sekundární barva<br><input type="color" name="secondary_color" value="#000000" style="width:60px; height:36px; padding:0; border:none;"></label>
           </div>
-
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:6px 0;">
-            <label><input type="radio" name="team_mode" value="create" checked> Vytvořit nový tým</label>
-            <label><input type="radio" name="team_mode" value="join"> Připojit se k existujícímu týmu</label>
-          </div>
-
-          <div id="createFields">
-            <label>Název týmu<br><input type="text" name="team_name" placeholder="HC Smíchov"></label>
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-              <label>Primární barva<br><input type="color" name="primary_color" value="#ffffff" style="width:60px; height:36px; padding:0; border:none;"></label>
-              <label>Sekundární barva<br><input type="color" name="secondary_color" value="#000000" style="width:60px; height:36px; padding:0; border:none;"></label>
-            </div>
-            <label>Logo týmu (PNG/JPG)<br><input type="file" name="team_logo" accept="image/*"></label>
-          </div>
-
-          <div id="joinFields" style="display:none;">
-            <label>Vyber existující tým<br>
-              <select name="existing_team">
-                {% for t in teams %}
-                  <option value="{{ t.id }}">{{ t.name }}</option>
-                {% endfor %}
-              </select>
-            </label>
-          </div>
-
+          <label>Logo týmu (PNG/JPG)<br><input type="file" name="team_logo" accept="image/*"></label>
           <label>Role<br>
             <select name="role">
               <option value="coach" selected>Coach</option>

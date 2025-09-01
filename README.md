@@ -1,47 +1,29 @@
-# CoachHub – Hockey Team Manager & Drill Board
+# CoachHub Hockey  
+Open-source webová aplikace pro správu hokejového týmu – hráči, lajny, tréninky a exporty do PDF.  
+*(Původně vyvinuto pro HC Smíchov 1913, nyní univerzální použití.)*
 
-Moderní webová aplikace ve Flasku pro správu hráčů, nominací, lajn a především tvorbu a přehrávání tréninkových cvičení s možností exportu do PDF, sdílení i komunitního „drill boardu“ mezi trenéry. Aplikace podporuje více týmů (multi‑team), potvrzení e‑mailu, reset hesla a chráněné exporty.
 
-## 🎬 Quick demo (placeholders)
-> Nahraď odkazy svými soubory v `docs/screenshots/`.
-
-![Dashboard](docs/screenshots/dashboard_placeholder.png)
-![Editor cvičení](docs/screenshots/editor_placeholder.png)
-![Přehrávání cvičení (GIF)](docs/screenshots/demo_drill_placeholder.gif)
-[▶ Video demo (MP4)](docs/screenshots/demo_drill_placeholder.mp4)
-
-## 🚀 Přehled funkcí
+## Přehled funkcí
 - Hráči: evidence hráčů (F/D/G), úpravy, mazání.
 - Nominace: výběr hráčů do zápasu (soupiska).
-- Lajny: rozdělení nominovaných do útoků, obran a gólmanů.
-- Cvičení (drills): editor na hřišti s animacemi, pohyby, ukládáním.
-- Přehrávání cvičení: sekvenční i skupinový režim s chytrou synchronizací.
+- Lajny: rozdělení nominovaných do 4 útoků + 4 obraných dvojic a 2 brankáře.
+- Cvičení (drills): editor na hřišti s animacemi, skupinami pohybů a ukládáním.
+- Přehrávání cvičení: chytré párování ikon a pohybů, sekvenční i skupinový režim.
 - Export PDF:
-  - Cvičení → vícestránkové PDF (A4).
-  - Lajny → sestava do zápasu s datem a soupeřem.
-- Seznam exportů: přehled uložených tréninkových jednotek i sestav.
-- Sdílení: WhatsApp odkaz nebo Web Share API (na mobilech).
-- Automatické mazání starých exportů (pokud nejsou přiřazené).
-- Kalendář událostí týmu (tréninky/zápasy) s 24h časem.
-- Admin Audit log (schvalování členů, změny rolí, reset hesla, změny brandingu).
+  - Vybraná cvičení → vícestránkové PDF (A4).
+  - Aktuální lajny → jednostránkové PDF „Sestava – Zápas – ‚soupeř‘ – datum“.
+- Seznam uložených exportů: přehled „Tréninkové jednotky“ i „Sestavy“, stahování/otevření/sdílení/mazání.
+- Sdílení přes WhatsApp: přes odkaz, případně přes Web Share API (na mobilech sdílení souboru).
 
-## 🏒 Multi‑team režim
-- Registrace + přihlašování (hesla pásmovaná přes bcrypt).
-- Týmy mají oddělená data (hráči, cvičení, lajny, kalendář, exporty).
-- Branding (logo + barvy) na úrovni týmu, upload loga s validací a konverzí na PNG.
-- Admin týmu schvaluje nové členy, nastavuje role (coach/player).
-
-## ⚙️ Požadavky
+## Požadavky
 - Python 3.10+
 - Balíčky viz `requirements.txt`
 
-## Instalace (dev)
+## Instalace
 ```
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-cp .env.example .env   # vyplň podle potřeby (dev)
 ```
 
 ## Spuštění
@@ -49,73 +31,63 @@ cp .env.example .env   # vyplň podle potřeby (dev)
 python3 coach/app.py
 ```
 Aplikace běží na http://127.0.0.1:5000/.
+První spuštění automaticky vytvoří SQLite DB `coach/players.db`.
 
-Databáze: v dev se vytvoří dle `DB_URL` (např. `sqlite:///data/dev.sqlite3`).
+## Navigace (horní menu)
+- Domů, Hráči, Soupiska, Lajny.
+- Tréninky (dropdown):
+  - ➕ Nové cvičení
+  - 📂 Kategorie (přehled kategorií cvičení)
+  - 📄 Export vybraná cvičení (výběr drillů a export do PDF)
+  - 🗂 Seznam tréninků (uložené exporty tréninkových jednotek)
+- Lajny (dropdown):
+  - ⚙️ Nastavit lajny
+  - 🗂 Seznam sestav
 
-Alembic migrace (doporučeno pro existující DB):
-```
-FLASK_APP=coach/app.py flask db upgrade
-```
+## Cvičení (editor)
+- Nástroje pohybu: bez puku, s pukem, volný, jízda vzad, nahrávka, střela atd.
+- Ikony hráčů: F (modré kolečko), D (červený trojúhelník), G (černé kolečko).
+- Synchronizace hráčů: „Začít synchronizaci“/„Ukončit synchronizaci“ – pohyby uvnitř skupiny startují současně.
+- „Sync po přihrávce (2 pohyby)“: po nahrávce spustí další 2 hráčské pohyby současně.
+- Log sekvencí: přehled sekvencí/skupin dole pod plochou.
 
-E‑maily (ověření, reset hesla) – nastav SMTP v `.env`:
-```
-SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_SENDER
-```
+Ukládá se snímek (PNG Base64) i popis pohybů (JSON) – používá se při přehrávání i exportu.
 
-## 🗂 Navigace (horní menu)
-- Domů
-- Hráči
-- Soupiska
-- Lajny (nastavení, seznam sestav, export do PDF)
-- Tréninky (nové cvičení, kategorie, export PDF, seznam uložených tréninků, shared drills)
+## Export cvičení do PDF
+- Tréninky → „📄 Export vybraná cvičení“.
+- Vyhledej/zaškrtni cvičení, doplň název exportu (předvyplněno „Tréninková jednotka YYYY‑MM‑DD“).
+- Tlačítko „📄 Vytvořit PDF“ uloží PDF do `coach/static/exports/` a přidá záznam do „Seznam tréninků“.
+- Výsledková stránka: stáhnout/otevřít/sdílet (WhatsApp/Share API).
 
-## 📄 Exporty
-- Exporty se ukládají do chráněné složky `coach/protected_exports/` (mimo `/static`).
-- Stahování výhradně přes chráněnou trasu `/exports/<filename>` po přihlášení a ověření příslušnosti k týmu.
-- Sdílení přes WhatsApp / Web Share API (odkazy jsou chráněné — příjemce musí mít přístup).
+## Export lajn do PDF
+- Lajny → dole „Export sestavy do PDF“.
+- Vyplň „Soupeř“ a „Datum“. Název se složí jako: `Sestava - Zápas - "soupeř" - datum`.
+- PDF se uloží do `coach/static/exports/` a vytvoří se záznam v „Seznam sestav“.
 
-## 🖼️ Screenshots (placeholders)
-> Nahraď tyto cesty vlastními obrázky v `docs/screenshots/`.
+## Sdílení přes WhatsApp
+- Webový WhatsApp umí poslat text (odkaz). Tlačítko „📲 Sdílet odkaz“ otevře chat s předvyplněným odkazem na PDF.
+- Tlačítko „📎 Sdílet soubor“ využívá Web Share API (funguje hlavně na mobilních prohlížečích a s HTTPS). Pokud není dostupné, spadne na sdílení odkazu.
+- Pro reálné sdílení mimo lokální síť je potřeba veřejná URL (např. nasazení na serveru nebo tunel typu ngrok).
 
-![Přehrávač cvičení – statický náhled](docs/screenshots/player_placeholder.png)
-![Výběr exportu](docs/screenshots/export_select_placeholder.png)
-![Seznam exportů](docs/screenshots/exports_list_placeholder.png)
-![Lajny a export sestavy](docs/screenshots/lines_placeholder.png)
+## Automatické mazání exportů
+- Funkce `cleanup_exports()` maže v `coach/static/exports/` pouze „osamocené“ PDF (nepřiřazené k žádnému uloženému exportu) starší než 14 dní.
+- PDF přiřazená k uloženým „Tréninkovým jednotkám“ nebo „Sestavám“ se nemažou.
 
-## 🛣 Roadmapa vývoje
+## Databáze
+- SQLite soubor: `coach/players.db`.
+- Tabulky:
+  - `player`, `roster`, `line_assignment`, `drill`.
+  - `training_session` – uložené exporty vybraných cvičení.
+  - `lineup_session` – uložené exporty sestav lajn.
+- DB se vytváří při spuštění (`db.create_all()`).
 
-| Fáze               | Funkce                                        | Stav | Cíl                               |
-|--------------------|-----------------------------------------------|------|-----------------------------------|
-| 1. Stabilní základ | Hráči, lajny, editor, exporty PDF            | ✅   | Interní nástroj pro 1 tým        |
-| 2. Multi-team      | Login, registrace, logo+barvy, oddělená data | 🚧   | Každý tým má vlastní prostor     |
-| 3. Sdílení cvičení | Knihovna sdílených drillů mezi týmy          | ⏳   | Komunita trenérů                  |
-| 4. Extra funkce    | Statistiky, historie tréninků, časovač       | ⏳   | Vyšší přidaná hodnota            |
-| 5. Future vision   | SaaS verze, více týmů, premium               | 🔮   | Další krok, pokud bude zájem     |
-
-## 📌 Future vision
-- Komunitní knihovna drillů mezi kluby, s možností vyhledávání a tagování.
-- Více rolí v týmu (admin, trenér, asistent).
-- Offline režim (PWA) a případná mobilní aplikace.
-- Pokud se osvědčí, může vzniknout i cloudová / prémiová verze pro více klubů.
+## Vývoj a poznámky
+- Po změně závislostí aktualizuj `requirements.txt`.
+- Fonty v PDF: používá se systémový `arial.ttf`, jinak fallback na default font Pillow.
+- PDF rozlišení: A4 @ 72 DPI (595×842 px). Obrázky cvičení se škálují s poměrem stran.
+- WhatsApp/Share API chování se může lišit podle prohlížeče/zařízení.
 
 ---
 
-Autor: CoachHub Hockey – nástroj pro trenéry, hráče a kluby.
-Logo: (placeholder)
+Autor: HC SMÍCHOV 1913 – interní nástroj pro trenéry.
 
----
-
-## 🔐 Bezpečnost (shrnutí)
-- CSRF ochrana (Flask‑WTF) pro všechny formuláře.
-- Rate limiting (globální + přísnější na login/reset).
-- Hesla hashovaná přes bcrypt.
-- Verifikace e‑mailu přes časově omezený token (ItsDangerous).
-- Reset hesla přes časově omezený token.
-- RBAC: operace coach‑only; admin může schvalovat/odebírat členy a role.
-- Oddělení dat per tým ve všech dotazech a zápisech.
-- Chráněné exporty PDF (mimo `/static`, kontrola příslušnosti k týmu, ochrana proti path traversal).
-- Bezpečné cookies (Secure/HttpOnly/SameSite) + HSTS v produkci.
-- Security headers: CSP, X‑Frame‑Options, X‑Content‑Type‑Options, Referrer‑Policy, Permissions‑Policy.
-- Audit log klíčových administrativních akcí.
-
-Pozn.: V dev režimu je CSP tolerantnější kvůli inline skriptům; postupně přesouváme editor do externích JS souborů.
