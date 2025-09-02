@@ -21,8 +21,8 @@
     input, select{width:100%; padding:10px 12px; border-radius:8px; border:1px solid #bbb; font-size:16px;}
     button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
     button:hover{filter:brightness(0.95);}
-    .hero-strip{background:#000; display:flex; align-items:center; justify-content:center; padding:12px 16px;}
-    .hero-logo{height:300x; width:auto;}
+    .hero-strip{background:#000; display:flex; align-items:center; justify-content:center; padding:6px 16px;}
+    .hero-logo{height:150px; width:auto;}
     .helper{color:#666; font-size:14px; text-align:center; margin:6px 0 8px;}
     .wrap{display:flex; align-items:flex-start; justify-content:center; padding:12px 16px 24px;}
     .panel{width:100%; max-width:1100px; display:grid; grid-template-columns: 1fr 1fr; gap:18px;}
@@ -32,7 +32,7 @@
     input, select{width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid #bbb; font-size:16px; background:#fff;}
     button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
     button:hover{filter:brightness(0.95);}
-    @media (max-width: 900px){ .panel{grid-template-columns: 1fr;} .hero-logo{height:200px;} }
+    @media (max-width: 900px){ .panel{grid-template-columns: 1fr;} .hero-logo{height:100px;} }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -47,6 +47,7 @@
       <div class="card">
         <h2>🔐 Přihlášení</h2>
         <form method="POST" action="{{ url_for('login') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Email<br><input type="email" name="email" required></label>
           <label>Heslo<br><input type="password" name="password" required></label>
           <button type="submit">Přihlásit</button>
@@ -56,6 +57,7 @@
       <div class="card">
         <h2>🆕 Registrace</h2>
         <form method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Email<br><input type="email" name="email" required></label>
           <label>Heslo<br><input type="password" name="password" required></label>
           <label>Název týmu (vytvoří nový)<br><input type="text" name="team_name" placeholder="HC Smíchov"></label>

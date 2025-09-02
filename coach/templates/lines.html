@@ -151,8 +151,8 @@
         <hr>
         {% if current_user.is_authenticated and current_user.role == 'coach' %}
         <h2>Export sestavy do PDF</h2>
-        <form method="post" action="{{ url_for('export_lines_pdf') }}"
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Soupeř<br>
                 <input type="text" name="opponent" placeholder="Soupeř" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
             </label>
