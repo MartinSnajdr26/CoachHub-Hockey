@@ -92,6 +92,13 @@ app.config['SMTP_PASSWORD'] = os.getenv('SMTP_PASSWORD')
 app.config['MAIL_SENDER'] = os.getenv('MAIL_SENDER', 'martinsnajdr@coachhubhockey.com')
 app.config['EMAIL_TOKEN_MAX_AGE'] = int(os.getenv('EMAIL_TOKEN_MAX_AGE', '172800'))
 app.config['PASSWORD_RESET_TOKEN_MAX_AGE'] = int(os.getenv('PASSWORD_RESET_TOKEN_MAX_AGE', '3600'))
+# Enforce email confirmation (production default: on). Set REQUIRE_EMAIL_CONFIRMATION=0 to relax.
+def _env_bool(key: str, default: bool = True) -> bool:
+    v = os.getenv(key)
+    if v is None:
+        return default
+    return str(v).strip().lower() in ('1', 'true', 'yes', 'y', 'on')
+app.config['REQUIRE_EMAIL_CONFIRMATION'] = _env_bool('REQUIRE_EMAIL_CONFIRMATION', True)
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -413,8 +420,8 @@ def register():
     login_user(user)
     print("👤 Uživatel přihlášen:", user.email)
 
-    # pokud čeká na schválení, pošli na čekací obrazovku
-    if not user.is_approved:
+    # pokud čeká na e‑mailové potvrzení nebo schválení, pošli na čekací obrazovku
+    if not getattr(user, 'email_confirmed', False) or not user.is_approved:
         print("⏳ Uživateli chybí approval, redirect na /awaiting")
         return redirect(url_for('awaiting'))
     print("➡️ Redirect na /home")
@@ -443,6 +450,8 @@ def login():
                 ok = False
         if ok:
             login_user(user)
+            if not getattr(user, 'email_confirmed', False) or not getattr(user, 'is_approved', True):
+                return redirect(url_for('awaiting'))
             return redirect(url_for('home'))
     return redirect(url_for('home'))
 
@@ -492,17 +501,20 @@ def ensure_team_admins():
                 if candidate:
                     candidate.is_team_admin = True
                     candidate.is_approved = True
-                    if not getattr(candidate, 'email_confirmed', False):
-                        candidate.email_confirmed = True
-                        candidate.email_confirmed_at = datetime.utcnow()
+                    # Do NOT auto-confirm e-mail when enforcement is on
+                    if not app.config.get('REQUIRE_EMAIL_CONFIRMATION', True):
+                        if not getattr(candidate, 'email_confirmed', False):
+                            candidate.email_confirmed = True
+                            candidate.email_confirmed_at = datetime.utcnow()
                     changed = True
-            # backfill: všem existujícím adminům bez potvrzení e‑mailu ho zapni (legacy účty)
-            admins = User.query.filter_by(team_id=t.id, is_team_admin=True).all()
-            for u in admins:
-                if not getattr(u, 'email_confirmed', False):
-                    u.email_confirmed = True
-                    u.email_confirmed_at = datetime.utcnow()
-                    changed = True
+            # Do not backfill-confirm emails for admins if confirmation is required
+            if not app.config.get('REQUIRE_EMAIL_CONFIRMATION', True):
+                admins = User.query.filter_by(team_id=t.id, is_team_admin=True).all()
+                for u in admins:
+                    if not getattr(u, 'email_confirmed', False):
+                        u.email_confirmed = True
+                        u.email_confirmed_at = datetime.utcnow()
+                        changed = True
         if changed:
             db.session.commit()
     except Exception as e:

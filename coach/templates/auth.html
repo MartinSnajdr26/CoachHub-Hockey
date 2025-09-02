@@ -60,12 +60,40 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Email<br><input type="email" name="email" required></label>
           <label>Heslo<br><input type="password" name="password" required></label>
-          <label>Název týmu (vytvoří nový)<br><input type="text" name="team_name" placeholder="HC Smíchov"></label>
-          <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <label>Primární barva<br><input type="color" name="primary_color" value="#ffffff" style="width:60px; height:36px; padding:0; border:none;"></label>
-            <label>Sekundární barva<br><input type="color" name="secondary_color" value="#000000" style="width:60px; height:36px; padding:0; border:none;"></label>
+
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:6px 0 10px;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="team_mode" value="create" checked>
+              Vytvořit nový tým
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="team_mode" value="join">
+              Připojit se k existujícímu týmu
+            </label>
           </div>
-          <label>Logo týmu (PNG/JPG)<br><input type="file" name="team_logo" accept="image/*"></label>
+
+          <div id="createFields" style="display:block;">
+            <label>Název týmu<br><input type="text" name="team_name" placeholder="HC Smíchov"></label>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label>Primární barva<br><input type="color" name="primary_color" value="#ffffff" style="width:60px; height:36px; padding:0; border:none;"></label>
+              <label>Sekundární barva<br><input type="color" name="secondary_color" value="#000000" style="width:60px; height:36px; padding:0; border:none;"></label>
+            </div>
+            <label>Logo týmu (PNG/JPG)<br><input type="file" name="team_logo" accept="image/*"></label>
+          </div>
+
+          <div id="joinFields" style="display:none;">
+            <label>Vyber existující tým<br>
+              <select name="existing_team">
+                {% for t in teams %}
+                  <option value="{{ t.id }}">{{ t.name }}</option>
+                {% else %}
+                  <option value="">(Žádné týmy nejsou k dispozici)</option>
+                {% endfor %}
+              </select>
+            </label>
+            <div class="helper" style="text-align:left;">Po připojení k týmu čeká tvůj účet na schválení administrátorem týmu.</div>
+          </div>
+
           <label>Role<br>
             <select name="role">
               <option value="coach" selected>Coach</option>
