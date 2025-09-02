@@ -6,6 +6,7 @@ import uuid
 import base64
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
+import hashlib
 from dotenv import load_dotenv
 from flask_migrate import Migrate
 from flask_login import (
@@ -153,8 +154,10 @@ def allowed_logo_file(filename: str) -> bool:
     return bool(filename) and '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
 
 def _save_logo_file(logo_f) -> tuple[str | None, str | None]:
-    """Validate, resize and save logo image. Returns (error_message, relative_path).
-    relative_path is under static as 'uploads/<filename>'.
+    """Validate, resize and save logo image with dedup.
+    Returns (error_message, relative_path) where relative_path is under
+    static as 'uploads/<filename>'. If an identical image was already saved,
+    it reuses the existing file path instead of creating a duplicate.
     """
     try:
         fname = getattr(logo_f, 'filename', '') or ''
@@ -173,21 +176,37 @@ def _save_logo_file(logo_f) -> tuple[str | None, str | None]:
             return ("Logo je příliš velké (max 2 MB).", None)
         # open and thumbnail
         im = Image.open(fobj)
-        # convert and resize; always output PNG and strip EXIF
+        # convert and resize; keep alpha if present (better for logos)
         try:
-            im = im.convert("RGB")
+            im = im.convert("RGBA")
         except Exception as e:
-            app.logger.warning('Logo RGB convert failed, fallback: %s', e)
+            app.logger.warning('Logo RGBA convert failed, fallback: %s', e)
             im = im.convert("RGB")
+        # auto-trim transparent borders if any (nice cropping for logos)
+        try:
+            if 'A' in im.getbands():
+                alpha = im.split()[3]
+                bbox = alpha.getbbox()
+                if bbox:
+                    im = im.crop(bbox)
+        except Exception as e:
+            app.logger.warning('Logo autocrop failed: %s', e)
+        # scale to fit within 512x512 preserving aspect ratio
         im.thumbnail((512, 512))
-        # build safe unique filename with .png extension
-        safe = secure_filename(fname)
+        # serialize to PNG in-memory for hashing (normalized content)
+        buf = io.BytesIO()
+        im.save(buf, format='PNG', optimize=True)
+        png_bytes = buf.getvalue()
+        # compute content hash to deduplicate identical images
+        h = hashlib.sha256(png_bytes).hexdigest()
+        safe = secure_filename(fname) or 'logo'
         stem, _ext = os.path.splitext(safe)
-        token = uuid.uuid4().hex[:8]
-        out_name = f"{stem}-{token}.png"
+        out_name = f"{stem}-{h[:16]}.png"
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], out_name)
-        # always save as PNG
-        im.save(save_path, format='PNG', optimize=True)
+        # if an identical image already exists, reuse it; otherwise write
+        if not os.path.exists(save_path):
+            with open(save_path, 'wb') as f:
+                f.write(png_bytes)
         return (None, f"uploads/{out_name}")
     except Exception as e:
         app.logger.warning('Logo processing error: %s', e)
@@ -1347,7 +1366,32 @@ def export_drills_pdf():
     session_title = (request.form.get("session_title") or "").strip()
     if not ids:
         return redirect(url_for("drills_select"))
-    drills = Drill.query.filter(Drill.id.in_([int(i) for i in ids])).order_by(Drill.category.asc().nullsfirst(), Drill.name.asc()).all()
+    # Parse custom order map: fields like order[<id>] => index
+    order_map = {}
+    try:
+        for k, v in request.form.items():
+            if k.startswith('order[') and k.endswith(']'):
+                sid = k[len('order['):-1]
+                try:
+                    did = int(sid)
+                    order_map[did] = int(v)
+                except Exception:
+                    pass
+    except Exception:
+        order_map = {}
+    sel_ids = [int(i) for i in ids]
+    q = Drill.query.filter(Drill.id.in_(sel_ids))
+    if current_user.team_id:
+        q = q.filter(Drill.team_id == current_user.team_id)
+    drills = q.all()
+    # Respect custom order, fallback to (category, name)
+    def order_key(d: Drill):
+        return (
+            order_map.get(d.id, 10**9),
+            (d.category or ''),
+            (d.name or '')
+        )
+    drills.sort(key=order_key)
     if not drills:
         return redirect(url_for("drills_select"))
     pages: list[Image.Image] = []
@@ -1526,9 +1570,14 @@ def drills_export_result():
 def download_export(filename):
     # Allow download only if export belongs to current user's team
     allowed = False
-    if current_user.team_id:
+    if current_user.team_id is not None:
         ts = TrainingSession.query.filter_by(team_id=current_user.team_id, filename=filename).first()
         ls = LineupSession.query.filter_by(team_id=current_user.team_id, filename=filename).first()
+        allowed = bool(ts or ls)
+    else:
+        # Allow team-less users to access team-less exports they can see in UI
+        ts = TrainingSession.query.filter_by(team_id=None, filename=filename).first()
+        ls = LineupSession.query.filter_by(team_id=None, filename=filename).first()
         allowed = bool(ts or ls)
     if not allowed:
         flash('Soubor nepatří do vašeho týmu.', 'error')
@@ -1539,7 +1588,8 @@ def download_export(filename):
         flash('Neplatný název souboru.', 'error')
         return redirect(url_for('home'))
     try:
-        return send_file(fpath, mimetype='application/pdf', as_attachment=False, max_age=0)
+        # Avoid passing unsupported kwargs across Flask versions
+        return send_file(fpath, mimetype='application/pdf', as_attachment=False)
     except Exception as e:
         app.logger.warning('Download export failed: %s', e)
         flash('Soubor nebyl nalezen.', 'error')

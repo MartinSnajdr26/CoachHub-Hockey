@@ -56,6 +56,8 @@
     const ctx = canvas.getContext("2d");
     const rink = new Image();
     rink.src = "/static/rink.png";
+    const icons = []; // seznam ikon hráčů z editoru
+
 
     // Data z editoru – robustní načtení i pro None/""/string
     const rawPathData = {{ drill.path_data | tojson | safe }}; // může být null nebo string JSON
@@ -128,9 +130,9 @@
     // Naváže nejbližší předchozí ikonu hráče jako roli k následujícímu pathu
     function prepareAnimation(){
         moves.length = 0; statics.length = 0; finalByEntity.clear(); passAnchors.length = 0; anchorsPermanent.length = 0;
+        icons.length = 0; // reset globální kolekce ikon
         let pendingRole = null;
         let currentEntityId = 0; // identifikátor hráče dle poslední ikony
-        const icons = []; // seznam ikon: {eid, role, x, y, idx}
         const entities = new Map(); // eid -> {role, x, y}
 
         function nearestIconForPath(startX, startY, maxIdx){
@@ -203,6 +205,7 @@
                 }
                 return false;
             }
+            icons.length = 0;
 
             for(let idx=0; idx<drawData.length; idx++){
                 const item = drawData[idx];
@@ -212,7 +215,6 @@
                     initialByEntity.set(currentEntityId, {x: item.x, y: item.y, role: pendingRole});
                     entities.set(currentEntityId, {x: item.x, y: item.y, role: pendingRole});
                     icons.push({eid: currentEntityId, role: pendingRole, x: item.x, y: item.y, idx});
-                    if(!iconHasUpcomingMove(idx)) statics.push(item);
                 } else if(item.tool === 'puck_static'){
                     statics.push(item);
                 } else if(item.tool === 'cone' || item.tool === 'triangle' || item.tool === 'pucks_cluster'){
@@ -315,8 +317,7 @@
 
             function flushGroup(){
                 if(groupMoves.length === 0){
-                    // nic k animaci – pokud je tu ikona, ukaž ji staticky
-                    if(groupIcon) statics.push(groupIcon);
+                    // nic k animaci – ikonu nech vykreslit v části hráčů (počáteční stav)
                     return; 
                 }
                 // nastav start podle případných override a spočítej konec celé skupiny
@@ -482,9 +483,7 @@
 
     function drawStatics(){
         for(const it of statics){
-            if(it.tool === 'player_icon'){
-                drawRoleCircle(it.role || '?', it.x, it.y);
-            } else if(it.tool === 'puck_static'){
+            if(it.tool === 'puck_static'){
                 ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
             } else if(it.tool === 'cone'){
                 ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-10, it.y+20); ctx.lineTo(it.x+10, it.y+20); ctx.closePath(); ctx.fill();
@@ -528,42 +527,49 @@
         // bez podkladových čar – pouze ikony a puk
         // Vykresli pohyblivé objekty – hráč je vždy viditelný: před prvním tahem na startu,
         // během tahu se hýbe, po konci zůstává na konci posledního dokončeného tahu
-        const entityIds = new Set();
-        for(const m of moves){ if(m.kind === 'player' && m.entityId != null) entityIds.add(m.entityId); }
-        for(const eid of initialByEntity.keys()) entityIds.add(eid);
+        // Použij jen entity, které mají v editoru ikonu hráče
+        const allowedEntities = new Set(icons.map(ic => ic.eid));
+        const drawnNow = [];
 
-        for(const eid of entityIds){
-            // aktivní tah (pokud běží)
+        for (const eid of allowedEntities) {
+            // 1) Aktivní tah (pokud právě běží)
             let active = null;
-            for(const m of moves){
-                if(m.kind !== 'player' || m.entityId !== eid) continue;
-                if(globalTime >= m.start && globalTime < m.start + m.duration){ if(!active || m.start > active.start) active = m; }
+            for (const m of moves) {
+                if (m.kind !== 'player' || m.entityId !== eid) continue;
+                if (globalTime >= m.start && globalTime < m.start + m.duration) {
+                    if (!active || m.start > active.start) active = m;
+                }
             }
-
-            if(active){
-                const t = globalTime - active.start; // 0..duration
+            if (active) {
+                const t = globalTime - active.start;
                 const pos = positionAt(active, t);
-                // bez fade efektu
                 drawRoleCircle(active.role || (initialByEntity.get(eid)?.role) || 'F', pos.x, pos.y, 1);
+                drawnNow.push({x: pos.x, y: pos.y});
                 continue;
             }
 
-            // není aktivní – hledej poslední dokončený tah do aktuálního času
+            // 1b) Není aktivní – poslední dokončený tah do aktuálního času
             let latest = null;
-            for(const m of moves){
-                if(m.kind !== 'player' || m.entityId !== eid) continue;
+            for (const m of moves) {
+                if (m.kind !== 'player' || m.entityId !== eid) continue;
                 const end = m.start + m.duration;
-                if(globalTime + 1e-6 >= end){ if(!latest || end > (latest.start + latest.duration)) latest = m; }
+                if (globalTime + 1e-6 >= end) {
+                    if (!latest || end > (latest.start + latest.duration)) latest = m;
+                }
             }
-            if(latest){
+            if (latest) {
                 const lastPt = latest.points[latest.points.length - 1];
                 drawRoleCircle(latest.role || (initialByEntity.get(eid)?.role) || 'F', lastPt.x, lastPt.y, 1);
+                drawnNow.push({x: lastPt.x, y: lastPt.y});
                 continue;
             }
 
-            // před prvním tahem – počáteční ikona
+            // 1c) Před prvním tahem – počáteční ikona
             const init = initialByEntity.get(eid);
-            if(init){ drawRoleCircle(init.role || 'F', init.x, init.y, 1); }
+            if (init) {
+                drawRoleCircle(init.role || 'F', init.x, init.y, 1);
+                drawnNow.push({x: init.x, y: init.y});
+            }
         }
 
         // 2) Puky: pro jízdu s pukem jsou „přilepené“ k hráči (stejná pozice); samostatné puky kresli z path
@@ -585,9 +591,22 @@
         }
         if(showAnchors){
             // 3) Ikona hráče na začátku přihrávky: zobraz od začátku do začátku dalšího pohybu stejného hráče (pokud existuje)
-            for(const a of passAnchors){ if(globalTime + 1e-6 >= a.tStart && globalTime < a.tHide - 1e-6){ drawRoleCircle(a.role || 'F', a.x, a.y, 1); } }
+            for(const a of passAnchors){
+                if(globalTime + 1e-6 >= a.tStart && globalTime < a.tHide - 1e-6){
+                    // vynech kotvu, pokud už je nakreslená ikona téměř na stejném místě
+                    let near = false;
+                    for(const p of drawnNow){ if(Math.hypot(p.x - a.x, p.y - a.y) < 14){ near = true; break; } }
+                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1);
+                }
+            }
             // 4) Trvalé kotvy (starty s tHide a konce s tHide)
-            for(const a of anchorsPermanent){ if(globalTime + 1e-6 >= a.t && globalTime < (a.tHide ?? Infinity) - 1e-6){ drawRoleCircle(a.role || 'F', a.x, a.y, 1); } }
+            for(const a of anchorsPermanent){
+                if(globalTime + 1e-6 >= a.t && globalTime < (a.tHide ?? Infinity) - 1e-6){
+                    let near = false;
+                    for(const p of drawnNow){ if(Math.hypot(p.x - a.x, p.y - a.y) < 14){ near = true; break; } }
+                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1);
+                }
+            }
         }
         // Bez dodatečných kotev – zobrazuje se pouze aktivní/poslední stav hráče
         if(totalDuration && globalTime >= totalDuration){

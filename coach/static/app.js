@@ -77,23 +77,93 @@
       });
     }
 
-    // Drills select toggles
+    // Drills select toggles + ordering
     function updateCount(){
       var boxes = document.querySelectorAll('input[name="drill_ids"]');
       var n = Array.prototype.slice.call(boxes).filter(function(cb){ return cb.checked; }).length;
       var el = document.getElementById('selCount');
       if(el) el.textContent = n + ' vybráno';
     }
+
+    function nextOrderValue(){
+      var vals = [];
+      document.querySelectorAll('.order-input').forEach(function(inp){
+        var v = parseInt(inp.value, 10);
+        if(!isNaN(v)) vals.push(v);
+      });
+      if(vals.length === 0) return 1;
+      return Math.max.apply(null, vals) + 1;
+    }
+
+    function compactOrders(){
+      // Optional: keep stable relative order, just compact to 1..N based on current numeric order
+      var pairs = [];
+      document.querySelectorAll('.card').forEach(function(card){
+        var cb = card.querySelector('input.drill-check');
+        var inp = card.querySelector('input.order-input');
+        if(cb && cb.checked && inp){
+          var v = parseInt(inp.value, 10);
+          pairs.push({inp: inp, v: isNaN(v) ? Infinity : v});
+        }
+      });
+      pairs.sort(function(a,b){ return a.v - b.v; });
+      for(var i=0;i<pairs.length;i++){
+        pairs[i].inp.value = (i+1);
+      }
+    }
+
     document.querySelectorAll('.btn-toggle-all').forEach(function(btn){
       btn.addEventListener('click', function(){
         var state = btn.getAttribute('data-state') === 'true';
-        document.querySelectorAll('input[name="drill_ids"]').forEach(function(cb){ cb.checked = !!state; });
+        document.querySelectorAll('.card').forEach(function(card){
+          var cb = card.querySelector('input.drill-check');
+          var inp = card.querySelector('input.order-input');
+          if(cb){ cb.checked = !!state; }
+          if(inp){ inp.value = state ? '' : ''; }
+        });
+        // Auto-assign sequential order if selecting all
+        if(state){
+          var i = 1;
+          document.querySelectorAll('.card').forEach(function(card){
+            var cb = card.querySelector('input.drill-check');
+            var inp = card.querySelector('input.order-input');
+            if(cb && cb.checked && inp){ inp.value = i++; }
+          });
+        }
         updateCount();
       });
     });
     document.querySelectorAll('input[name="drill_ids"]').forEach(function(cb){
-      cb.addEventListener('change', updateCount);
+      cb.addEventListener('change', function(){
+        var card = cb.closest('.card');
+        var inp = card ? card.querySelector('input.order-input') : null;
+        if(cb.checked){
+          if(inp && (inp.value === '' || isNaN(parseInt(inp.value,10)))){
+            inp.value = nextOrderValue();
+          }
+        } else {
+          if(inp){ inp.value = ''; }
+          compactOrders();
+        }
+        updateCount();
+      });
     });
+
+    var exportForm = document.getElementById('exportForm');
+    if(exportForm){
+      exportForm.addEventListener('submit', function(){
+        // Before submit: ensure checked drills have an order; compact orders to 1..N
+        document.querySelectorAll('.card').forEach(function(card){
+          var cb = card.querySelector('input.drill-check');
+          var inp = card.querySelector('input.order-input');
+          if(cb && cb.checked && inp){
+            if(inp.value === '' || isNaN(parseInt(inp.value,10))){ inp.value = nextOrderValue(); }
+          }
+        });
+        compactOrders();
+      });
+    }
+
     updateCount();
 
     // New drill toolbar bindings
