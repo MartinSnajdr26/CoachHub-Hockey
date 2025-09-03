@@ -50,7 +50,10 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Email<br><input type="email" name="email" required></label>
           <label>Heslo<br><input type="password" name="password" required></label>
-          <button type="submit">Přihlásit</button>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button type="submit">Přihlásit</button>
+            <a href="{{ url_for('password_forgot') }}" style="font-size:14px;">Zapomenuté heslo?</a>
+          </div>
         </form>
       </div>
 

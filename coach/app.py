@@ -89,7 +89,16 @@ app.config['SMTP_SERVER'] = os.getenv('SMTP_SERVER')
 app.config['SMTP_PORT'] = int(os.getenv('SMTP_PORT', '587'))
 app.config['SMTP_USER'] = os.getenv('SMTP_USER')
 app.config['SMTP_PASSWORD'] = os.getenv('SMTP_PASSWORD')
-app.config['MAIL_SENDER'] = os.getenv('MAIL_SENDER', 'martinsnajdr@coachhubhockey.com')
+# Sender fallback: MAIL_SENDER -> SMTP_USER -> default
+app.config['MAIL_SENDER'] = os.getenv('MAIL_SENDER') or os.getenv('SMTP_USER') or 'no-reply@localhost'
+# TLS/SSL + timeout/debug options
+app.config['SMTP_USE_SSL'] = (os.getenv('SMTP_USE_SSL') or '').lower() in ('1','true','yes','on') or str(app.config['SMTP_PORT']) == '465'
+app.config['SMTP_STARTTLS'] = (os.getenv('SMTP_STARTTLS') or '1').lower() in ('1','true','yes','on')
+try:
+    app.config['SMTP_TIMEOUT'] = float(os.getenv('SMTP_TIMEOUT', '10'))
+except Exception:
+    app.config['SMTP_TIMEOUT'] = 10.0
+app.config['SMTP_DEBUG'] = (os.getenv('SMTP_DEBUG') or '').lower() in ('1','true','yes','on')
 app.config['EMAIL_TOKEN_MAX_AGE'] = int(os.getenv('EMAIL_TOKEN_MAX_AGE', '172800'))
 app.config['PASSWORD_RESET_TOKEN_MAX_AGE'] = int(os.getenv('PASSWORD_RESET_TOKEN_MAX_AGE', '3600'))
 # Enforce email confirmation (production default: on). Set REQUIRE_EMAIL_CONFIRMATION=0 to relax.
@@ -569,34 +578,61 @@ from email.mime.text import MIMEText
 import smtplib
 
 
+def _smtp_send(to_email: str, subject: str, body: str):
+    server = app.config.get('SMTP_SERVER')
+    if not server:
+        app.logger.error('SMTP_SERVER not set; cannot send mail')
+        return False
+    port = int(app.config.get('SMTP_PORT') or 0) or 587
+    usern = app.config.get('SMTP_USER')
+    pwd = app.config.get('SMTP_PASSWORD')
+    sender = app.config.get('MAIL_SENDER') or usern or 'no-reply@localhost'
+    msg = MIMEText(body, _charset='utf-8')
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = to_email
+    use_ssl = bool(app.config.get('SMTP_USE_SSL'))
+    use_starttls = bool(app.config.get('SMTP_STARTTLS')) and not use_ssl
+    timeout = float(app.config.get('SMTP_TIMEOUT') or 10.0)
+    try:
+        app.logger.info('SMTP connect %s:%s ssl=%s starttls=%s sender=%s', server, port, use_ssl, use_starttls, sender)
+        if use_ssl:
+            s = smtplib.SMTP_SSL(server, port, timeout=timeout)
+        else:
+            s = smtplib.SMTP(server, port, timeout=timeout)
+        try:
+            if app.config.get('SMTP_DEBUG'):
+                s.set_debuglevel(1)
+            s.ehlo()
+            if use_starttls:
+                s.starttls()
+                s.ehlo()
+            if usern and pwd:
+                s.login(usern, pwd)
+            s.send_message(msg)
+            app.logger.info('SMTP sent to %s ok', to_email)
+            return True
+        finally:
+            try:
+                s.quit()
+            except Exception:
+                pass
+    except Exception as e:
+        app.logger.error('SMTP send failed: %s', e)
+        return False
+
+
 def send_verification_email(user: 'User'):
     try:
         token = make_serializer().dumps({'uid': user.id, 'email': user.email})
         verify_url = url_for('verify_email', token=token, _external=True)
         subject = 'Potvrzení registrace – CoachHub Hockey'
         body = f"Ahoj,\n\npro potvrzení registrace klikni na odkaz:\n{verify_url}\n\nOdkaz je platný {app.config['EMAIL_TOKEN_MAX_AGE']//3600} hodin.\n\nCoachHub Hockey"
-        server = app.config.get('SMTP_SERVER')
-        if not server:
-            print("❌ SMTP_SERVER není nastavený")
-            return
-        msg = MIMEText(body, _charset='utf-8')
-        msg['Subject'] = subject
-        msg['From'] = app.config['MAIL_SENDER']
-        msg['To'] = user.email
-        port = app.config.get('SMTP_PORT', 587)
-        usern = app.config.get('SMTP_USER')
-        pwd = app.config.get('SMTP_PASSWORD')
-
-        app.logger.info("Sending verify email via %s:%s as %s", server, port, usern)
-        with smtplib.SMTP(server, port) as s:
-            s.starttls()
-            if usern and pwd:
-                s.login(usern, pwd)
-            s.send_message(msg)
-        app.logger.info("Verification mail sent to %s", user.email)
-
+        ok = _smtp_send(user.email, subject, body)
+        if not ok:
+            app.logger.warning('Verification email not sent; check SMTP settings.')
     except Exception as e:
-        app.logger.warning("Sending verification email failed: %s", e)
+        app.logger.warning('send_verification_email() failed to build message: %s', e)
 
 
 def send_password_reset_email(user: 'User'):
@@ -623,26 +659,11 @@ def send_password_reset_email(user: 'User'):
             "Pokud jsi to nebyl(a) ty, tento e-mail ignoruj.\n\n"
             "CoachHub Hockey"
         )
-        server = app.config.get('SMTP_SERVER')
-        if not server:
-            print("❌ SMTP_SERVER není nastavený")
-            return
-        msg = MIMEText(body, _charset='utf-8')
-        msg['Subject'] = subject
-        msg['From'] = app.config['MAIL_SENDER']
-        msg['To'] = user.email
-        port = app.config.get('SMTP_PORT', 587)
-        usern = app.config.get('SMTP_USER')
-        pwd = app.config.get('SMTP_PASSWORD')
-
-        with smtplib.SMTP(server, port) as s:
-            s.starttls()
-            if usern and pwd:
-                s.login(usern, pwd)
-            s.send_message(msg)
-        print(f"✅ Reset e-mail odeslán na {user.email}")
+        ok = _smtp_send(user.email, subject, body)
+        if not ok:
+            app.logger.warning('Password reset email not sent; check SMTP settings.')
     except Exception as e:
-        print("❌ Chyba při posílání reset e-mailu:", e)
+        app.logger.warning('send_password_reset_email() failed to build message: %s', e)
 
 
 
@@ -727,13 +748,20 @@ def password_reset(token):
             except Exception:
                 pass
             db.session.commit()
-            flash('Heslo bylo změněno. Můžeš se přihlásit.', 'success')
+            # Auto-login after successful reset
+            try:
+                login_user(user)
+            except Exception:
+                pass
+            # Redirect based on confirmation/approval state
+            if not getattr(user, 'email_confirmed', False) or not getattr(user, 'is_approved', True):
+                return redirect(url_for('awaiting'))
+            return redirect(url_for('home'))
         except Exception as e:
             db.session.rollback()
             app.logger.warning('Password reset failed: %s', e)
             flash('Nepodařilo se změnit heslo.', 'error')
             return render_template('password_reset.html', token=token)
-        return redirect(url_for('auth'))
     return render_template('password_reset.html', token=token)
 
 
