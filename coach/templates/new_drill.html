@@ -68,7 +68,7 @@
     <p style="margin-top:15px;">
         <button type="button" class="btn-clear">🧹 Vymazat</button>
         <button type="button" class="btn-undo">↩️ Zpět</button>
-        {% if current_user.is_authenticated and current_user.role == 'coach' %}
+        {% if is_coach %}
             <button type="submit" class="btn-save-drill">💾 Uložit cvičení</button>
         {% else %}
             <button type="button" disabled title="Uložení je dostupné jen pro trenéra">💾 Uložit cvičení</button>

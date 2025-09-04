@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About Me</title>
+  <style>
+    :root{ --tertiary:#c44747; }
+    html,body{margin:0; padding:0;}
+    body{background:#fff; color:#000; font-family:'Oswald', Arial, sans-serif;}
+    .hero{background:#000; display:flex; justify-content:center; padding:8px 12px;}
+    .hero img{height:120px;}
+    .wrap{min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:16px;}
+    .card{border:2px solid var(--tertiary); border-radius:12px; padding:20px; background:#fff; width:100%; max-width:900px;}
+    h1{margin-top:0; color:var(--tertiary);} p{line-height:1.5;}
+    a{color:#000;}
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="hero"><img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo"></div>
+  <div class="wrap">
+    <div class="card">
+      <h1>O mně</h1>
+      <p>Jmenuji se Martin Šnajdr a hokej je už od dětství velkou součástí mého života – jako hráč, trenér i fanoušek. V průběhu let jsem zjistil, že při organizaci týmu často chybí jednoduché a praktické nástroje, které by trenérům i hráčům usnadnily každodenní fungování.</p>
+
+      <h2>Proč vznikl CoachHub</h2>
+      <p>CoachHub jsem vytvořil jako aplikaci od trenéra pro trenéry a hráče.</p>
+      <p>Cílem je:</p>
+      <ul>
+        <li>usnadnit plánování tréninků a zápasů,</li>
+        <li>mít přehled o sestavách a docházce,</li>
+        <li>sdílet materiály a nápady,</li>
+        <li>šetřit čas, který pak můžeme věnovat tomu nejdůležitějšímu – hokeji na ledě.</li>
+      </ul>
+      <p>Chci, aby CoachHub byl jednoduchý, intuitivní a dostupný i pro menší týmy, které nemají složité systémy nebo rozpočty na profesionální software.</p>
+
+      <h2>Poděkování</h2>
+      <p>Díky všem spoluhráčům, trenérům a kamarádům, kteří mě inspirovali k vytvoření této aplikace a pomohli mi ji testovat v praxi.</p>
+      <p>Pokud máte nápady na vylepšení nebo narazíte na chybu, neváhejte mě kontaktovat.</p>
+
+      <p style="margin-top:12px;">
+        Kontakt: <a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a>
+      </p>
+      <p>
+        <a href="{{ url_for('home') }}">← Zpět na domovskou stránku</a>
+      </p>
+      <p style="margin-top:12px;">
+        Další informace: <a href="{{ url_for('terms') }}">Podmínky použití</a> · <a href="{{ url_for('privacy') }}">Zásady ochrany osobních údajů</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

@@ -31,14 +31,14 @@
     <div class="header-bottom">
   <nav>
     <ul class="nav-left">
-      {% if current_user.is_authenticated %}
+      {% if current_user.is_authenticated or team_session_login %}
         <li><a href="{{ url_for('home') }}">🏠 Domů</a></li>
         <li><a href="{{ url_for('players') }}">👥 Hráči</a></li>
         <li><a href="{{ url_for('roster') }}">📋 Soupiska</a></li>
         <li class="dropdown">
-          <a href="{{ url_for('lines') }}">🔀 Lajny</a>
+          <a href="{{ url_for('lines') }}">🔀 Formace</a>
           <div class="dropdown-menu">
-            <a href="{{ url_for('lines') }}">⚙️ Nastavit lajny</a>
+            <a href="{{ url_for('lines') }}">⚙️ Sestavit Formace</a>
             <a href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
           </div>
         </li>
@@ -61,22 +61,24 @@
         <li><span class="nav-disabled">🏠 Domů</span></li>
         <li><span class="nav-disabled">👥 Hráči</span></li>
         <li><span class="nav-disabled">📋 Soupiska</span></li>
-        <li><span class="nav-disabled">🔀 Lajny</span></li>
+        <li><span class="nav-disabled">🔀 Formace</span></li>
         <li><span class="nav-disabled">🏒 Tréninky</span></li>
       {% endif %}
     </ul>
 
     <ul class="nav-right">
-      {% if current_user.is_authenticated %}
+      {% if current_user.is_authenticated or team_session_login %}
         <li><a href="{{ url_for('settings') }}">⚙️ Nastavení</a></li>
-        {% if current_user.is_team_admin %}
+        {% if is_coach %}
           <li><a href="{{ url_for('audit_log') }}">🧾 Audit log</a></li>
         {% endif %}
       {% endif %}
       {% if current_user.is_authenticated %}
         <li><a href="{{ url_for('logout') }}">🚪 Odhlásit</a></li>
+      {% elif team_session_login %}
+        <li><a href="{{ url_for('team_logout') }}">🚪 Odhlásit</a></li>
       {% else %}
-        <li><a href="{{ url_for('auth') }}">🔐 Přihlásit</a></li>
+        <li><a href="{{ url_for('team_auth') }}">🔐 Přihlásit (týmový klíč)</a></li>
       {% endif %}
     </ul>
   </nav>
@@ -97,10 +99,16 @@
         {% endwith %}
         {% block content %}
         {% endblock %}
-    </main>
+</main>
 
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='app.js') }}" nonce="{{ csp_nonce }}"></script>
+
+    <footer style="margin-top:40px; padding:16px; text-align:center; color:#333; border-top: 2px solid #000; background:#fff;">
+      <a href="{{ url_for('terms') }}" style="margin-right:12px;">Podmínky použití</a>
+      <a href="{{ url_for('privacy') }}" style="margin-right:12px;">Zásady ochrany osobních údajů</a>
+      <a href="{{ url_for('about') }}">O mně</a>
+    </footer>
 
 </body>
 </html>

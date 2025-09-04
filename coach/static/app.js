@@ -5,13 +5,7 @@
     else fn();
   }
 
-  function toggleTeamMode(){
-    var mode = (document.querySelector('input[name="team_mode"]:checked')||{}).value || 'create';
-    var createBox = document.getElementById('createFields');
-    var joinBox = document.getElementById('joinFields');
-    if(createBox) createBox.style.display = (mode === 'join') ? 'none' : '';
-    if(joinBox) joinBox.style.display = (mode === 'join') ? '' : 'none';
-  }
+  // (team mode radios removed; using segmented toggle below)
 
   async function sharePdf(url, filename){
     try {
@@ -29,11 +23,107 @@
   }
 
   onReady(function(){
-    // Auth radios
-    document.querySelectorAll('input[name="team_mode"]').forEach(function(r){
-      r.addEventListener('change', toggleTeamMode);
-    });
-    toggleTeamMode();
+    // Auth tabs: toggle between login and register
+    var tabs = document.querySelectorAll('.auth-tab');
+    if(tabs && tabs.length){
+      var panels = document.querySelectorAll('.auth-panel');
+      tabs.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var target = btn.getAttribute('data-auth-tab');
+          tabs.forEach(function(b){ b.classList.remove('active'); });
+          btn.classList.add('active');
+          panels.forEach(function(p){ p.style.display = (p.getAttribute('data-auth-panel') === target) ? 'block' : 'none'; });
+        });
+      });
+    }
+    // Team mode segmented toggle
+    var segBtns = document.querySelectorAll('.seg-btn');
+    var hiddenTeamMode = document.getElementById('teamModeInput');
+    function setTeamMode(mode){
+      if(hiddenTeamMode) hiddenTeamMode.value = mode;
+      var createBox = document.getElementById('createFields');
+      var joinBox = document.getElementById('joinFields');
+      if(createBox) createBox.style.display = (mode === 'create') ? 'block' : 'none';
+      if(joinBox) joinBox.style.display = (mode === 'join') ? 'block' : 'none';
+    }
+    if(segBtns && segBtns.length){
+      segBtns.forEach(function(b){
+        b.addEventListener('click', function(){
+          segBtns.forEach(function(x){ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); });
+          b.classList.add('active'); b.setAttribute('aria-pressed','true');
+          setTeamMode(b.getAttribute('data-team-mode') || 'create');
+        });
+      });
+      setTeamMode('create');
+    }
+
+    // Password strength meter (registration)
+    var pw = document.getElementById('regPassword');
+    var meter = document.getElementById('pwStrength');
+    function score(s){ if(!s) return 0; var pts=0; if(s.length>=8) pts++; if(/[A-Z]/.test(s)) pts++; if(/[a-z]/.test(s)) pts++; if(/[0-9]/.test(s)) pts++; if(/[^A-Za-z0-9]/.test(s)) pts++; return pts; }
+    function label(pts){ return pts<=1?'velmi slabé':pts===2?'slabé':pts===3?'střední':pts===4?'silné':'velmi silné'; }
+    if(pw && meter){ pw.addEventListener('input', function(){ meter.textContent = 'Síla hesla: ' + label(score(pw.value)); }); }
+
+    // Brand colors preview
+    var prim = document.getElementById('primColReg');
+    var sec = document.getElementById('secColReg');
+    var prev = document.getElementById('brandPreview');
+    var hex = document.getElementById('brandHex');
+    function updBrand(){ if(prev && prim && sec){ prev.style.background = 'linear-gradient(90deg,'+prim.value+' 50%,'+sec.value+' 50%)'; } if(hex && prim && sec){ hex.textContent = (prim.value||'#fff')+' / '+(sec.value||'#000'); } }
+    if(prim) prim.addEventListener('input', updBrand);
+    if(sec) sec.addEventListener('input', updBrand);
+    updBrand();
+
+    // Dropzone logo upload with preview/validation
+    var dz = document.getElementById('logoDrop');
+    var fileInput = document.getElementById('teamLogoInput');
+    var thumb = document.getElementById('logoThumb');
+    function setLogoError(msg){ var el = document.querySelector('[data-error-for="team_logo"]'); if(el) el.textContent = msg||''; }
+    function handleFiles(f){
+      if(!f) return; var ok = ['image/png','image/jpeg'].includes(f.type); var max=2*1024*1024;
+      if(!ok){ setLogoError('Povolené typy: PNG/JPG.'); if(fileInput) fileInput.value=''; return; }
+      if(f.size>max){ setLogoError('Soubor je větší než 2 MB.'); if(fileInput) fileInput.value=''; return; }
+      setLogoError(''); var r = new FileReader(); r.onload=function(){ if(thumb){ thumb.src=r.result; thumb.style.display='inline-block'; } }; r.readAsDataURL(f);
+    }
+    if(dz && fileInput){
+      dz.addEventListener('click', function(){ fileInput.click(); });
+      dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('drag'); });
+      dz.addEventListener('dragleave', function(){ dz.classList.remove('drag'); });
+      dz.addEventListener('drop', function(e){ e.preventDefault(); dz.classList.remove('drag'); var f=e.dataTransfer.files[0]; if(f){ fileInput.files=e.dataTransfer.files; handleFiles(f);} });
+      fileInput.addEventListener('change', function(){ var f=fileInput.files&&fileInput.files[0]; handleFiles(f); });
+    }
+
+    // Team search filter
+    var search = document.getElementById('teamSearch');
+    var select = document.getElementById('existingTeam');
+    if(search && select){
+      search.addEventListener('input', function(){ var q=(search.value||'').toLowerCase(); Array.prototype.slice.call(select.options).forEach(function(opt){ opt.hidden = q && (opt.textContent||'').toLowerCase().indexOf(q)===-1; }); });
+    }
+
+    // Consent checkbox enables submit
+    var cb = document.getElementById('termsAccept');
+    var btn = document.getElementById('btnRegister');
+    if(cb && btn){ function upd(){ btn.disabled = !cb.checked; } cb.addEventListener('change', upd); upd(); }
+
+    // Register form micro-validation
+    var regForm = document.getElementById('registerForm');
+    function setErr(name, msg){ var el = document.querySelector('[data-error-for="'+name+'"]'); if(el) el.textContent = msg||''; }
+    if(regForm){
+      regForm.addEventListener('submit', function(e){
+        var ok=true;
+        var email = regForm.querySelector('input[name="email"]');
+        var pass = regForm.querySelector('input[name="password"]');
+        var mode = (document.getElementById('teamModeInput')||{}).value || 'create';
+        var teamName = regForm.querySelector('input[name="team_name"]');
+        var existing = document.getElementById('existingTeam');
+        setErr('email',''); setErr('team_logo',''); setErr('terms','');
+        if(!email.value){ setErr('email','Zadej e‑mail.'); ok=false; }
+        if((pass.value||'').length<8){ var m=document.getElementById('pwStrength'); if(m) m.textContent='Síla hesla: slabé (min. 8 znaků)'; ok=false; }
+        if(mode==='create'){ if(!teamName.value){ ok=false; } } else { if(existing && !existing.value){ ok=false; } }
+        var terms = document.getElementById('termsAccept'); if(!terms || !terms.checked){ setErr('terms','Potvrď souhlas s podmínkami.'); ok=false; }
+        if(!ok){ e.preventDefault(); }
+      });
+    }
 
     // Share buttons
     document.querySelectorAll('.btn-share-pdf').forEach(function(btn){
@@ -214,3 +304,18 @@
     }
   });
 })();
+    // Toggle password visibility (auth)
+    document.querySelectorAll('.btn-toggle-pw').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-target');
+        var inp = id && document.getElementById(id);
+        if(!inp) return;
+        if(inp.type === 'password'){
+          inp.type = 'text';
+          btn.textContent = '🙈';
+        } else {
+          inp.type = 'password';
+          btn.textContent = '👁';
+        }
+      });
+    });

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zásady ochrany osobních údajů</title>
+  <style>
+    :root{ --primary:#ffffff; --secondary:#000000; --tertiary:#c44747; }
+    html,body{margin:0; padding:0; height:100%;}
+    body{background:var(--primary); color:var(--secondary); font-family:'Oswald', Arial, sans-serif;}
+    .hero-strip{background:#000; display:flex; align-items:center; justify-content:center; padding:6px 16px;}
+    .hero-logo{height:150px; width:auto;}
+    .wrap{min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:12px 16px 24px;}
+    .card{border:2px solid var(--tertiary); border-radius:12px; padding:20px; background:#fff; width:100%; max-width:900px;}
+    h1{margin:0 0 12px; font-size:26px; color:var(--tertiary);} h2{margin:18px 0 8px;}
+    p{line-height:1.5;}
+    a{color:#000;}
+    @media (max-width: 900px){ .hero-logo{height:100px;} }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:">
+</head>
+<body>
+  <div class="hero-strip">
+    <img class="hero-logo" src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo">
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h1>Zásady ochrany osobních údajů</h1>
+      <div style="margin:6px 0 14px;">
+        <a href="{{ url_for('team_auth') }}">← Zpět na přihlášení / registraci</a>
+      </div>
+      <h2>Jaká data ukládáme</h2>
+      <p>Název týmu, přístupový klíč (hashovaný), čas posledního přihlášení, záznamy o trénincích, sestavách a exportech (bez citlivých osobních údajů).</p>
+
+      <h2>Účel zpracování</h2>
+      <p>Autentizace pomocí týmového klíče, provoz aplikace a správa týmových dat (hráči, lajny, tréninky, exporty).</p>
+
+      <h2>Právní základ</h2>
+      <p>Plnění smlouvy a oprávněný zájem na provozu aplikace.</p>
+
+      <h2>Doba uchování</h2>
+      <p>Týmy bez aktivity (poslední přihlášení) déle než 12 měsíců mohou být odstraněny.</p>
+
+      <h2>Vaše práva</h2>
+      <p>Můžete požádat o export nebo výmaz dat. Kontaktujte prosím správce týmu nebo provozovatele.</p>
+
+      <h2>Kontakt</h2>
+      <p>Správce: Martin Šnajdr</p>
+      <p>Zpracovatel: PythonAnywhere (EU)</p>
+      <p>E‑mail: <a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a></p>
+    </div>
+  </div>
+</body>
+</html>

@@ -23,7 +23,6 @@ coach/lib64/
 coach/pyvenv.cfg
 
 coach/players.db
-coach/static/exports/
 coach/static/uploads/
 coach/protected_exports/
 

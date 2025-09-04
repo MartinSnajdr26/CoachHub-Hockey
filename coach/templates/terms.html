@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Podmínky použití – {{ terms_version }}</title>
+  <style>
+    :root{ --primary:#ffffff; --secondary:#000000; --tertiary:#c44747; }
+    html,body{margin:0; padding:0; height:100%;}
+    body{background:var(--primary); color:var(--secondary); font-family:'Oswald', Arial, sans-serif;}
+    .hero-strip{background:#000; display:flex; align-items:center; justify-content:center; padding:6px 16px;}
+    .hero-logo{height:150px; width:auto;}
+    .wrap{min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:12px 16px 24px;}
+    .card{border:2px solid var(--tertiary); border-radius:12px; padding:20px; background:#fff; width:100%; max-width:900px;}
+    h1{margin:0 0 12px; font-size:26px; color:var(--tertiary);} h2{margin:18px 0 8px;}
+    p{line-height:1.5;}
+    button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
+    a{color:#000;}
+    @media (max-width: 900px){ .hero-logo{height:100px;} }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:">
+</head>
+<body>
+  <div class="hero-strip">
+    <img class="hero-logo" src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo">
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h1>Podmínky použití ({{ terms_version }})</h1>
+      <div style="margin:6px 0 14px;">
+        <a href="{{ url_for('team_auth') }}">← Zpět na přihlášení / registraci</a>
+      </div>
+      {% if consent_mode %}
+        <div style="padding:10px; border:2px solid #000; background:#fff; margin-bottom:14px;">Prosíme o potvrzení aktuálních podmínek používání aplikace.</div>
+      {% endif %}
+      <h2>1. Introduction</h2>
+      <p>Tato aplikace slouží k&nbsp;organizaci hokejového týmu. Používáním potvrzujete, že budete dodržovat tyto podmínky.</p>
+
+      <h2>2. Acceptable Use</h2>
+      <p>Nezneužívejte aplikaci, neporušujte zákony a respektujte ostatní uživatele.</p>
+
+      <h2>3. Children</h2>
+      <p>Tato aplikace není určena k samostatnému používání dětmi mladšími 13 let 
+      (v EU 16 let podle GDPR). Údaje o nezletilých hráčích může do aplikace vkládat 
+      a spravovat pouze trenér nebo správce týmu. Používáním aplikace potvrzujete, 
+      že nesvěřujete přístupový klíč přímo dětem.</p>
+
+      <h2>4. Accounts &amp; Security</h2>
+      <p>Nesdílejte přístupové klíče, chraňte přístup k&nbsp;účtu a oznamte podezřelé aktivity.</p>
+
+      <h2>5. Content Ownership</h2>
+      <p>Za nahraný obsah odpovídá uživatel. Respektujte práva třetích stran.</p>
+
+      <h2>6. Privacy &amp; Data</h2>
+      <p>Zásady zpracování osobních údajů jsou popsány na stránce 
+      <a href="{{ url_for('privacy') }}">Zásady ochrany osobních údajů</a>.</p>
+
+      <h2>7. Data Retention</h2>
+      <p>Účty bez aktivity (poslední přihlášení) po dobu 12 měsíců mohou být smazány.</p>
+
+      <h2>8. Liability</h2>
+      <p>Autoři nenesou odpovědnost za škody vzniklé používáním aplikace v mezích zákona.</p>
+
+      <h2>9. Changes</h2>
+      <p>Podmínky mohou být měněny. Platná verze: {{ terms_version }}.</p>
+
+      <h2>10. Contact</h2>
+      <p>Kontakt: <a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a></p>
+      {% if consent_mode %}
+        <form method="post" action="{{ url_for('terms_consent') }}" style="margin-top:16px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Souhlasím</button>
+          <a href="{{ url_for('logout') }}" style="margin-left:10px;">Odhlásit</a>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

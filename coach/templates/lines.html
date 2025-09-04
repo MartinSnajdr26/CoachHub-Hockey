@@ -2,7 +2,7 @@
 {% block title %}Rozdělení do lajn{% endblock %}
 
 {% block content %}
-<h1>Rozdělení hráčů do lajn</h1>
+<h1>Rozdělení hráčů do formací</h1>
 
 <div class="lines-container">
     <!-- LEVÝ sloupec – formulář -->
@@ -10,7 +10,7 @@
         <form method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% for line in range(1,5) %}
-                <h2>{{ line }}. lajna</h2>
+                <h2>{{ line }}. Formace</h2>
 
                 <p>
                     <label>LW:
@@ -106,7 +106,7 @@
             </p>
 
             <br>
-            <button type="submit">💾 Uložit lajny</button>
+            <button type="submit">💾 Uložit Formace</button>
         </form>
     </div>
 
@@ -114,7 +114,7 @@
     <div class="lines-preview">
         <h2>Aktuální rozdělení</h2>
         {% for line in range(1,5) %}
-            <h3>{{ line }}. lajna</h3>
+            <h3>{{ line }}. Formace</h3>
             <p>
                 Útok:
                 {% set lw = assignments.get("L" ~ line ~ "LW") %}
@@ -149,7 +149,7 @@
         </p>
 
         <hr>
-        {% if current_user.is_authenticated and current_user.role == 'coach' %}
+        {% if is_coach %}
         <h2>Export sestavy do PDF</h2>
         <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

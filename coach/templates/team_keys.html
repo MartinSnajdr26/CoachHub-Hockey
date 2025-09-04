@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Týmové klíče{% endblock %}
+{% block content %}
+<h1>Klíče týmu – {{ team.name }}</h1>
+
+<div class="cards">
+  <div class="card">
+    <h2>Rotace klíčů</h2>
+    <form method="POST" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" name="which" value="coach">Rotate Coach key</button>
+      <button type="submit" name="which" value="player">Rotate Player key</button>
+    </form>
+    {% if rotated_role and rotated_plain %}
+      <div style="margin-top:10px; padding:10px; border:2px solid #c44747; border-radius:8px; background:#fff;">
+        Nový klíč ({{ rotated_role }}): <code>{{ rotated_plain }}</code>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Historie klíčů</h2>
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left; border-bottom:1px solid #666;">
+          <th>Role</th><th>Vytvořen</th><th>Aktivní</th><th>Rotován</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for k in keys %}
+          <tr style="border-bottom:1px solid #ddd;">
+            <td>{{ k.role }}</td>
+            <td>{{ k.created_at }}</td>
+            <td>{{ 'Ano' if k.active else 'Ne' }}</td>
+            <td>{{ k.rotated_at or '-' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

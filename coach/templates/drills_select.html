@@ -22,7 +22,7 @@
     <span style="font-size:12px; opacity:0.8;">Pořadí: menší číslo = dříve v PDF</span>
   </div>
   <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    {% if current_user.is_authenticated and current_user.role == 'coach' %}
+    {% if is_coach %}
       <button type="submit">📄 Vytvořit PDF</button>
     {% else %}
       <button type="button" disabled title="Pouze trenér může exportovat">📄 Vytvořit PDF</button>
@@ -57,7 +57,7 @@
     {% endfor %}
   </div>
   <div style="margin-top:12px;">
-    {% if current_user.is_authenticated and current_user.role == 'coach' %}
+    {% if is_coach %}
       <button type="submit">📄 Vytvořit PDF</button>
     {% else %}
       <button type="button" disabled title="Pouze trenér může exportovat">📄 Vytvořit PDF</button>

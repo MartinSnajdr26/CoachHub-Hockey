@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Přihlášení týmu / Vytvořit tým</title>
+  <style>
+    :root{ --tertiary:#c44747; }
+    body{margin:0; font-family:'Oswald',Arial,sans-serif; background:#fff; color:#000;}
+    .hero{background:#000; display:flex; justify-content:center; padding:8px 12px;}
+    .hero img{height:120px;}
+    .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:16px;}
+    .panel{width:100%; max-width:900px; display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+    .card{border:2px solid var(--tertiary); border-radius:12px; padding:18px; background:#fff;}
+    label{display:block; margin:8px 0 4px;}
+    input, select{width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid #bbb; font-size:16px; background:#fff;}
+    button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
+    .row{display:flex; align-items:center; gap:8px;}
+    .below-auth{width:100%; max-width:900px; margin:14px auto 0; text-align:center; font-size:14px;}
+    .below-auth a{color:#000; text-decoration:underline;}
+    @media (max-width: 900px){ .panel{grid-template-columns:1fr;} .hero img{height:90px;} }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="hero"><img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo"></div>
+  <div class="wrap">
+    <div class="panel">
+      <div class="card">
+        <h2>🔐 Přihlásit tým</h2>
+        <form method="POST" action="{{ url_for('team_login') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Tým<br>
+            <select name="team_id" required>
+              {% for t in teams %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Role<br>
+            <select name="role">
+              <option value="coach">Coach</option>
+              <option value="player">Player</option>
+            </select>
+          </label>
+          <label>Heslo klíče<br>
+            <input type="password" name="key" autocomplete="current-password" required>
+          </label>
+          <label class="row" style="font-size:14px; align-items:flex-start;">
+            <input type="checkbox" name="terms_accept" required style="margin-top:4px;">
+            <span>Souhlasím s <a href="{{ url_for('terms') }}" target="_blank">Podmínkami používání</a></span>
+          </label>
+          <button type="submit">Přihlásit</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>🆕 Vytvořit tým</h2>
+        <form method="POST" action="{{ url_for('team_create') }}" enctype="multipart/form-data" id="createTeamForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Název týmu<br>
+            <input type="text" name="team_name" placeholder="HC ....." required>
+          </label>
+          <div class="row" style="margin:8px 0; align-items:center; gap:16px; flex-wrap:wrap;">
+            <label>Primární barva<br>
+              <input type="color" id="primColReg" name="primary_color" value="#d4c76f" style="width:60px; height:36px; padding:0; border:none;">
+            </label>
+            <label>Sekundární barva<br>
+              <input type="color" id="secColReg" name="secondary_color" value="#000000" style="width:60px; height:36px; padding:0; border:none;">
+            </label>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+              <div id="brandPreview" class="color-preview" title="Náhled barev" style="width:32px; height:32px; border-radius:6px; border:1px solid #aaa;"></div>
+              <div class="hint" id="brandHex">#d4c76f / #000000</div>
+            </div>
+          </div>
+          <div style="margin:8px 0;">
+            <label>Logo týmu (PNG/JPG) – max 2 MB</label>
+            <div class="dropzone" id="logoDrop" style="border:2px dashed #999; border-radius:10px; padding:16px; text-align:center; background:#fafafa; cursor:pointer;">
+              <div>Přetáhni logo sem nebo klikni pro výběr</div>
+              <img id="logoThumb" class="thumb" alt="Náhled loga" style="display:none; margin-top:8px; width:80px; height:80px; object-fit:contain; border:1px solid #ddd; border-radius:6px; background:#fff;" />
+              <input type="file" name="team_logo" id="teamLogoInput" accept="image/png,image/jpeg" style="display:none;">
+            </div>
+            <div class="hint error-msg" data-error-for="team_logo"></div>
+          </div>
+          <label class="row" style="font-size:14px; align-items:flex-start;">
+            <input type="checkbox" name="terms_accept" required style="margin-top:4px;">
+            <span>Souhlasím s <a href="{{ url_for('terms') }}" target="_blank">Podmínkami používání</a></span>
+          </label>
+          <button type="submit">Vytvořit tým</button>
+        </form>
+        <div style="font-size:13px; margin-top:8px; color:#555;">
+          Klíče pro Coach/Player se zobrazí pouze jednou – bezpečně si je uložte.
+        </div>
+      </div>
+    </div>
+    <div class="below-auth"><a href="{{ url_for('about') }}">O mně</a></div>
+  </div>
+</body>
+</html>
+<script src="{{ url_for('static', filename='app.js') }}" nonce="{{ csp_nonce }}"></script>

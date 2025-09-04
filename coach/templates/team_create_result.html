@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tým vytvořen</title>
+  <style>
+    body{margin:0; font-family:'Oswald',Arial,sans-serif; background:#fff; color:#000;}
+    .wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px;}
+    .card{max-width:780px; width:100%; border:2px solid #c44747; border-radius:12px; padding:18px;}
+    code{background:#f3f3f3; padding:6px 8px; border-radius:6px; display:inline-block;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>Tým „{{ team.name }}“ byl vytvořen</h2>
+      <p>Uložte si tyto klíče – zobrazí se jen jednou:</p>
+      <p><b>Coach key:</b><br><code>{{ coach_key }}</code></p>
+      <p><b>Player key:</b><br><code>{{ player_key }}</code></p>
+      <p><a href="{{ url_for('team_auth') }}">← Zpět na přihlášení týmu</a></p>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -11,26 +11,20 @@
     <thead>
       <tr>
         <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Čas</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Akce</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Kdo</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Cíl</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Detail</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Událost</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Role</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">IP</th>
+        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Meta</th>
       </tr>
     </thead>
     <tbody>
       {% for l in logs %}
         <tr>
           <td style="border-bottom:1px solid #ccc; padding:6px; white-space:nowrap;">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.action }}</td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">
-            {% set a = users_by_id.get(l.actor_user_id) %}
-            {{ (a.username or a.email) if a else '-' }}
-          </td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">
-            {% set t = users_by_id.get(l.target_user_id) %}
-            {{ (t.username or t.email) if t else '-' }}
-          </td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.details or '' }}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.event }}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.role or '-' }}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.ip_truncated or '-' }}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.meta or '' }}</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -41,4 +35,3 @@
 {% endif %}
 
 {% endblock %}
-
