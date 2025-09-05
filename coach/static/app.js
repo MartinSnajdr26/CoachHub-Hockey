@@ -42,17 +42,52 @@
         }
         var toast = document.createElement('div');
         toast.className = 'cal-toast';
-        toast.innerHTML = '<div class="text"></div><div class="actions"><button class="btn btn-open">Otevřít</button><button class="btn btn-close">Zavřít</button></div>';
+        toast.innerHTML = '<div class="text"></div><div class="actions"><button class="btn btn-edit" style="display:none;">Upravit</button><button class="btn btn-open">Otevřít</button><button class="btn btn-close">Zavřít</button></div>';
         document.body.appendChild(toast);
         var hideTimer;
+        function openDetailsInSheet(det){
+          var sheet = document.getElementById('calFormSheet');
+          var content = sheet && sheet.querySelector('.cal-form-sheet__content');
+          var btnClose = sheet && sheet.querySelector('.cal-form-sheet__close');
+          if(!(det && sheet && content)) return;
+          restoreMovedNode();
+          var ph = document.createComment('details-placeholder');
+          det.parentNode.insertBefore(ph, det);
+          movedNode = { node: det, placeholder: ph };
+          content.innerHTML = '';
+          content.appendChild(det);
+          sheet.classList.add('open');
+          sheet.setAttribute('aria-hidden','false');
+          if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
+          // Fallback reload after any submit
+          content.querySelectorAll('form').forEach(function(f){
+            f.addEventListener('submit', function(){
+              setTimeout(function(){ try{ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+            });
+          });
+          try { var firstInput = det.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
+        }
         function showToast(msg, cell){
           toast.querySelector('.text').textContent = msg;
           toast.style.display = 'block';
           clearTimeout(hideTimer);
           hideTimer = setTimeout(function(){ toast.style.display='none'; }, 4000);
           toast.querySelector('.btn-close').onclick = function(){ toast.style.display='none'; };
+          // Show explicit "Upravit" for coaches when an event exists
+          var isCoach = (calWrap.getAttribute('data-is-coach') === '1');
+          var evDet = cell && cell.querySelector('.cal-event details');
+          var btnEdit = toast.querySelector('.btn-edit');
+          if(isCoach && evDet){ btnEdit.style.display='inline-block'; btnEdit.onclick = function(){ openDetailsInSheet(evDet); toast.style.display='none'; }; }
+          else { btnEdit.style.display='none'; btnEdit.onclick = null; }
           toast.querySelector('.btn-open').onclick = function(){
-            try { var det = cell && cell.querySelector('details'); if(det){ det.open = true; det.scrollIntoView({behavior:'smooth', block:'center'}); } } catch(_){ }
+            try {
+              if(!cell) return;
+              // Prefer editing existing event if any; else open add form
+              var evDet2 = cell.querySelector('.cal-event details');
+              var addDet = cell.querySelector('.cal-cell-head details');
+              var targetDet = evDet2 || addDet;
+              if(targetDet){ openDetailsInSheet(targetDet); }
+            } catch(_){ }
             toast.style.display='none';
           };
         }
