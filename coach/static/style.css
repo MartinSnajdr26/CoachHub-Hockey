@@ -411,6 +411,9 @@ li {
 .table-scroll table { width: 100%; border-collapse: collapse; }
 .table-scroll th, .table-scroll td { word-break: break-word; }
 
+/* Audit log smaller text */
+.audit-log { font-size: 12px; }
+
 /* Responsivní přizpůsobení vybraných layoutů */
 @media (max-width: 1024px) {
   .lines-container { grid-template-columns: 1fr; }

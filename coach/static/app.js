@@ -28,16 +28,16 @@
       var mqMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
       var calWrap = document.querySelector('.calendar-wrap');
       if (mqMobile && calWrap) {
-        // Helper: move-not-clone form handling
-        var movedForm = { form: null, placeholder: null, originalParent: null, onClose: null };
-        function restoreMovedForm(){
+        // Helper: move-not-clone handling (mobile)
+        var movedNode = { node: null, placeholder: null };
+        function restoreMovedNode(){
           try {
-            if(movedForm && movedForm.form && movedForm.placeholder && movedForm.placeholder.parentNode){
-              movedForm.placeholder.parentNode.insertBefore(movedForm.form, movedForm.placeholder);
-              movedForm.placeholder.parentNode.removeChild(movedForm.placeholder);
+            if(movedNode && movedNode.node && movedNode.placeholder && movedNode.placeholder.parentNode){
+              movedNode.placeholder.parentNode.insertBefore(movedNode.node, movedNode.placeholder);
+              movedNode.placeholder.parentNode.removeChild(movedNode.placeholder);
             }
           } catch(_){}
-          movedForm = { form:null, placeholder:null, originalParent:null, onClose:null };
+          movedNode = { node:null, placeholder:null };
         }
         var toast = document.createElement('div');
         toast.className = 'cal-toast';
@@ -64,27 +64,28 @@
             ev.preventDefault(); ev.stopPropagation();
             var det = sum.closest('details');
             if(det){
-              var form = det.querySelector('form');
               var sheet = document.getElementById('calFormSheet');
               var content = sheet && sheet.querySelector('.cal-form-sheet__content');
               var btnClose = sheet && sheet.querySelector('.cal-form-sheet__close');
-              if(form && sheet && content){
-                // Restore any previous moved form first
-                restoreMovedForm();
-                // Move (not clone) the original form into the sheet
-                var ph = document.createComment('form-placeholder');
-                form.parentNode.insertBefore(ph, form);
-                movedForm = { form: form, placeholder: ph, originalParent: ph.parentNode };
+              if(det && sheet && content){
+                // Restore any previous moved node first
+                restoreMovedNode();
+                // Move entire details block (contains update+delete forms)
+                var ph = document.createComment('details-placeholder');
+                det.parentNode.insertBefore(ph, det);
+                movedNode = { node: det, placeholder: ph };
                 content.innerHTML = '';
-                content.appendChild(form);
+                content.appendChild(det);
                 sheet.classList.add('open');
                 sheet.setAttribute('aria-hidden','false');
-                if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedForm(); }; }
-                // Post fallback: allow normal submit, then reload
-                form.addEventListener('submit', function(){
-                  setTimeout(function(){ try{ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+                if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
+                // Post fallback for any form inside moved details
+                content.querySelectorAll('form').forEach(function(f){
+                  f.addEventListener('submit', function(){
+                    setTimeout(function(){ try{ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+                  });
                 });
-                try { var firstInput = form.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
+                try { var firstInput = det.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
                 return; // handled
               }
             }
@@ -94,27 +95,27 @@
           if(evBox){
             ev.preventDefault(); ev.stopPropagation();
             var det2 = evBox.querySelector('details');
-            var form2 = det2 && det2.querySelector('form');
             var sheet2 = document.getElementById('calFormSheet');
             var content2 = sheet2 && sheet2.querySelector('.cal-form-sheet__content');
             var btnClose2 = sheet2 && sheet2.querySelector('.cal-form-sheet__close');
-            if(form2 && sheet2 && content2){
-              // Restore any previous moved form first
-              restoreMovedForm();
-              // Move the original edit form into the sheet
-              var ph2 = document.createComment('form-placeholder');
-              form2.parentNode.insertBefore(ph2, form2);
-              movedForm = { form: form2, placeholder: ph2, originalParent: ph2.parentNode };
+            if(det2 && sheet2 && content2){
+              // Restore any previous moved node first
+              restoreMovedNode();
+              var ph2 = document.createComment('details-placeholder');
+              det2.parentNode.insertBefore(ph2, det2);
+              movedNode = { node: det2, placeholder: ph2 };
               content2.innerHTML = '';
-              content2.appendChild(form2);
+              content2.appendChild(det2);
               sheet2.classList.add('open');
               sheet2.setAttribute('aria-hidden','false');
-              if(btnClose2){ btnClose2.onclick = function(){ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); restoreMovedForm(); }; }
-              // Fallback reload after submit
-              form2.addEventListener('submit', function(){
-                setTimeout(function(){ try{ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+              if(btnClose2){ btnClose2.onclick = function(){ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
+              // Fallback reload after submit (any form inside details)
+              content2.querySelectorAll('form').forEach(function(f){
+                f.addEventListener('submit', function(){
+                  setTimeout(function(){ try{ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+                });
               });
-              try { var firstInput2 = form2.querySelector('input,select,textarea'); if(firstInput2){ firstInput2.focus(); } } catch(_){ }
+              try { var firstInput2 = det2.querySelector('input,select,textarea'); if(firstInput2){ firstInput2.focus(); } } catch(_){ }
               return; // handled
             }
           }
@@ -134,8 +135,8 @@
       var mqDesktop = !(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
       var calWrapDesk = document.querySelector('.calendar-wrap');
       if(mqDesktop && calWrapDesk){
-        var movedDesk = { form:null, placeholder:null };
-        function restoreDesk(){ try{ if(movedDesk.form && movedDesk.placeholder && movedDesk.placeholder.parentNode){ movedDesk.placeholder.parentNode.insertBefore(movedDesk.form, movedDesk.placeholder); movedDesk.placeholder.parentNode.removeChild(movedDesk.placeholder); } }catch(_){} movedDesk={form:null, placeholder:null}; }
+        var movedDesk = { node:null, placeholder:null };
+        function restoreDesk(){ try{ if(movedDesk.node && movedDesk.placeholder && movedDesk.placeholder.parentNode){ movedDesk.placeholder.parentNode.insertBefore(movedDesk.node, movedDesk.placeholder); movedDesk.placeholder.parentNode.removeChild(movedDesk.placeholder); } }catch(_){} movedDesk={node:null, placeholder:null}; }
         calWrapDesk.addEventListener('click', function(ev){
           var sum = ev.target.closest('summary');
           if(!sum) return;
@@ -143,8 +144,7 @@
           var td = sum.closest('td');
           if(!det || !td){ return; }
           ev.preventDefault(); ev.stopPropagation();
-          var form = det.querySelector('form');
-          if(!form) return;
+          // We'll move the entire <details> block so both update and delete are available
           // Remove existing overlay if any
           var exist = calWrapDesk.querySelector('.cal-overlay');
           if(exist && exist.parentElement){ exist.parentElement.removeChild(exist); }
@@ -168,12 +168,13 @@
           var inner = document.createElement('div'); inner.className = 'cal-overlay-inner';
           var close = document.createElement('button'); close.type='button'; close.className='cal-overlay-close'; close.textContent='✖ Zavřít';
           var content = document.createElement('div'); content.className='cal-overlay-content';
-          // Move original form (not clone) to overlay
+          // Move original details (not clone) to overlay
           restoreDesk();
-          var ph = document.createComment('desk-form-placeholder');
-          form.parentNode.insertBefore(ph, form);
-          movedDesk = { form: form, placeholder: ph };
-          content.appendChild(form);
+          var ph = document.createComment('desk-details-placeholder');
+          det.parentNode.insertBefore(ph, det);
+          movedDesk = { node: det, placeholder: ph };
+          try { det.open = true; } catch(_){ }
+          content.appendChild(det);
           inner.appendChild(close);
           inner.appendChild(content);
           overlay.appendChild(inner);
@@ -181,7 +182,8 @@
           // Close handlers
           function closeOverlay(){ if(overlay && overlay.parentElement){ overlay.parentElement.removeChild(overlay); } restoreDesk(); }
           close.onclick = closeOverlay;
-          form.addEventListener('submit', function(){ setTimeout(closeOverlay, 200); });
+          // Close overlay after any submit inside details (redirect will refresh)
+          content.querySelectorAll('form').forEach(function(f){ f.addEventListener('submit', function(){ setTimeout(closeOverlay, 200); }); });
         });
       }
     } catch(e) {}
