@@ -23,6 +23,41 @@
   }
 
   onReady(function(){
+    // Calendar: mobile tap-to-toast detail
+    try {
+      var mqMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+      var calWrap = document.querySelector('.calendar-wrap');
+      if (mqMobile && calWrap) {
+        var toast = document.createElement('div');
+        toast.className = 'cal-toast';
+        toast.innerHTML = '<div class="text"></div><div class="actions"><button class="btn btn-open">Otevřít</button><button class="btn btn-close">Zavřít</button></div>';
+        document.body.appendChild(toast);
+        var hideTimer;
+        function showToast(msg, cell){
+          toast.querySelector('.text').textContent = msg;
+          toast.style.display = 'block';
+          clearTimeout(hideTimer);
+          hideTimer = setTimeout(function(){ toast.style.display='none'; }, 4000);
+          toast.querySelector('.btn-close').onclick = function(){ toast.style.display='none'; };
+          toast.querySelector('.btn-open').onclick = function(){
+            try { var det = cell && cell.querySelector('details'); if(det){ det.open = true; det.scrollIntoView({behavior:'smooth', block:'center'}); } } catch(_){ }
+            toast.style.display='none';
+          };
+        }
+        calWrap.addEventListener('click', function(ev){
+          var td = ev.target.closest('td[data-kind]');
+          if(!td) return;
+          var kind = td.getAttribute('data-kind');
+          if(!kind) return;
+          var title = td.getAttribute('data-title') || '';
+          var time = td.getAttribute('data-time') || '';
+          var kindLabel = kind === 'match' ? 'Zápas' : 'Trénink';
+          var msg = (time ? (time + ' – ') : '') + (title || kindLabel);
+          showToast(msg, td);
+        }, {passive:true});
+      }
+    } catch(e) {}
+
     // Mobile nav: hamburger toggle
     var menuBtn = document.getElementById('mobileMenuBtn');
     var nav = document.querySelector('.header-bottom nav');

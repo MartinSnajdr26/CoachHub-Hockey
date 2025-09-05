@@ -40,6 +40,7 @@
       <a href="{{ url_for('home', year=next_year, month=next_month) }}"><button>Další ▶</button></a>
       <span style="margin-left:12px; opacity:0.8;">Dnes: {{ today_label }}</span>
     </p>
+    <p class="calendar-hint">Klepnutím na den zobrazíš detail.</p>
     <p class="calendar-legend" style="margin:0 0 10px; display:flex; align-items:center; gap:14px;">
       <span style="display:inline-flex; align-items:center; gap:6px;">
         <span style="display:inline-block; width:8px; height:6px; background: var(--brand-primary, #d4c76f); border:2px solid var(--brand-secondary, #000); border-radius:2px;"></span>
@@ -65,12 +66,26 @@
             {% for day in week %}
               {% set in_month = (day.month == cal_month) %}
               {% set is_today = (day.isoformat() == today_iso) %}
-              <td class="cal-cell {{ 'in-month' if in_month else 'out-month' }} {{ 'is-today' if is_today else '' }}">
+              {% set key = day.isoformat() %}
+              {% set evs = events_by_day.get(key, []) %}
+              {% set ns = namespace(has_match=false, has_training=false, first_title='', first_time='') %}
+              {% for ev in evs %}
+                {% set kind = (ev.kind or 'training') %}
+                {% if kind == 'match' %}{% set ns.has_match = true %}{% endif %}
+                {% if kind == 'training' %}{% set ns.has_training = true %}{% endif %}
+                {% if not ns.first_title %}{% set ns.first_title = ev.title %}{% set ns.first_time = ev.time or '' %}{% endif %}
+              {% endfor %}
+              <td class="cal-cell {{ 'in-month' if in_month else 'out-month' }} {{ 'is-today' if is_today else '' }} {{ 'has-match' if ns.has_match else ('has-training' if ns.has_training else '') }}"
+                  data-kind="{{ 'match' if ns.has_match else ('training' if ns.has_training else '') }}"
+                  data-title="{{ ns.first_title }}" data-time="{{ ns.first_time }}">
                 <div class="cal-cell-head" style="display:flex; justify-content:space-between; align-items:center;">
                   {% if is_today %}
                     <strong style="color: var(--tertiary, #c44747); font-weight:800;">{{ day.day }}</strong>
                   {% else %}
                     <strong>{{ day.day }}</strong>
+                  {% endif %}
+                  {% if ns.has_match or ns.has_training %}
+                    <span class="day-badge" aria-hidden="true">{{ 'Z' if ns.has_match else 'T' }}</span>
                   {% endif %}
                   {% if in_month and is_coach %}
                     <details>
@@ -108,8 +123,7 @@
                     </details>
                   {% endif %}
                 </div>
-                {% set key = day.isoformat() %}
-                {% for ev in events_by_day.get(key, []) %}
+                {% for ev in evs %}
                   {% set c = 'var(--brand-primary, #d4c76f)' if (ev.kind or 'training') == 'training' else 'var(--brand-secondary, #000)' %}
                   <div class="cal-event" style="border-left:3px solid {{ c }};">
                     <b>{{ ev.time or '' }}</b> {{ ev.title }}
