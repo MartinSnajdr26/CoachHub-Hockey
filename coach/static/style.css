@@ -39,6 +39,15 @@ h2 { font-size: clamp(18px, 3.0vw + 0.4rem, 24px); }
     letter-spacing: 2px;
     color: var(--brand-primary, #d4c76f);
 }
+/* Responsivní zmenšení loga a titulku v hlavičce */
+@media (max-width: 900px){
+  .header-top .logo img { height: 110px; }
+  .header-top .logo h1 { font-size: 26px; letter-spacing: 1.5px; }
+}
+@media (max-width: 600px){
+  .header-top .logo img { height: 88px; }
+  .header-top .logo h1 { font-size: 20px; letter-spacing: 1px; }
+}
 
 /* Welcome block in header, aligned left */
 .header-user { width: 100%; margin-top: 6px; }
@@ -438,6 +447,8 @@ li {
   font-size: clamp(12px, 1.1vw + 0.45rem, 16px);
   background: var(--brand-primary, #d4c76f);   /* kalendář = primární barva */
   color: var(--brand-secondary, #000);         /* číslice/ikony = sekundární */
+  width: 100%;
+  table-layout: fixed;                         /* rovnoměrné sloupce, bez přetékání */
 }
 .calendar-wrap th, .calendar-wrap td {
   border: 1px solid color-mix(in srgb, var(--brand-secondary, #000) 30%, #fff);
@@ -458,3 +469,17 @@ li {
 .calendar-legend { }
 @media (max-width: 480px){ .calendar-legend { display: none; } }
 .month-title { font-size: clamp(18px, 2.5vw + 0.5rem, 24px); }
+
+/* Sloupec s kalendářem – adaptivní šířka */
+.calendar-col { flex: 1; min-width: 520px; max-width: 700px; }
+@media (max-width: 768px){
+  .calendar-col { min-width: 0; max-width: 100%; width: 100%; }
+}
+
+/* Události v buňkách – zalamování, aby nešířily tabulku */
+.cal-event {
+  margin-top: 4px; padding: 4px 6px; border-radius: 4px; font-size: 14px;
+  background: color-mix(in srgb, var(--brand-secondary, #000) 5%, #fff);
+  color: var(--brand-secondary, #000);
+  word-break: break-word;
+}

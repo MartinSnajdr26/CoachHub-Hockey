@@ -32,7 +32,7 @@
     </div>
   </div>
 
-  <div style="flex:1; min-width:520px; max-width:700px;">
+  <div class="calendar-col">
     <h2 class="month-title" style="margin:0 0 8px;">{{ month_title }}</h2>
     <p style="margin:0 4px 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:2px solid var(--brand-secondary, #000); border-radius:8px; padding:6px 8px; background:#fff; color: var(--brand-secondary, #000);">
       <a href="{{ url_for('home', year=prev_year, month=prev_month) }}"><button>◀ Předchozí</button></a>

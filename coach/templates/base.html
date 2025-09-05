@@ -15,14 +15,7 @@
             <img src="{{ brand.logo_url or url_for('static', filename='logo.png') }}" alt="Logo klubu">
             <h1>{{ brand.team_name or 'CoachHub' }} – COACH MANAGER</h1>
         </div>
-        {% if current_user.is_authenticated %}
-        <div class="header-user">
-            <div class="welcome-left">
-                <span>Vítej, {{ current_user.username or current_user.email }}</span>
-                
-            </div>
-        </div>
-        {% endif %}
+        {# Vítej/uživatel odstraněn – přihlášení je týmovým klíčem #}
         <a href="{{ url_for('home') }}" class="app-top-right-logo-link" aria-label="Domů">
             <img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo" class="app-top-right-logo">
         </a>
