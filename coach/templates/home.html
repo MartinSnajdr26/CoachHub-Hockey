@@ -33,14 +33,14 @@
   </div>
 
   <div style="flex:1; min-width:520px; max-width:700px;">
-    <h2 style="margin:0 0 8px;">{{ month_title }}</h2>
+    <h2 class="month-title" style="margin:0 0 8px;">{{ month_title }}</h2>
     <p style="margin:0 4px 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:2px solid var(--brand-secondary, #000); border-radius:8px; padding:6px 8px; background:#fff; color: var(--brand-secondary, #000);">
       <a href="{{ url_for('home', year=prev_year, month=prev_month) }}"><button>◀ Předchozí</button></a>
       <a href="{{ url_for('home') }}"><button>Dnes</button></a>
       <a href="{{ url_for('home', year=next_year, month=next_month) }}"><button>Další ▶</button></a>
       <span style="margin-left:12px; opacity:0.8;">Dnes: {{ today_label }}</span>
     </p>
-    <p style="margin:0 0 10px; display:flex; align-items:center; gap:14px;">
+    <p class="calendar-legend" style="margin:0 0 10px; display:flex; align-items:center; gap:14px;">
       <span style="display:inline-flex; align-items:center; gap:6px;">
         <span style="display:inline-block; width:8px; height:6px; background: var(--brand-primary, #d4c76f); border:2px solid var(--brand-secondary, #000); border-radius:2px;"></span>
         Trénink
@@ -50,11 +50,12 @@
         Zápas
       </span>
     </p>
-    <table style="width:100%; border-collapse:collapse; background:#fff; color: var(--brand-secondary, #000);">
+    <div class="calendar-wrap table-scroll">
+    <table style="width:100%; border-collapse:collapse;">
       <thead>
         <tr>
           {% for wd in ['Po','Út','St','Čt','Pá','So','Ne'] %}
-            <th style="border:1px solid color-mix(in srgb, var(--brand-secondary, #000) 30%, #fff); padding:6px; background: color-mix(in srgb, var(--brand-secondary, #000) 10%, #fff);">{{ wd }}</th>
+            <th>{{ wd }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -64,10 +65,10 @@
             {% for day in week %}
               {% set in_month = (day.month == cal_month) %}
               {% set is_today = (day.isoformat() == today_iso) %}
-              <td style="vertical-align:top; border:1px solid color-mix(in srgb, var(--brand-secondary, #000) 30%, #fff); padding:6px; width:14.28%; background: {{ '#fff' if in_month else 'color-mix(in srgb, var(--brand-secondary, #000) 5%, #fff)' }}; {{ 'outline:3px solid var(--brand-primary, #d4c76f); box-shadow: inset 0 0 0 1000px color-mix(in srgb, var(--tertiary, #c44747) 38%, transparent);' if is_today else '' }}">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+              <td class="cal-cell {{ 'in-month' if in_month else 'out-month' }} {{ 'is-today' if is_today else '' }}">
+                <div class="cal-cell-head" style="display:flex; justify-content:space-between; align-items:center;">
                   {% if is_today %}
-                    <strong style="color:#c44747; font-weight:800;">{{ day.day }}</strong>
+                    <strong style="color: var(--tertiary, #c44747); font-weight:800;">{{ day.day }}</strong>
                   {% else %}
                     <strong>{{ day.day }}</strong>
                   {% endif %}
@@ -110,7 +111,7 @@
                 {% set key = day.isoformat() %}
                 {% for ev in events_by_day.get(key, []) %}
                   {% set c = 'var(--brand-primary, #d4c76f)' if (ev.kind or 'training') == 'training' else 'var(--brand-secondary, #000)' %}
-                  <div style="margin-top:4px; padding:4px 6px; border-left:3px solid {{ c }}; background: color-mix(in srgb, var(--brand-secondary, #000) 5%, #fff); border-radius:4px; font-size:14px; color: var(--brand-secondary, #000);">
+                  <div class="cal-event" style="border-left:3px solid {{ c }};">
                     <b>{{ ev.time or '' }}</b> {{ ev.title }}
                     {% if is_coach %}
                       <details>
@@ -160,6 +161,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 </div>
 

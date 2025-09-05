@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }};">
+<body style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#f5f5f5' }};">
 
     <!-- Černý vršek s logem -->
     <header class="header-top">
@@ -111,7 +111,7 @@
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='app.js') }}" nonce="{{ csp_nonce }}"></script>
 
-    <footer style="margin-top:40px; padding:16px; text-align:center; color:#333; border-top: 2px solid #000; background:#fff;">
+    <footer style="margin-top:40px; padding:16px; text-align:center; color:#fff; border-top: 2px solid #000; background:#000;">
       <a href="{{ url_for('terms') }}" style="margin-right:12px;">Podmínky použití</a>
       <a href="{{ url_for('privacy') }}" style="margin-right:12px;">Zásady ochrany osobních údajů</a>
       <a href="{{ url_for('about') }}">O mně</a>

@@ -38,7 +38,7 @@
         </select>
     </label>
     <label style="margin-left:10px; display:flex; align-items:center; gap:6px;">
-        <input type="checkbox" id="showAnchors" checked>
+        <input type="checkbox" id="showAnchors">
         Kotvy
     </label>
     <button type="button" class="btn-anim" data-action="restart">⟲ Restart + Přehrát</button>
@@ -76,7 +76,7 @@
     let animMode = 'sequential'; // 'sequential' | 'grouped'
     let pairMode = 'smart';      // 'smart' | 'order' | 'nearest'
     let syncOverride = 'respect'; // 'respect' | 'off' | 'two'
-    let showAnchors = true;      // zobrazovat start/stop/přihrávkové kotvy
+    let showAnchors = false;      // zobrazovat start/stop/přihrávkové kotvy (default vypnuto)
 
     // Interní stav
     let animationFrame;

@@ -8,8 +8,8 @@
   <input type="text" name="q" value="{{ query }}" placeholder="Hledat podle názvu, popisu, kategorie" style="padding:6px 10px; width:320px; border-radius:6px; border:1px solid #ccc;">
   <button type="submit">🔍 Hledat</button>
   <a href="{{ url_for('drills_select') }}"><button type="button">✖️ Vyčistit</button></a>
-  <a href="{{ url_for('drills') }}" style="margin-left:auto;">← Zpět na kategorie</a>
-  <a href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>
+  <a href="{{ url_for('drills') }}" class="link-contrast" style="margin-left:auto;">← Zpět na kategorie</a>
+  <a href="{{ url_for('new_drill') }}" class="link-contrast">➕ Nové cvičení</a>
   </form>
 
 <form method="post" action="{{ url_for('export_drills_pdf') }}" id="exportForm">

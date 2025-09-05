@@ -20,20 +20,37 @@
     <!-- Toolbar + canvas -->
     <div class="draw-container">
         <div class="toolbar" id="toolbar">
-            <button type="button" class="btn-tool" data-tool="straight">─ Pohyb bez puku</button>
-            <button type="button" class="btn-tool" data-tool="curve">〰 Pohyb volný</button>
-            <button type="button" class="btn-tool" data-tool="wave">≈ Pohyb s pukem</button>
-            <button type="button" class="btn-tool" data-tool="zigzag">^^^^ Jízda vzad</button>
-            <button type="button" class="btn-tool" data-tool="double">══ Střela</button>
-            <button type="button" class="btn-tool" data-tool="dotted">⋯⋯ Nahrávka</button>
-            <button type="button" class="btn-tool" data-tool="puck">⚫ Puk</button>
-            <button type="button" class="btn-tool" data-tool="pucks">⚫⚫ Zásoba puků</button>
-            <button type="button" class="btn-tool" data-tool="cone">🔺 Kužel</button>
-            <button type="button" class="btn-tool" data-tool="circleF">🔵 F</button>
-            <button type="button" class="btn-tool" data-tool="circleD">🔺 D</button>
-            <button type="button" class="btn-tool" data-tool="circleG">⚫ G</button>
-            <button type="button" class="btn-tool" data-tool="triangle">🔻 Trojúhelník</button>
-            <div style="margin-top:8px; font-size:14px;">
+            <div class="tool-group">
+              <span class="group-title">Zobrazení</span>
+              <label class="toggle-label" style="display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="compactToggle"> Kompaktní režim
+              </label>
+            </div>
+            <div class="tool-group">
+              <span class="group-title">Pohyb</span>
+              <button type="button" class="btn-tool" data-tool="straight">─ Bez puku</button>
+              <button type="button" class="btn-tool" data-tool="curve">〰 Volný</button>
+              <button type="button" class="btn-tool" data-tool="wave">≈ S pukem</button>
+              <button type="button" class="btn-tool" data-tool="zigzag">^^^^ Zpět</button>
+            </div>
+            <div class="tool-group">
+              <span class="group-title">Akce s pukem</span>
+              <button type="button" class="btn-tool" data-tool="dotted">⋯⋯ Nahrávka</button>
+              <button type="button" class="btn-tool" data-tool="double">══ Střela</button>
+            </div>
+            <div class="tool-group">
+              <span class="group-title">Ikony/Objekty</span>
+              <button type="button" class="btn-tool" data-tool="circleF">🔵 F</button>
+              <button type="button" class="btn-tool" data-tool="circleD">🔺 D</button>
+              <button type="button" class="btn-tool" data-tool="circleG">⚫ G</button>
+              <button type="button" class="btn-tool" data-tool="triangle">🔻 Trojúhelník</button>
+              <button type="button" class="btn-tool" data-tool="puck">⚫ Puk</button>
+              <button type="button" class="btn-tool" data-tool="pucks">⚫⚫ Zásoba puků</button>
+              <button type="button" class="btn-tool" data-tool="cone">🔺 Kužel</button>
+            </div>
+            <div class="tool-group">
+              <span class="group-title">Sync</span>
+              <div style="margin-top:0; font-size:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <style>
                     .toggle-label { padding:6px 8px; border-radius:6px; background:#eee; color: var(--brand-secondary, #000); cursor:pointer; }
                     .toggle-label.active { background:#3bb273; color:#fff; }
@@ -45,17 +62,18 @@
                 <label id="lblPassSyncNext" class="toggle-label" style="display:flex; align-items:center; gap:6px;">
                     <input type="checkbox" id="passSyncNext"> Sync po přihrávce (2 pohyby)
                 </label>
-                <div style="font-size:12px; opacity:0.8; color: var(--brand-secondary, #000);">Platí pro nástroje Nahrávka/Střela</div>
-                <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-                    <label id="lblSyncStart" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" id="syncStart"> Začít synchronizaci hráčů
-                    </label>
-                    <label id="lblSyncEnd" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" id="syncEnd"> Ukončit synchronizaci hráčů
-                    </label>
-                    <span id="syncStatus" class="pill off">Současně: vypnuto</span>
-                </div>
-                <div style="font-size:12px; opacity:0.8; color: var(--brand-secondary, #000);">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
+                 <div style="font-size:12px; opacity:0.8; color: var(--brand-secondary, #000);">Platí pro nástroje Nahrávka/Střela</div>
+                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                     <label id="lblSyncStart" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
+                         <input type="checkbox" id="syncStart"> Začít synchronizaci hráčů
+                     </label>
+                     <label id="lblSyncEnd" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
+                         <input type="checkbox" id="syncEnd"> Ukončit synchronizaci hráčů
+                     </label>
+                     <span id="syncStatus" class="pill off">Současně: vypnuto</span>
+                 </div>
+                 <div class="hint-invert" style="width:100%; font-size:12px; opacity:0.9;">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
+              </div>
             </div>
         </div>
 
@@ -99,19 +117,39 @@ function containerWidth(){
 rink.onload = () => { resizeCanvas(containerWidth()); saveState(); };
 
 const sizeInput = document.getElementById("canvasSize");
-sizeInput.addEventListener("input", e => { manualSize = true; resizeCanvas(parseInt(e.target.value,10)); });
+sizeInput.addEventListener("input", e => {
+  manualSize = true;
+  const w = parseInt(e.target.value, 10);
+  // U slideru měníme jen vizuální (CSS) šířku canvasu,
+  // nikoli jeho interní souřadnicový systém ani data.
+  canvas.style.width = w + 'px';
+});
 
 // Auto-resize na změnu okna – pokud uživatel ručně neupravil velikost a nic není nakresleno
 let resizeTimer;
 window.addEventListener('resize', function(){
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(function(){
-    if(!manualSize && history.length <= 1 && drawData.length === 0){ resizeCanvas(containerWidth()); }
+    if(!manualSize){ resizeCanvas(containerWidth()); }
   }, 150);
 });
  
 // Ovládání synchronizační skupiny
 document.addEventListener('DOMContentLoaded', ()=>{
+  // Kompaktní režim toolbaru (persist přes localStorage)
+  try {
+    const toolbarEl = document.getElementById('toolbar');
+    const compactChk = document.getElementById('compactToggle');
+    const stored = localStorage.getItem('drillToolbarCompact') === '1';
+    if(stored){ toolbarEl?.classList.add('toolbar--compact'); if(compactChk) compactChk.checked = true; }
+    if(compactChk){
+      compactChk.addEventListener('change', function(){
+        if(compactChk.checked){ toolbarEl?.classList.add('toolbar--compact'); localStorage.setItem('drillToolbarCompact','1'); }
+        else { toolbarEl?.classList.remove('toolbar--compact'); localStorage.removeItem('drillToolbarCompact'); }
+      });
+    }
+  } catch(_) {}
+
   const startChk = document.getElementById('syncStart');
   const endChk = document.getElementById('syncEnd');
   const lblStart = document.getElementById('lblSyncStart');
@@ -165,9 +203,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 
 function resizeCanvas(width) {
+    const oldW = canvas.width || width;
+    const oldH = canvas.height || ((width / rink.width) * rink.height);
     canvas.width = width;
     canvas.height = (canvas.width / rink.width) * rink.height;
-    ctx.drawImage(rink, 0, 0, canvas.width, canvas.height);
+    const sx = (oldW > 0) ? (canvas.width / oldW) : 1;
+    const sy = (oldH > 0) ? (canvas.height / oldH) : 1;
+    if (drawData && drawData.length) {
+        scaleDrawData(sx, sy);
+        redrawAll();
+    } else {
+        ctx.drawImage(rink, 0, 0, canvas.width, canvas.height);
+    }
 }
 
 function setTool(t) { currentTool = t; }
@@ -191,7 +238,22 @@ function undo() {
 }
 function saveImage(){document.getElementById("image_data").value=canvas.toDataURL();document.getElementById("path_data").value=JSON.stringify(drawData);} 
 
-function getCanvasCoords(e){ if(e.touches){let t=e.touches[0];return [t.clientX-canvas.getBoundingClientRect().left,t.clientY-canvas.getBoundingClientRect().top];} else return [e.offsetX,e.offsetY]; }
+function getCanvasCoords(e){
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = (canvas.width  || rect.width) / rect.width;
+  const scaleY = (canvas.height || rect.height) / rect.height;
+  if (e.touches && e.touches[0]) {
+    const t = e.touches[0];
+    return [ (t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY ];
+  }
+  if (e.changedTouches && e.changedTouches[0]) {
+    const t = e.changedTouches[0];
+    return [ (t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY ];
+  }
+  // Mouse events: use clientX/clientY (offsetX breaks with CSS scaling)
+  const cx = e.clientX ?? 0; const cy = e.clientY ?? 0;
+  return [ (cx - rect.left) * scaleX, (cy - rect.top) * scaleY ];
+}
 
 // Mouse
 canvas.addEventListener("mousedown",e=>{drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);});
@@ -213,7 +275,7 @@ canvas.addEventListener("mousemove",e=>{
 canvas.addEventListener("mouseup",e=>{if(!drawing)return;drawing=false;let[x,y]=getCanvasCoords(e);handleDrawingEnd(x,y);saveState();});
 
 // Touch
-canvas.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);});
+canvas.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);}, {passive:false});
 canvas.addEventListener("touchmove", e => {
     e.preventDefault();
     if(!drawing) return;
@@ -226,33 +288,96 @@ canvas.addEventListener("touchmove", e => {
         ctx.lineWidth = 2;
         ctx.stroke();
     }
-});
+}, {passive:false});
 canvas.addEventListener("touchend", e => {
     e.preventDefault();
     if(!drawing) return;
     drawing = false;
     let x = startX, y = startY;
     try {
-        if (e.changedTouches && e.changedTouches[0]){
-            const rect = canvas.getBoundingClientRect();
-            x = e.changedTouches[0].clientX - rect.left;
-            y = e.changedTouches[0].clientY - rect.top;
-        } else if (pathPoints.length){
-            [x,y] = pathPoints.at(-1);
-        }
-    } catch(_) {
-        if (pathPoints.length){ [x,y] = pathPoints.at(-1); }
-    }
+      const coords = getCanvasCoords(e);
+      if (coords && coords.length === 2) { x = coords[0]; y = coords[1]; }
+      else if (pathPoints.length) { [x,y] = pathPoints.at(-1); }
+    } catch(_) { if (pathPoints.length){ [x,y] = pathPoints.at(-1); } }
     handleDrawingEnd(x,y);
     saveState();
-});
+}, {passive:false});
+
+// Přepočet dat při změně velikosti
+function scaleDrawData(sx, sy){
+  if(!drawData || !Array.isArray(drawData)) return;
+  for(const it of drawData){
+    if(it.path && Array.isArray(it.path)){
+      for(let i=0;i<it.path.length;i++){
+        it.path[i] = [ it.path[i][0] * sx, it.path[i][1] * sy ];
+      }
+    }
+    if(typeof it.x === 'number' && typeof it.y === 'number'){
+      it.x = it.x * sx; it.y = it.y * sy;
+    }
+  }
+}
+
+function redrawAll(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(rink,0,0,canvas.width,canvas.height);
+  if(!drawData) return;
+  for(const it of drawData){
+    try{
+      if(it.tool === 'player_move_puck' && it.path){
+        // Wavy puck move
+        drawWavyLine(it.path, 10, 40);
+        const n = it.path.length;
+        if(n>=2){ const [sx,sy]=it.path[n-2]; const [ex,ey]=it.path[n-1]; drawArrowHead(sx,sy,ex,ey,'black'); }
+      } else if(it.tool === 'player_move' && it.path){
+        const n = it.path.length;
+        if(it.style === 'zigzag'){
+          drawZigZagLine(it.path,10,40);
+          if(n>=2){ const [sx,sy]=it.path[n-2]; const [ex,ey]=it.path[n-1]; drawArrowHead(sx,sy,ex,ey,'black'); }
+        } else if(it.style === 'curve' || n > 2){
+          drawCatmullRomLine(it.path);
+          if(n>=2){ const [sx,sy]=it.path[n-2]; const [ex,ey]=it.path[n-1]; drawArrowHead(sx,sy,ex,ey,'black'); }
+        } else if(n === 2){
+          ctx.beginPath(); ctx.moveTo(it.path[0][0], it.path[0][1]); ctx.lineTo(it.path[1][0], it.path[1][1]); ctx.stroke();
+          drawArrowHead(it.path[0][0], it.path[0][1], it.path[1][0], it.path[1][1], 'black');
+        }
+      } else if(it.tool === 'puck' && it.path){
+        // pass/shot
+        if(it.style === 'pass' || it.pass){ ctx.setLineDash([5,5]); }
+        // draw small origin dot for shot
+        if(it.style === 'shot' || it.shot){ ctx.beginPath(); ctx.arc(it.path[0][0], it.path[0][1], 6, 0, 2*Math.PI); ctx.fill(); }
+        ctx.beginPath(); ctx.moveTo(it.path[0][0], it.path[0][1]); ctx.lineTo(it.path[1][0], it.path[1][1]); ctx.stroke(); ctx.setLineDash([]);
+        drawArrowHead(it.path[0][0], it.path[0][1], it.path[1][0], it.path[1][1], 'black');
+      } else if(it.tool === 'puck_static' && typeof it.x==='number'){
+        ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+      } else if(it.tool === 'pucks_cluster' && typeof it.x==='number'){
+        ctx.fillStyle = 'black';
+        for(let i=-1;i<=1;i++){ for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*12, it.y+j*12, 5, 0, 2*Math.PI); ctx.fill(); } } }
+        ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+      } else if(it.tool === 'cone' && typeof it.x==='number'){
+        ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-10, it.y+20); ctx.lineTo(it.x+10, it.y+20); ctx.closePath(); ctx.fill();
+      } else if(it.tool === 'triangle' && typeof it.x==='number'){
+        ctx.fillStyle = 'purple'; ctx.beginPath(); ctx.moveTo(it.x, it.y-15); ctx.lineTo(it.x-15, it.y+15); ctx.lineTo(it.x+15, it.y+15); ctx.closePath(); ctx.fill();
+      } else if(it.tool === 'player_icon' && typeof it.x==='number'){
+        const label = it.role || 'F';
+        if(label === 'D'){
+          ctx.fillStyle='red'; ctx.beginPath(); ctx.moveTo(it.x, it.y-18); ctx.lineTo(it.x-18, it.y+18); ctx.lineTo(it.x+18, it.y+18); ctx.closePath(); ctx.fill();
+          ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('D', it.x, it.y+2);
+        } else {
+          ctx.beginPath(); ctx.arc(it.x, it.y, 18, 0, 2*Math.PI); ctx.fillStyle=(label==='F')?'blue':'black'; ctx.fill();
+          ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label, it.x, it.y);
+        }
+      }
+    }catch(_){ /* ignore item draw errors */ }
+  }
+}
 
 // -------------------------------
 // Drawing logic + ukládání do drawData
 // -------------------------------
 function handleDrawingEnd(x,y){
     const tol = Math.max(2, canvas.width * 0.003);
-    if(currentTool==="straight"){ ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.strokeStyle="black";ctx.lineWidth=2;ctx.stroke();drawArrowHead(startX,startY,x,y,"black"); const sg = syncActive ? syncCounter : null; const obj = {tool:"player_move",path:[[startX,startY],[x,y]]}; if(sg) obj.sync_group = sg; drawData.push(obj); }
+    if(currentTool==="straight"){ ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.strokeStyle="black";ctx.lineWidth=2;ctx.stroke();drawArrowHead(startX,startY,x,y,"black"); const sg = syncActive ? syncCounter : null; const obj = {tool:"player_move",style:"straight",path:[[startX,startY],[x,y]]}; if(sg) obj.sync_group = sg; drawData.push(obj); }
     else if(currentTool==="curve"&&pathPoints.length>1){
         const sp = processCurvePath(pathPoints);
         drawCatmullRomLine(sp);
@@ -260,7 +385,7 @@ function handleDrawingEnd(x,y){
         const [bx,by] = sp[sp.length-1];
         drawArrowHead(ax,ay,bx,by,"black");
         const syncGroup = syncActive ? syncCounter : null;
-        const obj = {tool:"player_move",path:sp};
+        const obj = {tool:"player_move",style:"curve",path:sp};
         if(syncGroup) obj.sync_group = syncGroup;
         drawData.push(obj);
     }
@@ -270,7 +395,7 @@ function handleDrawingEnd(x,y){
         let[sx,sy]=pathPoints.at(-2);
         drawArrowHead(sx,sy,x,y,"black");
         const syncGroup = syncActive ? syncCounter : null;
-        const obj = {tool:"player_move_puck",path:pathPoints};
+        const obj = {tool:"player_move_puck",style:"wavy",path:pathPoints};
         if(syncGroup) obj.sync_group = syncGroup;
         drawData.push(obj);
     }
@@ -280,12 +405,12 @@ function handleDrawingEnd(x,y){
         let[sx,sy]=pathPoints.at(-2);
         drawArrowHead(sx,sy,x,y,"black");
         const syncGroup = syncActive ? syncCounter : null;
-        const obj = {tool:"player_move",path:pathPoints};
+        const obj = {tool:"player_move",style:"zigzag",path:pathPoints};
         if(syncGroup) obj.sync_group = syncGroup;
         drawData.push(obj);
     }
-    else if(currentTool==="double"){ctx.beginPath();ctx.arc(startX,startY,6,0,2*Math.PI);ctx.fill();ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",shot:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
-    else if(currentTool==="dotted"){ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();ctx.setLineDash([]);drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",pass:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
+    else if(currentTool==="double"){ctx.beginPath();ctx.arc(startX,startY,6,0,2*Math.PI);ctx.fill();ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",style:"shot",shot:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
+    else if(currentTool==="dotted"){ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();ctx.setLineDash([]);drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",style:"pass",pass:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
     else if(currentTool==="puck"){ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"puck_static",x,y});}
     else if(currentTool==="pucks"){ctx.fillStyle="black";for(let i=-1;i<=1;i++){for(let j=-1;j<=1;j++){if(i||j){ctx.beginPath();ctx.arc(x+i*12,y+j*12,5,0,2*Math.PI);ctx.fill();}}}ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"pucks_cluster",x,y});}
     else if(currentTool==="cone"){ctx.fillStyle="orange";ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-10,y+20);ctx.lineTo(x+10,y+20);ctx.closePath();ctx.fill();drawData.push({tool:"cone",x,y});}

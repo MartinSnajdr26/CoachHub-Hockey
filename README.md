@@ -146,4 +146,69 @@ Gunicorn + nginx doporučeno.
 
 Používej migrace (flask db upgrade).
 
+---
+
+🔐 Obnova trenérského klíče (CLI, bezpečně)
+
+Pokud trenér ztratí klíč, nejbezpečnější je rotace klíče přes konzoli (bez veřejných endpointů). Plaintext nového klíče se ukáže jen jednou v konzoli – nikde se neukládá.
+
+Postup (PythonAnywhere/SSH)
+
+1) Otevři Bash konzoli a aktivuj venv
+
+   - `source ~/.venvs/coachhub/bin/activate`
+
+2) Nastav Flask app
+
+   - `export FLASK_APP=coach.app:app`
+
+3) Spusť `flask shell`
+
+4) V shelli vlož a uprav snippet (změň `TEAM` a případně `ROLE`)
+
+```
+from coach.extensions import db
+from coach.models import Team, TeamKey, AuditEvent
+from coach.services.keys import gen_plain_key, hash_team_key
+from datetime import datetime
+
+# Nastavení: název týmu (nebo ID) a role
+TEAM = "HC Smíchov 1913"   # nebo např. 42 pro ID
+ROLE = "coach"              # "coach" | "player"
+
+# Najdi tým podle názvu/ID
+team = Team.query.filter(Team.name==TEAM).first() if isinstance(TEAM, str) else Team.query.get(int(TEAM))
+assert team, "Team not found"
+
+now = datetime.utcnow()
+# Deaktivuj stávající aktivní klíče dané role
+TeamKey.query.filter_by(team_id=team.id, role=ROLE, active=True).update({TeamKey.active: False, TeamKey.rotated_at: now})
+
+# Vygeneruj nový klíč a ulož hash
+plain = gen_plain_key()
+db.session.add(TeamKey(team_id=team.id, role=ROLE, key_hash=hash_team_key(plain), active=True))
+
+# Audit (IP zkrácena na symbolický údaj "admin")
+try:
+    db.session.add(AuditEvent(event='team.key_rotated', team_id=team.id, role='coach', ip_truncated='admin', meta=f'{{"role":"{ROLE}"}}'))
+except Exception:
+    pass
+
+db.session.commit()
+print("NEW_KEY=", plain)
+```
+
+5) Bezpečně předej nový klíč trenérovi (mimo aplikaci). Klíč nikam neloguj ani nevkládej do URL.
+
+Poznámky
+
+- Rotace je okamžitá – starý klíč přestane fungovat hned.
+- Pro roli hráče změň `ROLE = "player"`.
+- V produkci vždy přes HTTPS/SSH.
+
+Placená varianta (návrh)
+
+- Klíče mohou být platné 30 dní (kontrola při přihlášení) a obnova povolena až po zaplacení.
+- Doporučeno zobrazovat v Nastavení počet dnů do expirace a všechny rotace logovat do audit logu.
+
 Autor: Martin Šnajdr – interní nástroj pro trenéry (HC Smíchov 1913 → univerzální použití).
