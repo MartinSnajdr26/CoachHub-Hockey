@@ -443,6 +443,10 @@ li {
 }
 
 /* ====== Kalendář (home) – responzivní ====== */
+.home-wrap { display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; }
+@media (max-width: 768px){ .home-wrap { flex-direction: column; } }
+.home-cards-col { flex:1; min-width:280px; display:flex; align-items:flex-start; justify-content:flex-start; }
+
 .calendar-wrap table {
   font-size: clamp(12px, 1.1vw + 0.45rem, 16px);
   background: var(--brand-primary, #d4c76f);   /* kalendář = primární barva */
