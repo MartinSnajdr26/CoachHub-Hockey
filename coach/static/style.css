@@ -447,6 +447,7 @@ li {
 @media (max-width: 768px){ .home-wrap { flex-direction: column; } }
 .home-cards-col { flex:1; min-width:280px; display:flex; align-items:flex-start; justify-content:flex-start; }
 
+.calendar-wrap { position: relative; }
 .calendar-wrap table {
   font-size: clamp(12px, 1.1vw + 0.45rem, 16px);
   background: var(--brand-primary, #d4c76f);   /* kalendář = primární barva */
@@ -503,10 +504,16 @@ li {
 .cal-toast .btn { background:#fff; color:#000; padding:4px 8px; border-radius:6px; font-weight:700; cursor:pointer; }
 
 /* Mobilní full-width sheet pro formulář kalendáře */
-.cal-form-sheet { display:none; position: fixed; left:0; right:0; bottom:0; z-index: 2100; }
-.cal-form-sheet.open { display:block; }
-.cal-form-sheet__inner { background:#fff; color:#000; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 -10px 30px rgba(0,0,0,0.35); max-height: 75vh; overflow:auto; padding: 12px; border: 2px solid var(--brand-secondary, #000); border-bottom: none; }
-.cal-form-sheet__header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.cal-form-sheet__close { background: var(--brand-secondary, #000); color:#fff; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700; }
-.cal-form-sheet__content form { display:flex; flex-direction:column; gap:8px; }
-@media (min-width: 769px){ .cal-form-sheet { display:none !important; } }
+.cal-form-sheet { display:none; }
+
+/* Rozbalený formulář pod týdenním řádkem (mobil) */
+tr.cal-form-row .cal-form-cell { padding: 8px; background: #fff; color:#000; border: 2px solid var(--brand-secondary, #000); border-radius: 8px; }
+tr.cal-form-row .cal-form-close { background: var(--brand-secondary, #000); color:#fff; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700; margin-bottom:8px; }
+tr.cal-form-row .cal-form-holder form { display:flex; flex-direction:column; gap:8px; }
+@media (min-width: 769px){ tr.cal-form-row { display:none; } }
+
+/* Desktop overlay form spanning over calendar cells */
+.cal-overlay { position: absolute; z-index: 2200; pointer-events: none; }
+.cal-overlay .cal-overlay-inner { pointer-events: all; background:#fff; color:#000; border: 2px solid var(--brand-secondary, #000); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); padding: 10px; }
+.cal-overlay .cal-overlay-close { background: var(--brand-secondary, #000); color:#fff; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700; float:right; }
+.cal-overlay .cal-overlay-content form { display:flex; flex-direction:column; gap:8px; }

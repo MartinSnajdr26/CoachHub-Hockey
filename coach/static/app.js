@@ -47,29 +47,41 @@
         calWrap.addEventListener('click', function(ev){
           var td = ev.target.closest('td[data-kind]');
           if(!td) return;
-          // Intercept click on the calendar add/edit summary to open full-width sheet
+          // Intercept click on the calendar add/edit summary: expand below the week (full calendar width)
           var sum = ev.target.closest('summary');
           if(sum){
             ev.preventDefault(); ev.stopPropagation();
             var det = sum.closest('details');
             if(det){
               var form = det.querySelector('form');
-              var sheet = document.getElementById('calFormSheet');
-              var content = sheet && sheet.querySelector('.cal-form-sheet__content');
-              if(form && sheet && content){
-                // clone form to sheet (deep clone to preserve inputs)
-                content.innerHTML = '';
+              if(form){
+                // Remove existing expanded row if any
+                var existing = document.querySelector('tr.cal-form-row');
+                if(existing && existing.parentElement){ existing.parentElement.removeChild(existing); }
+                // Build a new row spanning 7 columns right after current week row
+                var weekRow = td.parentElement; // <tr>
+                var tr = document.createElement('tr');
+                tr.className = 'cal-form-row';
+                var cell = document.createElement('td');
+                cell.colSpan = 7;
+                cell.className = 'cal-form-cell';
+                var close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'cal-form-close';
+                close.textContent = '✖ Zavřít';
+                var holder = document.createElement('div');
+                holder.className = 'cal-form-holder';
                 var clone = form.cloneNode(true);
-                content.appendChild(clone);
-                sheet.classList.add('open');
-                sheet.setAttribute('aria-hidden','false');
+                holder.appendChild(clone);
+                cell.appendChild(close);
+                cell.appendChild(holder);
+                tr.appendChild(cell);
+                if(weekRow && weekRow.parentElement){ weekRow.parentElement.insertBefore(tr, weekRow.nextSibling); }
                 // Close handlers
-                var btnClose = sheet.querySelector('.cal-form-sheet__close');
-                if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }; }
-                // On submit, let it go through
-                clone.addEventListener('submit', function(){
-                  try { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); } catch(_){}
-                });
+                close.onclick = function(){ if(tr && tr.parentElement){ tr.parentElement.removeChild(tr); } };
+                clone.addEventListener('submit', function(){ if(tr && tr.parentElement){ tr.parentElement.removeChild(tr); } });
+                // Try to focus first input
+                try { var firstInput = clone.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
                 return; // handled
               }
             }
@@ -82,6 +94,57 @@
           var msg = (time ? (time + ' – ') : '') + (title || kindLabel);
           showToast(msg, td);
         }, {passive:true});
+      }
+    } catch(e) {}
+
+    // Desktop calendar overlay form on "+"
+    try {
+      var mqDesktop = !(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+      var calWrapDesk = document.querySelector('.calendar-wrap');
+      if(mqDesktop && calWrapDesk){
+        calWrapDesk.addEventListener('click', function(ev){
+          var sum = ev.target.closest('summary');
+          if(!sum) return;
+          var det = sum.closest('details');
+          var td = sum.closest('td');
+          if(!det || !td){ return; }
+          ev.preventDefault(); ev.stopPropagation();
+          var form = det.querySelector('form');
+          if(!form) return;
+          // Remove existing overlay if any
+          var exist = calWrapDesk.querySelector('.cal-overlay');
+          if(exist && exist.parentElement){ exist.parentElement.removeChild(exist); }
+          // Measure target cell and next cell to span ~2 days
+          var rectCell = td.getBoundingClientRect();
+          var rectWrap = calWrapDesk.getBoundingClientRect();
+          var nextTd = td.nextElementSibling;
+          var width = rectCell.width * 2 - 8; // minus small gap
+          if(nextTd){
+            var rectNext = nextTd.getBoundingClientRect();
+            width = (rectNext.right - rectCell.left) - 8;
+          }
+          var left = rectCell.left - rectWrap.left + calWrapDesk.scrollLeft;
+          var top = rectCell.top - rectWrap.top + calWrapDesk.scrollTop + 4;
+          // Build overlay
+          var overlay = document.createElement('div');
+          overlay.className = 'cal-overlay';
+          overlay.style.left = Math.max(0,left) + 'px';
+          overlay.style.top = Math.max(0,top) + 'px';
+          overlay.style.width = Math.max(200, width) + 'px';
+          var inner = document.createElement('div'); inner.className = 'cal-overlay-inner';
+          var close = document.createElement('button'); close.type='button'; close.className='cal-overlay-close'; close.textContent='✖ Zavřít';
+          var content = document.createElement('div'); content.className='cal-overlay-content';
+          var clone = form.cloneNode(true);
+          content.appendChild(clone);
+          inner.appendChild(close);
+          inner.appendChild(content);
+          overlay.appendChild(inner);
+          calWrapDesk.appendChild(overlay);
+          // Close handlers
+          function closeOverlay(){ if(overlay && overlay.parentElement){ overlay.parentElement.removeChild(overlay); } }
+          close.onclick = closeOverlay;
+          clone.addEventListener('submit', function(){ closeOverlay(); });
+        });
       }
     } catch(e) {}
 
