@@ -20,7 +20,8 @@
 
   <div class="card">
     <h2>Historie klíčů</h2>
-    <table style="width:100%; border-collapse:collapse;">
+    <div class="table-scroll">
+    <table>
       <thead>
         <tr style="text-align:left; border-bottom:1px solid #666;">
           <th>Role</th><th>Vytvořen</th><th>Aktivní</th><th>Rotován</th>
@@ -37,7 +38,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 </div>
 {% endblock %}
-

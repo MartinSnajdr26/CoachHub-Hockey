@@ -6,15 +6,15 @@
 <p style="opacity:0.8; margin:8px 0 16px;">Posledních 200 záznamů pro váš tým.</p>
 
 {% if logs %}
-<div style="overflow:auto;">
-  <table style="width:100%; border-collapse:collapse;">
+<div class="table-scroll">
+  <table>
     <thead>
       <tr>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Čas</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Událost</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Role</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">IP</th>
-        <th style="text-align:left; border-bottom:2px solid #000; padding:6px;">Meta</th>
+        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Čas</th>
+        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Událost</th>
+        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Role</th>
+        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">IP</th>
+        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Meta</th>
       </tr>
     </thead>
     <tbody>

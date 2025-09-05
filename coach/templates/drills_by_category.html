@@ -18,7 +18,7 @@
             <p><b>Doba:</b> {{ drill.duration or 0 }} min</p>
 
             {% if drill.image_data %}
-                <img src="{{ drill.image_data }}" style="max-width:100%; border:2px solid #d4c76f; border-radius:8px; margin:10px 0;">
+                <img src="{{ drill.image_data }}" style="max-width:100%; border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; margin:10px 0;">
             {% endif %}
 
             <p><a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><button>👁 Otevřít detail</button></a></p>

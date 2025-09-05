@@ -7,7 +7,7 @@
   <div style="flex:1; min-width:280px; display:flex; align-items:flex-start; justify-content:flex-start;">
     <div style="text-align:left; width:100%;">
       
-      <div class="cards" style="margin-top:0; display:grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap:16px;">
+      <div class="cards cards-home">
           <div class="card">
               <h2>👥 Hráči</h2>
               <p>Správa kádru, přidávání a mazání hráčů.</p>
@@ -34,7 +34,7 @@
 
   <div style="flex:1; min-width:520px; max-width:700px;">
     <h2 style="margin:0 0 8px;">{{ month_title }}</h2>
-    <p style="margin:0 4px 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:2px solid var(--brand-secondary, #000); border-radius:8px; padding:6px 8px; background:#fff;">
+    <p style="margin:0 4px 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:2px solid var(--brand-secondary, #000); border-radius:8px; padding:6px 8px; background:#fff; color: var(--brand-secondary, #000);">
       <a href="{{ url_for('home', year=prev_year, month=prev_month) }}"><button>◀ Předchozí</button></a>
       <a href="{{ url_for('home') }}"><button>Dnes</button></a>
       <a href="{{ url_for('home', year=next_year, month=next_month) }}"><button>Další ▶</button></a>
@@ -50,11 +50,11 @@
         Zápas
       </span>
     </p>
-    <table style="width:100%; border-collapse:collapse; background:#fff; color:#000;">
+    <table style="width:100%; border-collapse:collapse; background:#fff; color: var(--brand-secondary, #000);">
       <thead>
         <tr>
           {% for wd in ['Po','Út','St','Čt','Pá','So','Ne'] %}
-            <th style="border:1px solid #ccc; padding:6px; background:#eee;">{{ wd }}</th>
+            <th style="border:1px solid color-mix(in srgb, var(--brand-secondary, #000) 30%, #fff); padding:6px; background: color-mix(in srgb, var(--brand-secondary, #000) 10%, #fff);">{{ wd }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -64,7 +64,7 @@
             {% for day in week %}
               {% set in_month = (day.month == cal_month) %}
               {% set is_today = (day.isoformat() == today_iso) %}
-              <td style="vertical-align:top; border:1px solid #ccc; padding:6px; width:14.28%; background: {{ '#fff' if in_month else '#f4f4f4' }}; {{ 'outline:3px solid var(--brand-primary, #d4c76f); box-shadow: inset 0 0 0 1000px rgba(196,71,71,0.38);' if is_today else '' }}">
+              <td style="vertical-align:top; border:1px solid color-mix(in srgb, var(--brand-secondary, #000) 30%, #fff); padding:6px; width:14.28%; background: {{ '#fff' if in_month else 'color-mix(in srgb, var(--brand-secondary, #000) 5%, #fff)' }}; {{ 'outline:3px solid var(--brand-primary, #d4c76f); box-shadow: inset 0 0 0 1000px color-mix(in srgb, var(--tertiary, #c44747) 38%, transparent);' if is_today else '' }}">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   {% if is_today %}
                     <strong style="color:#c44747; font-weight:800;">{{ day.day }}</strong>
@@ -110,7 +110,7 @@
                 {% set key = day.isoformat() %}
                 {% for ev in events_by_day.get(key, []) %}
                   {% set c = 'var(--brand-primary, #d4c76f)' if (ev.kind or 'training') == 'training' else 'var(--brand-secondary, #000)' %}
-                  <div style="margin-top:4px; padding:4px 6px; border-left:3px solid {{ c }}; background:#f7f7f7; border-radius:4px; font-size:14px;">
+                  <div style="margin-top:4px; padding:4px 6px; border-left:3px solid {{ c }}; background: color-mix(in srgb, var(--brand-secondary, #000) 5%, #fff); border-radius:4px; font-size:14px; color: var(--brand-secondary, #000);">
                     <b>{{ ev.time or '' }}</b> {{ ev.title }}
                     {% if is_coach %}
                       <details>
@@ -148,7 +148,7 @@
                         <form method="POST" action="{{ url_for('calendar_delete') }}" class="form-confirm" data-message="Smazat událost?" style="margin-top:6px;">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="id" value="{{ ev.id }}">
-                          <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat</button>
+                          <button type="submit" style="background: var(--tertiary, #c44747); color:#fff;">🗑 Smazat</button>
                         </form>
                       </details>
                     {% endif %}

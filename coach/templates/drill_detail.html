@@ -8,7 +8,7 @@
 <p><b>Doba:</b> {{ drill.duration }} min</p>
 
 <!-- Canvas -->
-<canvas id="board" style="border:2px solid #d4c76f; border-radius:8px; background:white;"></canvas>
+<canvas id="board" style="border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; background:white;"></canvas>
 
 <p style="margin-top:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <button type="button" class="btn-anim" data-action="play">▶️ Přehrát</button>
@@ -47,7 +47,8 @@
 {% if current_user.is_authenticated and current_user.role == 'coach' %}
 <form method="POST" action="{{ url_for('delete_drill', drill_id=drill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" style="color:red;">🗑 Smazat cvičení</button>
+    <button type="submit" style="color: var(--tertiary, #c44747);">🗑 Smazat cvičení</button>
+    
 </form>
 {% endif %}
 
@@ -97,10 +98,12 @@
         savedImg.onload = () => decideSize(savedImg.width, savedImg.height);
         savedImg.src = rawImageData;
     }
+    function containerWidth(){ try { return Math.max(320, Math.floor(canvas.parentElement.clientWidth)); } catch(_) { return 1000; } }
     rink.onload = () => {
         if (!sizeDecided) {
-            // fallback na šířku  min(snímek, 1000) nebo 1000, když není snapshot
-            decideSize(1000, (1000 / rink.width) * rink.height);
+            // Přizpůsobení kontejneru: vezmi šířku wrapperu, nebo 1000 pokud není
+            const w = containerWidth();
+            decideSize(w, (w / rink.width) * rink.height);
         }
     };
 
@@ -113,6 +116,21 @@
         prepareAnimation();
         renderFrame(0);
     }
+
+    // Reakce na změnu velikosti okna – přepočítá plátno a znovu vykreslí
+    let resizeTimer;
+    window.addEventListener('resize', function(){
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function(){
+            const w = containerWidth();
+            const h = (w / rink.width) * rink.height;
+            canvas.width = Math.max(1, Math.round(w));
+            canvas.height = Math.max(1, Math.round(h));
+            drawBackground();
+            prepareAnimation();
+            renderFrame(0);
+        }, 150);
+    });
 
     function drawBackground() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);

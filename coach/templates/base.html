@@ -2,6 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ brand.team_name or 'CoachHub' }} – Coach Manager{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
@@ -30,6 +31,7 @@
     <!-- Bílý pruh s navigací -->
     <div class="header-bottom">
   <nav>
+    <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu" aria-expanded="false">☰ Menu</button>
     <ul class="nav-left">
       {% if current_user.is_authenticated or team_session_login %}
         <li><a href="{{ url_for('home') }}">🏠 Domů</a></li>
@@ -90,7 +92,12 @@
           {% if msgs %}
             <div style="margin:10px 0;">
               {% for cat, m in msgs %}
-                <div style="padding:10px 14px; border-radius:8px; margin-bottom:6px; background: {{ 'rgba(196,71,71,0.2)' if cat=='error' else 'rgba(0,0,0,0.2)' }}; border:2px solid {{ '#c44747' if cat=='error' else '#000' }}; color:#000;">
+                {% set is_err = (cat == 'error') %}
+                <div style="padding:10px 14px; border-radius:8px; margin-bottom:6px; background: {{
+                  'color-mix(in srgb, var(--tertiary, #c44747) 20%, transparent)'
+                  if is_err else
+                  'color-mix(in srgb, var(--brand-secondary, #000) 20%, transparent)'
+                }}; border:2px solid {{ 'var(--tertiary, #c44747)' if is_err else 'var(--brand-secondary, #000)' }}; color: var(--brand-secondary, #000);">
                   {{ m }}
                 </div>
               {% endfor %}

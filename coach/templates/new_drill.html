@@ -18,8 +18,8 @@
     </p>
 
     <!-- Toolbar + canvas -->
-    <div style="display:flex; gap:20px; align-items:flex-start;">
-        <div id="toolbar" style="display:flex; flex-direction:column; gap:8px;">
+    <div class="draw-container">
+        <div class="toolbar" id="toolbar">
             <button type="button" class="btn-tool" data-tool="straight">─ Pohyb bez puku</button>
             <button type="button" class="btn-tool" data-tool="curve">〰 Pohyb volný</button>
             <button type="button" class="btn-tool" data-tool="wave">≈ Pohyb s pukem</button>
@@ -35,7 +35,7 @@
             <button type="button" class="btn-tool" data-tool="triangle">🔻 Trojúhelník</button>
             <div style="margin-top:8px; font-size:14px;">
                 <style>
-                    .toggle-label { padding:6px 8px; border-radius:6px; background:#eee; color:#000; cursor:pointer; }
+                    .toggle-label { padding:6px 8px; border-radius:6px; background:#eee; color: var(--brand-secondary, #000); cursor:pointer; }
                     .toggle-label.active { background:#3bb273; color:#fff; }
                     .toggle-label.off { background:#c44747; color:#fff; }
                     .pill { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; margin-top:6px; }
@@ -45,7 +45,7 @@
                 <label id="lblPassSyncNext" class="toggle-label" style="display:flex; align-items:center; gap:6px;">
                     <input type="checkbox" id="passSyncNext"> Sync po přihrávce (2 pohyby)
                 </label>
-                <div style="font-size:12px; opacity:0.8; color:#000;">Platí pro nástroje Nahrávka/Střela</div>
+                <div style="font-size:12px; opacity:0.8; color: var(--brand-secondary, #000);">Platí pro nástroje Nahrávka/Střela</div>
                 <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
                     <label id="lblSyncStart" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
                         <input type="checkbox" id="syncStart"> Začít synchronizaci hráčů
@@ -55,11 +55,11 @@
                     </label>
                     <span id="syncStatus" class="pill off">Současně: vypnuto</span>
                 </div>
-                <div style="font-size:12px; opacity:0.8; color:#000;">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
+                <div style="font-size:12px; opacity:0.8; color: var(--brand-secondary, #000);">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
             </div>
         </div>
 
-        <canvas id="board" style="border:2px solid #d4c76f; border-radius:8px; background:white;"></canvas>
+        <canvas id="board" class="rink-canvas"></canvas>
     </div>
 
     <input type="hidden" name="image_data" id="image_data">
@@ -75,8 +75,7 @@
         {% endif %}
     </p>
 </form>
-
-<p style="margin-top:20px;"><a href="{{ url_for('drills') }}">← Zpět na seznam cvičení</a></p>
+    <p style="margin-top:20px;"><a href="{{ url_for('drills') }}">← Zpět na seznam cvičení</a></p>
 
 <script nonce="{{ csp_nonce }}">
 let canvas = document.getElementById("board");
@@ -93,9 +92,23 @@ let syncCounter = 0;    // identifikátor skupiny
 
 let rink = new Image();
 rink.src = "/static/rink.png";
-rink.onload = () => { resizeCanvas(1400); saveState(); };
+let manualSize = false;
+function containerWidth(){
+  try { return Math.max(600, Math.floor(canvas.parentElement.clientWidth)); } catch(_) { return 600; }
+}
+rink.onload = () => { resizeCanvas(containerWidth()); saveState(); };
 
-document.getElementById("canvasSize").addEventListener("input", e => resizeCanvas(e.target.value));
+const sizeInput = document.getElementById("canvasSize");
+sizeInput.addEventListener("input", e => { manualSize = true; resizeCanvas(parseInt(e.target.value,10)); });
+
+// Auto-resize na změnu okna – pokud uživatel ručně neupravil velikost a nic není nakresleno
+let resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function(){
+    if(!manualSize && history.length <= 1 && drawData.length === 0){ resizeCanvas(containerWidth()); }
+  }, 150);
+});
  
 // Ovládání synchronizační skupiny
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -201,8 +214,38 @@ canvas.addEventListener("mouseup",e=>{if(!drawing)return;drawing=false;let[x,y]=
 
 // Touch
 canvas.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);});
-canvas.addEventListener("touchmove",e=>{e.preventDefault();if(!drawing)return;let[x,y]=getCanvasCoords(e);if(["wave","zigzag"].includes(currentTool)){pathPoints.push([x,y]);ctx.lineTo(x,y);ctx.strokeStyle="black";ctx.lineWidth=2;ctx.stroke();} else if(currentTool==="curve"){pathPoints.push([x,y]);}});
-canvas.addEventListener("touchend",e=>{e.preventDefault();if(!drawing)return;drawing=false;let[x,y]=pathPoints.at(-1);handleDrawingEnd(x,y);saveState();});
+canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    if(!drawing) return;
+    let [x,y] = getCanvasCoords(e);
+    // Na mobilu vždy udržuj poslední souřadnici, aby touchend znal cíl
+    pathPoints.push([x,y]);
+    if(["wave","zigzag"].includes(currentTool)){
+        ctx.lineTo(x,y);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+});
+canvas.addEventListener("touchend", e => {
+    e.preventDefault();
+    if(!drawing) return;
+    drawing = false;
+    let x = startX, y = startY;
+    try {
+        if (e.changedTouches && e.changedTouches[0]){
+            const rect = canvas.getBoundingClientRect();
+            x = e.changedTouches[0].clientX - rect.left;
+            y = e.changedTouches[0].clientY - rect.top;
+        } else if (pathPoints.length){
+            [x,y] = pathPoints.at(-1);
+        }
+    } catch(_) {
+        if (pathPoints.length){ [x,y] = pathPoints.at(-1); }
+    }
+    handleDrawingEnd(x,y);
+    saveState();
+});
 
 // -------------------------------
 // Drawing logic + ukládání do drawData
