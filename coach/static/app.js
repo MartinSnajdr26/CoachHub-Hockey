@@ -33,6 +33,7 @@
         function restoreMovedNode(){
           try {
             if(movedNode && movedNode.node && movedNode.placeholder && movedNode.placeholder.parentNode){
+              try { if(movedNode.node.tagName && movedNode.node.tagName.toLowerCase()==='details'){ movedNode.node.open = false; } } catch(_){}
               movedNode.placeholder.parentNode.insertBefore(movedNode.node, movedNode.placeholder);
               movedNode.placeholder.parentNode.removeChild(movedNode.placeholder);
             }
@@ -78,7 +79,7 @@
                 content.appendChild(det);
                 sheet.classList.add('open');
                 sheet.setAttribute('aria-hidden','false');
-                if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
+          if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
                 // Post fallback for any form inside moved details
                 content.querySelectorAll('form').forEach(function(f){
                   f.addEventListener('submit', function(){
@@ -136,7 +137,16 @@
       var calWrapDesk = document.querySelector('.calendar-wrap');
       if(mqDesktop && calWrapDesk){
         var movedDesk = { node:null, placeholder:null };
-        function restoreDesk(){ try{ if(movedDesk.node && movedDesk.placeholder && movedDesk.placeholder.parentNode){ movedDesk.placeholder.parentNode.insertBefore(movedDesk.node, movedDesk.placeholder); movedDesk.placeholder.parentNode.removeChild(movedDesk.placeholder); } }catch(_){} movedDesk={node:null, placeholder:null}; }
+        function restoreDesk(){
+          try{
+            if(movedDesk.node && movedDesk.placeholder && movedDesk.placeholder.parentNode){
+              try { if(movedDesk.node.tagName && movedDesk.node.tagName.toLowerCase()==='details'){ movedDesk.node.open = false; } } catch(_){}
+              movedDesk.placeholder.parentNode.insertBefore(movedDesk.node, movedDesk.placeholder);
+              movedDesk.placeholder.parentNode.removeChild(movedDesk.placeholder);
+            }
+          }catch(_){}
+          movedDesk={node:null, placeholder:null};
+        }
         calWrapDesk.addEventListener('click', function(ev){
           var sum = ev.target.closest('summary');
           if(!sum) return;
@@ -162,9 +172,12 @@
           // Build overlay
           var overlay = document.createElement('div');
           overlay.className = 'cal-overlay';
+          var wrapWidth = calWrapDesk.clientWidth;
+          var overlayWidth = Math.max(200, width);
+          if(left + overlayWidth > wrapWidth){ left = Math.max(0, wrapWidth - overlayWidth - 8); }
           overlay.style.left = Math.max(0,left) + 'px';
           overlay.style.top = Math.max(0,top) + 'px';
-          overlay.style.width = Math.max(200, width) + 'px';
+          overlay.style.width = overlayWidth + 'px';
           var inner = document.createElement('div'); inner.className = 'cal-overlay-inner';
           var close = document.createElement('button'); close.type='button'; close.className='cal-overlay-close'; close.textContent='✖ Zavřít';
           var content = document.createElement('div'); content.className='cal-overlay-content';

@@ -64,9 +64,6 @@ def calendar_add():
     resp = coach_required(lambda: None)()
     if resp is not None:
         return resp
-    resp = coach_required(lambda: None)()
-    if resp is not None:
-        return resp
     day_s = (request.form.get('day') or '').strip()
     # prefer dropdowns hour/min, fallback to time string
     hh = (request.form.get('time_hour') or '').strip()
@@ -90,9 +87,6 @@ def calendar_add():
 
 @bp.route('/calendar/update', methods=['POST'], endpoint='calendar_update')
 def calendar_update():
-    resp = coach_required(lambda: None)()
-    if resp is not None:
-        return resp
     resp = coach_required(lambda: None)()
     if resp is not None:
         return resp
@@ -122,9 +116,6 @@ def calendar_update():
 
 @bp.route('/calendar/delete', methods=['POST'], endpoint='calendar_delete')
 def calendar_delete():
-    resp = coach_required(lambda: None)()
-    if resp is not None:
-        return resp
     resp = coach_required(lambda: None)()
     if resp is not None:
         return resp
