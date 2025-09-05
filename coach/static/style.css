@@ -344,6 +344,25 @@ li {
     width: 100%;
     box-sizing: border-box;
 }
+/* Skrytý stav toolbaru (použito na mobilu) */
+.toolbar.toolbar--hidden { display: none !important; }
+
+/* Přepínače viditelnosti toolbaru */
+.toolbar-toggle-desktop { display: block; margin-bottom: 8px; }
+.toolbar-toggle-mobile { display: none; }
+@media (max-width: 768px){
+  .toolbar { flex-direction: column; }
+  .toolbar-toggle-desktop { display: none; }
+  .toolbar-toggle-mobile { display: block; margin-bottom: 8px; }
+  .toolbar-toggle-mobile button { background: var(--brand-secondary, #000); color:#fff; border:none; padding:6px 10px; border-radius:6px; font-weight:700; }
+}
+
+/* Floating action button (mobile) to toggle toolbar */
+.fab-toolbar { display:none; }
+@media (max-width: 768px){
+  .fab-toolbar { display:block; position: fixed; right: 16px; bottom: 16px; z-index: 1300; }
+  .fab-toolbar button { width: 56px; height: 56px; border-radius: 50%; background: var(--brand-secondary, #000); color:#fff; border: 2px solid var(--brand-primary, #d4c76f); font-size: 22px; line-height: 1; box-shadow: 0 6px 14px rgba(0,0,0,0.35); }
+}
 /* Kompaktní režim toolbaru */
 .toolbar.toolbar--compact {
   gap: 4px;

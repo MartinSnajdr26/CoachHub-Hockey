@@ -44,7 +44,7 @@
     <button type="button" class="btn-anim" data-action="restart">⟲ Restart + Přehrát</button>
 </p>
 
-{% if current_user.is_authenticated and current_user.role == 'coach' %}
+{% if is_coach %}
 <form method="POST" action="{{ url_for('delete_drill', drill_id=drill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" style="color: var(--tertiary, #c44747);">🗑 Smazat cvičení</button>
@@ -94,8 +94,9 @@
     // Rozhodnutí velikosti canvasu: preferuj uložený snapshot z editoru
     let sizeDecided = false;
     const savedImg = new Image();
+    let origW = null, origH = null; // původní rozměry plátna v editoru (ze snapshotu)
     if (typeof rawImageData === 'string' && rawImageData.startsWith('data:image')) {
-        savedImg.onload = () => decideSize(savedImg.width, savedImg.height);
+        savedImg.onload = () => { origW = savedImg.width; origH = savedImg.height; decideSize(savedImg.width, savedImg.height); };
         savedImg.src = rawImageData;
     }
     function containerWidth(){ try { return Math.max(320, Math.floor(canvas.parentElement.clientWidth)); } catch(_) { return 1000; } }
@@ -152,6 +153,12 @@
         let pendingRole = null;
         let currentEntityId = 0; // identifikátor hráče dle poslední ikony
         const entities = new Map(); // eid -> {role, x, y}
+
+        // škálování souřadnic z editoru na aktuální plátno
+        const baseW = origW || canvas.width;
+        const baseH = origH || canvas.height;
+        const sx = canvas.width / Math.max(1, baseW);
+        const sy = canvas.height / Math.max(1, baseH);
 
         function nearestIconForPath(startX, startY, maxIdx){
             let best = null; let bestDist = Infinity;
@@ -356,17 +363,18 @@
                     flushGroup();
                     pendingRole = item.role || null;
                     currentEntityId += 1;
-                    initialByEntity.set(currentEntityId, {x: item.x, y: item.y, role: pendingRole});
-                    entities.set(currentEntityId, {x: item.x, y: item.y, role: pendingRole});
-                    icons.push({eid: currentEntityId, role: pendingRole, x: item.x, y: item.y, idx});
+                    const ix = (item.x||0)*sx, iy = (item.y||0)*sy;
+                    initialByEntity.set(currentEntityId, {x: ix, y: iy, role: pendingRole});
+                    entities.set(currentEntityId, {x: ix, y: iy, role: pendingRole});
+                    icons.push({eid: currentEntityId, role: pendingRole, x: ix, y: iy, idx});
                     groupIcon = item;
                 } else if(item.tool === 'puck_static'){
                     // statická součást – nezávislá na skupinách
-                    statics.push(item);
+                    statics.push({tool:item.tool, x:(item.x||0)*sx, y:(item.y||0)*sy});
                 } else if(item.tool === 'cone' || item.tool === 'triangle' || item.tool === 'pucks_cluster'){
-                    statics.push(item);
+                    statics.push({tool:item.tool, x:(item.x||0)*sx, y:(item.y||0)*sy});
                 } else if((item.tool === 'player_move' || item.tool === 'player_move_puck') && item.path){
-                    const pts = item.path.map(p=>({x:p[0], y:p[1]}));
+                    const pts = item.path.map(p=>({x:(p[0]||0)*sx, y:(p[1]||0)*sy}));
                     if(pts.length < 2) continue;
                     const {points, length} = annotateCumulative(pts);
                     const duration = Math.max(0.001, length / PLAYER_SPEED);
@@ -388,7 +396,7 @@
                     }
                     groupMoves.push(moveObj);
                 } else if(item.tool === 'puck' && item.path){
-                    const pts = item.path.map(p=>({x:p[0], y:p[1]}));
+                    const pts = item.path.map(p=>({x:(p[0]||0)*sx, y:(p[1]||0)*sy}));
                     if(pts.length < 2) continue;
                     const {points, length} = annotateCumulative(pts);
                     const duration = Math.max(0.001, length / PUCK_SPEED);

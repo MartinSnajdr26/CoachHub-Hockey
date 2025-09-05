@@ -19,6 +19,12 @@
 
     <!-- Toolbar + canvas -->
     <div class="draw-container">
+        <div class="toolbar-toggle-desktop">
+          <button type="button" id="btnToggleToolbarDesktop">Skrýt nástroje</button>
+        </div>
+        <div class="toolbar-toggle-mobile">
+          <button type="button" id="btnToggleToolbarMobile">Skrýt nástroje</button>
+        </div>
         <div class="toolbar" id="toolbar">
             <div class="tool-group">
               <span class="group-title">Zobrazení</span>
@@ -95,6 +101,11 @@
 </form>
     <p style="margin-top:20px;"><a href="{{ url_for('drills') }}">← Zpět na seznam cvičení</a></p>
 
+    <!-- Floating action button (mobile) to toggle toolbar visibility) -->
+    <div class="fab-toolbar" aria-hidden="false">
+      <button type="button" id="fabToggleToolbar" aria-label="Zobrazit/Skrýt nástroje">🛠</button>
+    </div>
+
 <script nonce="{{ csp_nonce }}">
 let canvas = document.getElementById("board");
 let ctx = canvas.getContext("2d");
@@ -134,8 +145,29 @@ window.addEventListener('resize', function(){
   }, 150);
 });
  
-// Ovládání synchronizační skupiny
-document.addEventListener('DOMContentLoaded', ()=>{
+  // Ovládání synchronizační skupiny
+  document.addEventListener('DOMContentLoaded', ()=>{
+  // Mobile toolbar show/hide toggle with persistence
+  try {
+    var tbar = document.getElementById('toolbar');
+    var btnT = document.getElementById('btnToggleToolbarMobile');
+    var btnTD = document.getElementById('btnToggleToolbarDesktop');
+    var fabT = document.getElementById('fabToggleToolbar');
+    var pref = localStorage.getItem('drillToolbarVisible');
+    var visible = (pref === null) ? true : (pref === '1');
+    function applyVis(){
+      if(tbar){ tbar.classList.toggle('toolbar--hidden', !visible); }
+      if(btnT){ btnT.textContent = visible ? 'Skrýt nástroje' : 'Zobrazit nástroje'; }
+      if(btnTD){ btnTD.textContent = visible ? 'Skrýt nástroje' : 'Zobrazit nástroje'; }
+      if(fabT){ fabT.setAttribute('aria-label', visible ? 'Skrýt nástroje' : 'Zobrazit nástroje'); }
+    }
+    applyVis();
+    function toggleToolbar(){ visible = !visible; localStorage.setItem('drillToolbarVisible', visible ? '1' : '0'); applyVis(); }
+    if(btnT){ btnT.addEventListener('click', toggleToolbar); }
+    if(btnTD){ btnTD.addEventListener('click', toggleToolbar); }
+    if(fabT){ fabT.addEventListener('click', toggleToolbar); }
+  } catch(_){ }
+
   // Kompaktní režim toolbaru (persist přes localStorage)
   try {
     const toolbarEl = document.getElementById('toolbar');
