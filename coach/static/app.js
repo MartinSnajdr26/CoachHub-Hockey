@@ -47,6 +47,33 @@
         calWrap.addEventListener('click', function(ev){
           var td = ev.target.closest('td[data-kind]');
           if(!td) return;
+          // Intercept click on the calendar add/edit summary to open full-width sheet
+          var sum = ev.target.closest('summary');
+          if(sum){
+            ev.preventDefault(); ev.stopPropagation();
+            var det = sum.closest('details');
+            if(det){
+              var form = det.querySelector('form');
+              var sheet = document.getElementById('calFormSheet');
+              var content = sheet && sheet.querySelector('.cal-form-sheet__content');
+              if(form && sheet && content){
+                // clone form to sheet (deep clone to preserve inputs)
+                content.innerHTML = '';
+                var clone = form.cloneNode(true);
+                content.appendChild(clone);
+                sheet.classList.add('open');
+                sheet.setAttribute('aria-hidden','false');
+                // Close handlers
+                var btnClose = sheet.querySelector('.cal-form-sheet__close');
+                if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }; }
+                // On submit, let it go through
+                clone.addEventListener('submit', function(){
+                  try { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); } catch(_){}
+                });
+                return; // handled
+              }
+            }
+          }
           var kind = td.getAttribute('data-kind');
           if(!kind) return;
           var title = td.getAttribute('data-title') || '';

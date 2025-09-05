@@ -501,3 +501,12 @@ li {
 .cal-toast { position: fixed; left:50%; transform: translateX(-50%); bottom: 16px; background: #111; color:#fff; padding:10px 12px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.4); z-index: 2000; max-width: 90%; font-size: 14px; display:none; }
 .cal-toast .actions { margin-top:6px; display:flex; gap:8px; }
 .cal-toast .btn { background:#fff; color:#000; padding:4px 8px; border-radius:6px; font-weight:700; cursor:pointer; }
+
+/* Mobilní full-width sheet pro formulář kalendáře */
+.cal-form-sheet { display:none; position: fixed; left:0; right:0; bottom:0; z-index: 2100; }
+.cal-form-sheet.open { display:block; }
+.cal-form-sheet__inner { background:#fff; color:#000; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 -10px 30px rgba(0,0,0,0.35); max-height: 75vh; overflow:auto; padding: 12px; border: 2px solid var(--brand-secondary, #000); border-bottom: none; }
+.cal-form-sheet__header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.cal-form-sheet__close { background: var(--brand-secondary, #000); color:#fff; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700; }
+.cal-form-sheet__content form { display:flex; flex-direction:column; gap:8px; }
+@media (min-width: 769px){ .cal-form-sheet { display:none !important; } }
