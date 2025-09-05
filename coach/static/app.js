@@ -28,6 +28,17 @@
       var mqMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
       var calWrap = document.querySelector('.calendar-wrap');
       if (mqMobile && calWrap) {
+        // Helper: move-not-clone form handling
+        var movedForm = { form: null, placeholder: null, originalParent: null, onClose: null };
+        function restoreMovedForm(){
+          try {
+            if(movedForm && movedForm.form && movedForm.placeholder && movedForm.placeholder.parentNode){
+              movedForm.placeholder.parentNode.insertBefore(movedForm.form, movedForm.placeholder);
+              movedForm.placeholder.parentNode.removeChild(movedForm.placeholder);
+            }
+          } catch(_){}
+          movedForm = { form:null, placeholder:null, originalParent:null, onClose:null };
+        }
         var toast = document.createElement('div');
         toast.className = 'cal-toast';
         toast.innerHTML = '<div class="text"></div><div class="actions"><button class="btn btn-open">Otevřít</button><button class="btn btn-close">Zavřít</button></div>';
@@ -47,43 +58,64 @@
         calWrap.addEventListener('click', function(ev){
           var td = ev.target.closest('td[data-kind]');
           if(!td) return;
-          // Intercept click on the calendar add/edit summary: expand below the week (full calendar width)
+          // Intercept click on the calendar add/edit summary: open bottom sheet overlay (no cell resize)
           var sum = ev.target.closest('summary');
           if(sum){
             ev.preventDefault(); ev.stopPropagation();
             var det = sum.closest('details');
             if(det){
               var form = det.querySelector('form');
-              if(form){
-                // Remove existing expanded row if any
-                var existing = document.querySelector('tr.cal-form-row');
-                if(existing && existing.parentElement){ existing.parentElement.removeChild(existing); }
-                // Build a new row spanning 7 columns right after current week row
-                var weekRow = td.parentElement; // <tr>
-                var tr = document.createElement('tr');
-                tr.className = 'cal-form-row';
-                var cell = document.createElement('td');
-                cell.colSpan = 7;
-                cell.className = 'cal-form-cell';
-                var close = document.createElement('button');
-                close.type = 'button';
-                close.className = 'cal-form-close';
-                close.textContent = '✖ Zavřít';
-                var holder = document.createElement('div');
-                holder.className = 'cal-form-holder';
-                var clone = form.cloneNode(true);
-                holder.appendChild(clone);
-                cell.appendChild(close);
-                cell.appendChild(holder);
-                tr.appendChild(cell);
-                if(weekRow && weekRow.parentElement){ weekRow.parentElement.insertBefore(tr, weekRow.nextSibling); }
-                // Close handlers
-                close.onclick = function(){ if(tr && tr.parentElement){ tr.parentElement.removeChild(tr); } };
-                clone.addEventListener('submit', function(){ if(tr && tr.parentElement){ tr.parentElement.removeChild(tr); } });
-                // Try to focus first input
-                try { var firstInput = clone.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
+              var sheet = document.getElementById('calFormSheet');
+              var content = sheet && sheet.querySelector('.cal-form-sheet__content');
+              var btnClose = sheet && sheet.querySelector('.cal-form-sheet__close');
+              if(form && sheet && content){
+                // Restore any previous moved form first
+                restoreMovedForm();
+                // Move (not clone) the original form into the sheet
+                var ph = document.createComment('form-placeholder');
+                form.parentNode.insertBefore(ph, form);
+                movedForm = { form: form, placeholder: ph, originalParent: ph.parentNode };
+                content.innerHTML = '';
+                content.appendChild(form);
+                sheet.classList.add('open');
+                sheet.setAttribute('aria-hidden','false');
+                if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedForm(); }; }
+                // Post fallback: allow normal submit, then reload
+                form.addEventListener('submit', function(){
+                  setTimeout(function(){ try{ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+                });
+                try { var firstInput = form.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
                 return; // handled
               }
+            }
+          }
+          // Tap on existing event opens its form as overlay too
+          var evBox = ev.target.closest('.cal-event');
+          if(evBox){
+            ev.preventDefault(); ev.stopPropagation();
+            var det2 = evBox.querySelector('details');
+            var form2 = det2 && det2.querySelector('form');
+            var sheet2 = document.getElementById('calFormSheet');
+            var content2 = sheet2 && sheet2.querySelector('.cal-form-sheet__content');
+            var btnClose2 = sheet2 && sheet2.querySelector('.cal-form-sheet__close');
+            if(form2 && sheet2 && content2){
+              // Restore any previous moved form first
+              restoreMovedForm();
+              // Move the original edit form into the sheet
+              var ph2 = document.createComment('form-placeholder');
+              form2.parentNode.insertBefore(ph2, form2);
+              movedForm = { form: form2, placeholder: ph2, originalParent: ph2.parentNode };
+              content2.innerHTML = '';
+              content2.appendChild(form2);
+              sheet2.classList.add('open');
+              sheet2.setAttribute('aria-hidden','false');
+              if(btnClose2){ btnClose2.onclick = function(){ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); restoreMovedForm(); }; }
+              // Fallback reload after submit
+              form2.addEventListener('submit', function(){
+                setTimeout(function(){ try{ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
+              });
+              try { var firstInput2 = form2.querySelector('input,select,textarea'); if(firstInput2){ firstInput2.focus(); } } catch(_){ }
+              return; // handled
             }
           }
           var kind = td.getAttribute('data-kind');
@@ -93,7 +125,7 @@
           var kindLabel = kind === 'match' ? 'Zápas' : 'Trénink';
           var msg = (time ? (time + ' – ') : '') + (title || kindLabel);
           showToast(msg, td);
-        }, {passive:true});
+        }, {passive:false});
       }
     } catch(e) {}
 
@@ -102,6 +134,8 @@
       var mqDesktop = !(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
       var calWrapDesk = document.querySelector('.calendar-wrap');
       if(mqDesktop && calWrapDesk){
+        var movedDesk = { form:null, placeholder:null };
+        function restoreDesk(){ try{ if(movedDesk.form && movedDesk.placeholder && movedDesk.placeholder.parentNode){ movedDesk.placeholder.parentNode.insertBefore(movedDesk.form, movedDesk.placeholder); movedDesk.placeholder.parentNode.removeChild(movedDesk.placeholder); } }catch(_){} movedDesk={form:null, placeholder:null}; }
         calWrapDesk.addEventListener('click', function(ev){
           var sum = ev.target.closest('summary');
           if(!sum) return;
@@ -134,16 +168,20 @@
           var inner = document.createElement('div'); inner.className = 'cal-overlay-inner';
           var close = document.createElement('button'); close.type='button'; close.className='cal-overlay-close'; close.textContent='✖ Zavřít';
           var content = document.createElement('div'); content.className='cal-overlay-content';
-          var clone = form.cloneNode(true);
-          content.appendChild(clone);
+          // Move original form (not clone) to overlay
+          restoreDesk();
+          var ph = document.createComment('desk-form-placeholder');
+          form.parentNode.insertBefore(ph, form);
+          movedDesk = { form: form, placeholder: ph };
+          content.appendChild(form);
           inner.appendChild(close);
           inner.appendChild(content);
           overlay.appendChild(inner);
           calWrapDesk.appendChild(overlay);
           // Close handlers
-          function closeOverlay(){ if(overlay && overlay.parentElement){ overlay.parentElement.removeChild(overlay); } }
+          function closeOverlay(){ if(overlay && overlay.parentElement){ overlay.parentElement.removeChild(overlay); } restoreDesk(); }
           close.onclick = closeOverlay;
-          clone.addEventListener('submit', function(){ closeOverlay(); });
+          form.addEventListener('submit', function(){ setTimeout(closeOverlay, 200); });
         });
       }
     } catch(e) {}
