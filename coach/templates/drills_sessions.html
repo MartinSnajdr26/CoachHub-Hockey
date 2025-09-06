@@ -16,12 +16,26 @@
       <h2>{{ s.title }}</h2>
       <p><b>Vytvořeno:</b> {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
       {% set abs = url_for('download_export', filename=s.filename, _external=True) %}
-      <p>
-        <a href="{{ url_for('download_export', filename=s.filename) }}" download><button>⬇️ Stáhnout PDF</button></a>
-        <a href="{{ url_for('download_export', filename=s.filename) }}" target="_blank"><button>👁 Otevřít</button></a>
-        <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
-        <button type="button" class="btn-share-pdf" data-url="{{ abs }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
-      </p>
+      {% if s.filename and s.filename != '-' %}
+        <p>
+          <a href="{{ url_for('download_export', filename=s.filename) }}" download><button>⬇️ Stáhnout PDF</button></a>
+          <a href="{{ url_for('download_export', filename=s.filename) }}" target="_blank"><button>👁 Otevřít</button></a>
+          <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
+          <button type="button" class="btn-share-pdf" data-url="{{ abs }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
+        </p>
+        <p>
+          {% set abs_page = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
+          <a href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}"><button>👁 Otevřít stránku tréninku</button></a>
+          <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank"><button>📲 Sdílet stránku</button></a>
+        </p>
+      {% else %}
+        <p style="opacity:0.8; font-size:14px;">Složka tréninku (bez PDF)</p>
+        <p>
+          {% set abs_page = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
+          <a href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}"><button>👁 Otevřít stránku tréninku</button></a>
+          <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank"><button>📲 Sdílet stránku</button></a>
+        </p>
+      {% endif %}
       {% set ids = (s.drill_ids or '') %}
       {% set id_list = ids.split(',') if ids else [] %}
       {% if id_list %}

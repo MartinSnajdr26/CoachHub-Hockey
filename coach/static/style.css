@@ -299,7 +299,8 @@ li {
     margin-top: 20px;
 }
 .players-grid h2 {
-    color: var(--brand-primary, #d4c76f);
+    color: var(--brand-secondary, #000);
+    font-weight: 700;
     border-bottom: 2px solid var(--brand-primary, #d4c76f);
     padding-bottom: 5px;
     margin-bottom: 10px;

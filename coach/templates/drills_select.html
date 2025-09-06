@@ -24,8 +24,10 @@
   <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     {% if is_coach %}
       <button type="submit">📄 Vytvořit PDF</button>
+      <button type="submit" formaction="{{ url_for('drills.save_session') }}">📁 Uložit trénink (bez PDF)</button>
     {% else %}
       <button type="button" disabled title="Pouze trenér může exportovat">📄 Vytvořit PDF</button>
+      <button type="button" disabled title="Pouze trenér může ukládat">📁 Uložit trénink (bez PDF)</button>
     {% endif %}
     <button type="button" class="btn-toggle-all" data-state="true">☑️ Zaškrtnout vše</button>
     <button type="button" class="btn-toggle-all" data-state="false">⬜ Odškrtnout vše</button>
@@ -59,8 +61,10 @@
   <div style="margin-top:12px;">
     {% if is_coach %}
       <button type="submit">📄 Vytvořit PDF</button>
+      <button type="submit" formaction="{{ url_for('drills.save_session') }}">📁 Uložit trénink (bez PDF)</button>
     {% else %}
       <button type="button" disabled title="Pouze trenér může exportovat">📄 Vytvořit PDF</button>
+      <button type="button" disabled title="Pouze trenér může ukládat">📁 Uložit trénink (bez PDF)</button>
     {% endif %}
   </div>
 </form>

@@ -2,14 +2,24 @@
 {% block title %}{{ drill.name }}{% endblock %}
 
 {% block content %}
+{% if embed_mode %}
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#fff; }
+  .header-top, .header-bottom, footer { display:none !important; }
+  main { margin:0; padding:0; }
+  #board { display:block; width:100vw; height:100vh; }
+</style>
+{% else %}
 <h1>{{ drill.name }}</h1>
 <p><b>Kategorie:</b> {{ drill.category }}</p>
 <p><b>Popis:</b> {{ drill.description }}</p>
 <p><b>Doba:</b> {{ drill.duration }} min</p>
+{% endif %}
 
 <!-- Canvas -->
 <canvas id="board" style="border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; background:white;"></canvas>
 
+{% if not embed_mode %}
 <p style="margin-top:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <button type="button" class="btn-anim" data-action="play">▶️ Přehrát</button>
     <button type="button" class="btn-anim" data-action="pause">⏸ Pauza</button>
@@ -51,6 +61,7 @@
         <input type="range" id="zoomRange" min="50" max="200" value="100" step="5" style="vertical-align:middle; width:160px;">
     </span>
 </p>
+{% endif %}
 
 {% if is_coach %}
 <form method="POST" action="{{ url_for('delete_drill', drill_id=drill.id) }}">
@@ -71,6 +82,7 @@
     // Data z editoru – robustní načtení i pro None/""/string
     const rawPathData = {{ drill.path_data | tojson | safe }}; // může být null nebo string JSON
     const rawImageData = {{ drill.image_data | tojson | safe }}; // base64 snapshot z editoru
+    const EMBED = {{ 'true' if embed_mode else 'false' }};
     let drawData = [];
     if (Array.isArray(rawPathData)) {
         drawData = rawPathData;
@@ -191,7 +203,10 @@
     }
     function baseCanvasSize(){
         let w, h;
-        if(!isMobile() && origW && origH){
+        if(EMBED){
+            w = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 800));
+            h = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 600));
+        } else if(!isMobile() && origW && origH){
             w = Math.max(1, Math.round(origW));
             h = Math.max(1, Math.round(origH));
         } else {
@@ -854,6 +869,15 @@
         if(zrng){ zrng.addEventListener('input', () => { manualZoom = true; const v = parseInt(zrng.value,10) || 100; zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, v/100)); applyCanvasSize(); }); }
         updateZoomLabel();
         // Buttons are inside the debug panel toolbar; no extra setup needed here.
+
+        // Autoplay support (?autoplay=1)
+        try {
+            const usp = new URLSearchParams(window.location.search);
+            if(usp.get('autoplay') === '1'){
+                // ensure animation is prepared before playing
+                setTimeout(() => { try { playAnimation(); } catch(_){} }, 50);
+            }
+        } catch(_){}
     });
 </script>
 {% endblock %}

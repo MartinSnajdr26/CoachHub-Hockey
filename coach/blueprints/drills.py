@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, make_response
 from flask_login import current_user
 from coach.extensions import db
 from coach.auth_utils import team_login_required, coach_required, get_team_id
@@ -82,7 +82,16 @@ def drill_detail(drill_id):
     if tid and drill.team_id != tid:
         flash('Toto cvičení nepatří do vašeho týmu.', 'error')
         return redirect(url_for('drills'))
-    return render_template('drill_detail.html', drill=drill)
+    # Allow embedding in same-origin iframe when requested (quick play overlay)
+    embed_mode = (request.args.get('embed') == '1')
+    html = render_template('drill_detail.html', drill=drill, embed_mode=embed_mode)
+    resp = make_response(html)
+    try:
+        if request.args.get('autoplay') == '1' or request.args.get('embed') == '1':
+            resp.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    except Exception:
+        pass
+    return resp
 
 
 @bp.route('/drill/delete/<int:drill_id>', methods=['POST'], endpoint='delete_drill')
@@ -232,6 +241,50 @@ def export_drills_pdf():
     return redirect(url_for('drills_export_result', file=filename))
 
 
+@bp.route('/drill/save_session', methods=['POST'], endpoint='save_session')
+@team_login_required
+def save_session():
+    """Uloží tréninkovou jednotku jako složku (bez PDF).
+    Vezme vybrané drill_ids a volitelný název z formuláře na stránce výběru.
+    """
+    resp = coach_required(lambda: None)()
+    if resp is not None:
+        return resp
+    ids = request.form.getlist('drill_ids')
+    session_title = (request.form.get('session_title') or '').strip()
+    if not ids:
+        return redirect(url_for('drills_select'))
+    # Parse custom order map
+    order_map = {}
+    try:
+        for k, v in request.form.items():
+            if k.startswith('order[') and k.endswith(']'):
+                did = int(k[len('order['):-1]); order_map[did] = int(v)
+    except Exception:
+        order_map = {}
+    sel_ids = [int(i) for i in ids]
+    q = Drill.query.filter(Drill.id.in_(sel_ids))
+    tid = get_team_id()
+    if tid:
+        q = q.filter(Drill.team_id == tid)
+    drills = q.all()
+    def order_key(d):
+        return (order_map.get(d.id, 10**9), (d.category or ''), (d.name or ''))
+    drills.sort(key=order_key)
+    if not drills:
+        return redirect(url_for('drills_select'))
+    if not session_title:
+        session_title = f"Tréninková jednotka {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    # Ulož bez PDF – placeholder do filename
+    sess = TrainingSession(title=session_title,
+                           filename='-',
+                           drill_ids=','.join(str(d.id) for d in drills),
+                           team_id=(get_team_id()))
+    db.session.add(sess)
+    db.session.commit()
+    return redirect(url_for('drill_sessions'))
+
+
 @bp.route('/drill-sessions', endpoint='drill_sessions')
 @team_login_required
 def drill_sessions():
@@ -280,3 +333,24 @@ def drills_export_result():
     except Exception:
         abs_url = file_url
     return render_template('drills_export_result.html', filename=filename, file_url=file_url, abs_url=abs_url)
+
+
+@bp.route('/drill-sessions/<int:sess_id>', endpoint='drill_session_detail')
+@team_login_required
+def drill_session_detail(sess_id: int):
+    """Detail uložené tréninkové jednotky (složky): seznam vybraných cvičení.
+    Vhodné ke sdílení s hráči – každý drill má odkaz do detailu s animací.
+    """
+    sess = TrainingSession.query.get_or_404(sess_id)
+    tid = get_team_id()
+    if tid and sess.team_id and sess.team_id != tid:
+        flash('Tento záznam nepatří do vašeho týmu.', 'error')
+        return redirect(url_for('drill_sessions'))
+    ids = (sess.drill_ids or '')
+    id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()] if ids else []
+    drills = []
+    if id_list:
+        # zachovej pořadí
+        all_map = {d.id: d for d in Drill.query.filter(Drill.id.in_(id_list)).all()}
+        drills = [all_map[i] for i in id_list if i in all_map]
+    return render_template('drill_session_detail.html', sess=sess, drills=drills)
