@@ -536,11 +536,19 @@
       };
       selects.forEach(function(select){ select.addEventListener('change', updateOptions); });
       updateOptions();
+      // Clear all selections button
+      var clearBtn = document.querySelector('.btn-lines-clear');
+      if(clearBtn){
+        clearBtn.addEventListener('click', function(){
+          selects.forEach(function(sel){ sel.value = ''; });
+          updateOptions();
+        });
+      }
     }
   });
 })();
     // Toggle password visibility (auth)
-    document.querySelectorAll('.btn-toggle-pw').forEach(function(btn){
+  document.querySelectorAll('.btn-toggle-pw').forEach(function(btn){
       btn.addEventListener('click', function(){
         var id = btn.getAttribute('data-target');
         var inp = id && document.getElementById(id);
@@ -552,5 +560,15 @@
           inp.type = 'password';
           btn.textContent = '👁';
         }
-      });
+  });
+  // Roster select all / deselect all
+  var rosterSelectAll = document.querySelector('.btn-roster-select-all');
+  var rosterDeselectAll = document.querySelector('.btn-roster-deselect-all');
+  var rosterGrid = document.querySelector('.players-grid');
+  function setRosterChecked(val){
+    if(!rosterGrid) return;
+    Array.prototype.slice.call(rosterGrid.querySelectorAll('input[type="checkbox"][name="players"]')).forEach(function(cb){ cb.checked = !!val; });
+  }
+  if(rosterSelectAll){ rosterSelectAll.addEventListener('click', function(){ setRosterChecked(true); }); }
+  if(rosterDeselectAll){ rosterDeselectAll.addEventListener('click', function(){ setRosterChecked(false); }); }
     });

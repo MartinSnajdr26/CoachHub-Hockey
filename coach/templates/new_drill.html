@@ -268,7 +268,102 @@ function undo() {
         renderSeqLog();
     }
 }
-function saveImage(){document.getElementById("image_data").value=canvas.toDataURL();document.getElementById("path_data").value=JSON.stringify(drawData);} 
+// --- Minimal-size snapshot helper: overlay-only, downscaled WebP ---
+function renderOverlayToContext(targetCtx){
+  const prev = ctx;
+  ctx = targetCtx;
+  try {
+    if(!drawData) return;
+    for(const it of drawData){
+      try{
+        if(it.tool === 'player_move_puck' && it.path){
+          // Wavy puck move
+          drawWavyLine(it.path, 10, 40);
+          const n = it.path.length;
+          if(n>=2){ const [sx,sy]=it.path[n-2]; const [ex,ey]=it.path[n-1]; drawArrowHead(sx,sy,ex,ey,'black'); }
+        } else if(it.tool === 'player_move' && it.path){
+          const n = it.path.length;
+          if(it.style === 'zigzag'){
+            drawZigZagLine(it.path,10,40);
+            if(n>=2){ const [sx,sy]=it.path[n-2]; const [ex,ey]=it.path[n-1]; drawArrowHead(sx,sy,ex,ey,'black'); }
+          } else if(it.style === 'curve' || n > 2){
+            drawCatmullRomLine(it.path);
+            if(n>=2){ const [sx,sy]=it.path[n-2]; const [ex,ey]=it.path[n-1]; drawArrowHead(sx,sy,ex,ey,'black'); }
+          } else if(n === 2){
+            ctx.beginPath(); ctx.moveTo(it.path[0][0], it.path[0][1]); ctx.lineTo(it.path[1][0], it.path[1][1]); ctx.stroke();
+            drawArrowHead(it.path[0][0], it.path[0][1], it.path[1][0], it.path[1][1], 'black');
+          }
+        } else if(it.tool === 'puck' && it.path){
+          // pass/shot
+          if(it.style === 'pass' || it.pass){ ctx.setLineDash([5,5]); }
+          if(it.style === 'shot' || it.shot){ ctx.beginPath(); ctx.arc(it.path[0][0], it.path[0][1], 6, 0, 2*Math.PI); ctx.fill(); }
+          ctx.beginPath(); ctx.moveTo(it.path[0][0], it.path[0][1]); ctx.lineTo(it.path[1][0], it.path[1][1]); ctx.stroke(); ctx.setLineDash([]);
+          drawArrowHead(it.path[0][0], it.path[0][1], it.path[1][0], it.path[1][1], 'black');
+        } else if(it.tool === 'puck_static' && typeof it.x==='number'){
+          ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+        } else if(it.tool === 'pucks_cluster' && typeof it.x==='number'){
+          ctx.fillStyle = 'black';
+          for(let i=-1;i<=1;i++){ for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*12, it.y+j*12, 5, 0, 2*Math.PI); ctx.fill(); } } }
+          ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+        } else if(it.tool === 'cone' && typeof it.x==='number'){
+          ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-10, it.y+20); ctx.lineTo(it.x+10, it.y+20); ctx.closePath(); ctx.fill();
+        } else if(it.tool === 'triangle' && typeof it.x==='number'){
+          ctx.fillStyle = 'purple'; ctx.beginPath(); ctx.moveTo(it.x, it.y-15); ctx.lineTo(it.x-15, it.y+15); ctx.lineTo(it.x+15, it.y+15); ctx.closePath(); ctx.fill();
+        } else if(it.tool === 'player_icon' && typeof it.x==='number'){
+          const label = it.role || 'F';
+          if(label === 'D'){
+            ctx.fillStyle='red'; ctx.beginPath(); ctx.moveTo(it.x, it.y-18); ctx.lineTo(it.x-18, it.y+18); ctx.lineTo(it.x+18, it.y+18); ctx.closePath(); ctx.fill();
+            ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('D', it.x, it.y+2);
+          } else {
+            ctx.beginPath(); ctx.arc(it.x, it.y, 18, 0, 2*Math.PI); ctx.fillStyle=(label==='F')?'blue':'black'; ctx.fill();
+            ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label, it.x, it.y);
+          }
+        }
+      }catch(_){ /* ignore item draw errors */ }
+    }
+  } finally {
+    ctx = prev;
+  }
+}
+
+function makeOverlayPreviewDataURL(maxWidth){
+  const MAX_W = Math.max(600, maxWidth || 900);
+  const s = Math.min(1, MAX_W / Math.max(1, canvas.width));
+  const w = Math.round(canvas.width * s);
+  const h = Math.round(canvas.height * s);
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const oc = off.getContext('2d');
+  // Draw rink background scaled to snapshot size to keep previews familiar
+  try { oc.drawImage(rink, 0, 0, w, h); } catch(_) {}
+  oc.save();
+  oc.scale(s, s);
+  renderOverlayToContext(oc);
+  oc.restore();
+  // Prefer WebP; browsers that don't support it will typically fallback to PNG
+  let url = off.toDataURL('image/webp', 0.8);
+  if(!/^data:image\/webp[,;]/.test(url)){
+    // Fallback to JPEG with decent quality
+    url = off.toDataURL('image/jpeg', 0.8);
+  }
+  return url;
+}
+
+function _dataWithMeta(){
+  const meta = { tool: 'meta', canvas_w: canvas.width || 0, canvas_h: canvas.height || 0 };
+  const arr = Array.isArray(drawData) ? drawData.slice() : [];
+  if(arr.length && arr[0] && arr[0].tool === 'meta'){
+    const copy = arr.slice();
+    copy[0] = { ...(copy[0]||{}), canvas_w: meta.canvas_w, canvas_h: meta.canvas_h };
+    return copy;
+  }
+  return [meta, ...arr];
+}
+
+function saveImage(){
+  document.getElementById("image_data").value = makeOverlayPreviewDataURL(900);
+  document.getElementById("path_data").value = JSON.stringify(_dataWithMeta());
+} 
 
 function getCanvasCoords(e){
   const rect = canvas.getBoundingClientRect();
@@ -539,8 +634,8 @@ function drawZigZagLine(points,a,w){let r=resamplePath(points,w);ctx.beginPath()
 function resamplePath(points,step){let r=[points[0]],dist=0;for(let i=1;i<points.length;i++){let[x1,y1]=points[i-1];let[x2,y2]=points[i];let dx=x2-x1,dy=y2-y1;let len=Math.sqrt(dx*dx+dy*dy);let steps=Math.floor((dist+len)/step);for(let s=1;s<=steps;s++){let t=(s*step-dist)/len;if(t>=0&&t<=1)r.push([x1+dx*t,y1+dy*t]);}dist=(dist+len)%step;}return r;}
 
 function saveImage() {
-    document.getElementById("image_data").value = canvas.toDataURL();
-    document.getElementById("path_data").value = JSON.stringify(drawData);  // ✅ ukládáme animaci
+    document.getElementById("image_data").value = makeOverlayPreviewDataURL(900);
+    document.getElementById("path_data").value = JSON.stringify(_dataWithMeta());  // ✅ ukládáme animaci s meta canvas size
 }
 
 // ----- Log sekvencí (současné skupiny) -----

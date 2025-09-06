@@ -20,7 +20,7 @@
 <div class="players-grid">
     <!-- Útočníci -->
     <div>
-        <h2>Útočníci</h2>
+        <h2 title="Útočníci">Útočníci</h2>
         <ul>
         {% for p in players if p.position == "F" %}
             <li>
@@ -41,7 +41,7 @@
 
     <!-- Obránci -->
     <div>
-        <h2>Obránci</h2>
+        <h2 title="Obránci">Obránci</h2>
         <ul>
         {% for p in players if p.position == "D" %}
             <li>
@@ -60,7 +60,7 @@
 
     <!-- Brankáři -->
     <div>
-        <h2>Brankáři</h2>
+        <h2 title="Brankáři">Brankáři</h2>
         <ul>
         {% for p in players if p.position == "G" %}
             <li>

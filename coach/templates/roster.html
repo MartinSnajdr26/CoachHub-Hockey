@@ -6,6 +6,10 @@
 
 <form method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="margin:10px 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button type="button" class="btn-roster-select-all">✅ Vybrat vše</button>
+        <button type="button" class="btn-roster-deselect-all">✖️ Zrušit výběr</button>
+    </div>
     <div class="players-grid">
         <!-- Útočníci -->
         <div>
