@@ -69,15 +69,29 @@
         }
         function showToast(msg, cell){
           toast.querySelector('.text').textContent = msg;
-          toast.style.display = 'block';
+          function closeToast(){
+            try{ toast.classList.remove('open'); }catch(_){ }
+            try{ document.removeEventListener('click', outsideHandler, true); }catch(_){ }
+            clearTimeout(hideTimer);
+          }
+          function outsideHandler(ev){
+            try {
+              if(!toast.classList.contains('open')) return;
+              if(!toast.contains(ev.target)) { closeToast(); }
+            } catch(_){ }
+          }
+          // open with slide-up
+          toast.classList.add('open');
+          // enable outside-to-close a tick later to avoid closing from the triggering tap
+          setTimeout(function(){ document.addEventListener('click', outsideHandler, true); }, 50);
           clearTimeout(hideTimer);
-          hideTimer = setTimeout(function(){ toast.style.display='none'; }, 4000);
-          toast.querySelector('.btn-close').onclick = function(){ toast.style.display='none'; };
+          hideTimer = setTimeout(closeToast, 4000);
+          toast.querySelector('.btn-close').onclick = closeToast;
           // Show explicit "Upravit" for coaches when an event exists
           var isCoach = (calWrap.getAttribute('data-is-coach') === '1');
           var evDet = cell && cell.querySelector('.cal-event details');
           var btnEdit = toast.querySelector('.btn-edit');
-          if(isCoach && evDet){ btnEdit.style.display='inline-block'; btnEdit.onclick = function(){ openDetailsInSheet(evDet); toast.style.display='none'; }; }
+          if(isCoach && evDet){ btnEdit.style.display='inline-block'; btnEdit.onclick = function(){ openDetailsInSheet(evDet); try{ toast.classList.remove('open'); }catch(_){ } }; }
           else { btnEdit.style.display='none'; btnEdit.onclick = null; }
           toast.querySelector('.btn-open').onclick = function(){
             try {
@@ -88,7 +102,7 @@
               var targetDet = evDet2 || addDet;
               if(targetDet){ openDetailsInSheet(targetDet); }
             } catch(_){ }
-            toast.style.display='none';
+            closeToast();
           };
         }
         calWrap.addEventListener('click', function(ev){
