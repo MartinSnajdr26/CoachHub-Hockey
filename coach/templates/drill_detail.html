@@ -670,30 +670,40 @@
         if(DEBUG){ updateDebug(); }
     }
 
-    function drawStatics(){
+    function drawStatics(k){
+        // clamp helper
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const puckR = clamp(6 * k, 3, 10);
+        const clusterR = clamp(5 * k, 2.5, 9);
+        const clusterOff = 12 * k;
+        const coneW = 10 * k, coneH = 20 * k;
+        const tri = 15 * k;
         for(const it of statics){
             if(it.tool === 'puck_static'){
-                ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
+                ctx.beginPath(); ctx.arc(it.x, it.y, puckR, 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
             } else if(it.tool === 'cone'){
-                ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-10, it.y+20); ctx.lineTo(it.x+10, it.y+20); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-coneW, it.y+coneH); ctx.lineTo(it.x+coneW, it.y+coneH); ctx.closePath(); ctx.fill();
             } else if(it.tool === 'triangle'){
-                ctx.fillStyle = 'purple'; ctx.beginPath(); ctx.moveTo(it.x, it.y-15); ctx.lineTo(it.x-15, it.y+15); ctx.lineTo(it.x+15, it.y+15); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'purple'; ctx.beginPath(); ctx.moveTo(it.x, it.y-tri); ctx.lineTo(it.x-tri, it.y+tri); ctx.lineTo(it.x+tri, it.y+tri); ctx.closePath(); ctx.fill();
             } else if(it.tool === 'pucks_cluster'){
                 ctx.fillStyle = 'black';
-                for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*12, it.y+j*12, 5, 0, 2*Math.PI); ctx.fill(); } }
-                ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+                for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*clusterOff, it.y+j*clusterOff, clusterR, 0, 2*Math.PI); ctx.fill(); } }
+                ctx.beginPath(); ctx.arc(it.x, it.y, puckR, 0, 2*Math.PI); ctx.fill();
             }
         }
     }
 
     // Záměrně nerysujeme podkladové trasy – v animaci se zobrazují jen ikony hráče a puk
 
-    function drawRoleCircle(role, x, y, alpha=1){
+    function drawRoleCircle(role, x, y, alpha=1, k=1){
         const color = role === 'F' ? 'blue' : role === 'D' ? 'red' : 'black';
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const r = clamp(18 * k, 10, 28);
+        const fontPx = Math.round(clamp(12 * k, 8, 18));
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-        ctx.beginPath(); ctx.arc(x, y, 18, 0, 2*Math.PI); ctx.fillStyle = color; ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = '12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(role || '?', x, y);
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2*Math.PI); ctx.fillStyle = color; ctx.fill();
+        ctx.fillStyle = 'white'; ctx.font = fontPx + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(role || '?', x, y);
         ctx.restore();
     }
 
@@ -712,7 +722,12 @@
     function renderFrame(dt){
         globalTime += dt;
         drawBackground();
-        drawStatics();
+        // derive current scale k for size scaling
+        const baseWk = origW || canvas.width;
+        const baseHk = origH || canvas.height;
+        const fitNow = fitRect(baseWk, baseHk, canvas.width, canvas.height);
+        const kNow = fitNow.k || 1;
+        drawStatics(kNow);
         // bez podkladových čar – pouze ikony a puk
         // Vykresli pohyblivé objekty – hráč je vždy viditelný: před prvním tahem na startu,
         // během tahu se hýbe, po konci zůstává na konci posledního dokončeného tahu
@@ -732,7 +747,7 @@
             if (active) {
                 const t = globalTime - active.start;
                 const pos = positionAt(active, t);
-                drawRoleCircle(active.role || (initialByEntity.get(eid)?.role) || 'F', pos.x, pos.y, 1);
+                drawRoleCircle(active.role || (initialByEntity.get(eid)?.role) || 'F', pos.x, pos.y, 1, kNow);
                 drawnNow.push({x: pos.x, y: pos.y});
                 continue;
             }
@@ -748,7 +763,7 @@
             }
             if (latest) {
                 const lastPt = latest.points[latest.points.length - 1];
-                drawRoleCircle(latest.role || (initialByEntity.get(eid)?.role) || 'F', lastPt.x, lastPt.y, 1);
+                drawRoleCircle(latest.role || (initialByEntity.get(eid)?.role) || 'F', lastPt.x, lastPt.y, 1, kNow);
                 drawnNow.push({x: lastPt.x, y: lastPt.y});
                 continue;
             }
@@ -756,7 +771,7 @@
             // 1c) Před prvním tahem – počáteční ikona
             const init = initialByEntity.get(eid);
             if (init) {
-                drawRoleCircle(init.role || 'F', init.x, init.y, 1);
+                drawRoleCircle(init.role || 'F', init.x, init.y, 1, kNow);
                 drawnNow.push({x: init.x, y: init.y});
             }
         }
@@ -768,7 +783,7 @@
             if(globalTime < m.start || globalTime >= m.start + m.duration) continue;
             const t = globalTime - m.start;
             const pos = positionAt(m, t);
-            ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, Math.max(3, Math.min(10, 6*kNow)), 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
         }
         // samostatné (nepřiřazené) puky
         for(const m of moves){
@@ -776,7 +791,7 @@
             if(globalTime < m.start || globalTime >= m.start + m.duration) continue;
             const t = globalTime - m.start;
             const pos = positionAt(m, t);
-            ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, Math.max(3, Math.min(10, 6*kNow)), 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
         }
         if(showAnchors){
             // 3) Ikona hráče na začátku přihrávky: zobraz od začátku do začátku dalšího pohybu stejného hráče (pokud existuje)
@@ -785,7 +800,7 @@
                     // vynech kotvu, pokud už je nakreslená ikona téměř na stejném místě
                     let near = false;
                     for(const p of drawnNow){ if(Math.hypot(p.x - a.x, p.y - a.y) < 14){ near = true; break; } }
-                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1);
+                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1, kNow);
                 }
             }
             // 4) Trvalé kotvy (starty s tHide a konce s tHide)
@@ -793,7 +808,7 @@
                 if(globalTime + 1e-6 >= a.t && globalTime < (a.tHide ?? Infinity) - 1e-6){
                     let near = false;
                     for(const p of drawnNow){ if(Math.hypot(p.x - a.x, p.y - a.y) < 14){ near = true; break; } }
-                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1);
+                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1, kNow);
                 }
             }
         }
