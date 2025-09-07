@@ -269,6 +269,18 @@ li {
     color: var(--brand-primary, #d4c76f);
 }
 
+/* Message board inside a card */
+.message-card { text-align: left; }
+.message-card .mb-form { display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-top:6px; }
+.message-card .mb-form textarea { flex:1; min-width:240px; padding:8px 10px; border-radius:8px; border:1px solid #bbb; background:#fff; color:#000; }
+.message-card .mb-form button { background: var(--brand-primary, #d4c76f); color:#000; border:none; padding:6px 10px; border-radius:8px; font-weight:700; cursor:pointer; }
+.message-card .mb-list { margin-top:12px; display:flex; flex-direction:column; gap:10px; max-height:260px; overflow:auto; }
+.message-card .mb-item { background:#fff; color:#000; border:1px solid color-mix(in srgb, var(--brand-secondary, #000) 30%, #fff); border-radius:8px; padding:8px 10px; }
+.message-card .mb-meta { font-size:12px; opacity:0.9; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.message-card .mb-actions { display:flex; gap:6px; }
+.message-card .mb-actions button { background:#fff; color:#000; border:1px solid var(--brand-secondary, #000); padding:2px 8px; border-radius:6px; cursor:pointer; }
+.message-card .mb-text { margin-top:6px; white-space:pre-wrap; }
+
 /* ====== Layout pro lajny ====== */
 .lines-container {
     display: grid;

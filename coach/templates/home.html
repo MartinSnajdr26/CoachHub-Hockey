@@ -29,6 +29,44 @@
               <a href="/drills"><button>Otevřít</button></a>
           </div>
       </div>
+
+      <!-- Message board moved under cards -->
+      <div class="card message-card" style="margin-top:16px; text-align:left;">
+        <h2 style="margin-top:0;">📣 Nástěnka týmu</h2>
+        <p style="margin-top:-6px; opacity:0.8;">Posledních 50 zpráv</p>
+        <form class="mb-form" method="post" action="{{ url_for('calendar.message_post') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <textarea name="text" rows="2" maxlength="500" placeholder="Napiš zprávu pro tým… (max 500 znaků)"></textarea>
+          <button type="submit">➤ Odeslat</button>
+        </form>
+        <div class="mb-list">
+          {% for m in team_messages %}
+            <div class="mb-item">
+              <div class="mb-meta">
+                <span>
+                  {% if m.pinned %}📌 {% endif %}
+                  {{ m.created_at.strftime('%Y-%m-%d %H:%M') }} • {{ 'Trenér' if (m.role=='coach') else 'Hráč' }}
+                </span>
+                {% if is_coach %}
+                  <span class="mb-actions">
+                    <form method="post" action="{{ url_for('calendar.message_pin', msg_id=m.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" title="Připnout / odepnout">📌</button>
+                    </form>
+                    <form method="post" action="{{ url_for('calendar.message_delete', msg_id=m.id) }}" onsubmit="return confirm('Smazat zprávu?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" title="Smazat">🗑</button>
+                    </form>
+                  </span>
+                {% endif %}
+              </div>
+              <div class="mb-text">{{ m.text }}</div>
+            </div>
+          {% else %}
+            <div style="opacity:0.7;">Zatím žádné zprávy.</div>
+          {% endfor %}
+        </div>
+      </div>
     </div>
   </div>
 

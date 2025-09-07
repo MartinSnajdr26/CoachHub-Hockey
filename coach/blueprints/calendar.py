@@ -4,7 +4,7 @@ from coach.auth_utils import team_login_required, get_team_id, coach_required
 from coach.extensions import db
 from datetime import date, datetime, timedelta
 import calendar as calmod
-from coach.models import TrainingEvent
+from coach.models import TrainingEvent, AuditEvent
 
 bp = Blueprint('calendar', __name__)
 
@@ -49,13 +49,41 @@ def home():
                  "červenec","srpen","září","říjen","listopad","prosinec"]
     month_title = f"{cs_months[m]} {y}"
     today_label = f"{today.day}. {cs_months[today.month]} {today.year}"
+    # Load team messages (message board) without DB migration, using AuditEvent
+    msgs = []
+    view_messages = []
+    if tid:
+        try:
+            msgs = (AuditEvent.query
+                    .filter(AuditEvent.team_id == tid, AuditEvent.event == 'message')
+                    .order_by(AuditEvent.created_at.desc())
+                    .limit(50)
+                    .all())
+            from json import loads
+            for m in msgs:
+                try:
+                    payload = loads(m.meta or '{}') if m.meta else {}
+                except Exception:
+                    payload = {}
+                view_messages.append({
+                    'id': m.id,
+                    'text': (payload.get('text') or '').strip(),
+                    'role': (payload.get('role') or m.role or 'player'),
+                    'pinned': bool(payload.get('pinned')),
+                    'created_at': m.created_at,
+                })
+            # Pinned first, then by time desc
+            view_messages.sort(key=lambda x: (not x['pinned'], x['created_at']), reverse=True)
+        except Exception:
+            view_messages = []
     return render_template('home.html',
                            cal_year=y, cal_month=m, month_title=month_title, weeks=weeks,
                            events_by_day=events_by_day,
                            prev_year=prev_y, prev_month=prev_m,
                            next_year=next_y, next_month=next_m,
                            today_label=today_label,
-                           today_iso=today.isoformat())
+                           today_iso=today.isoformat(),
+                           team_messages=view_messages)
 
 
 @bp.route('/calendar/add', methods=['POST'], endpoint='calendar_add')
@@ -132,3 +160,80 @@ def calendar_delete():
     db.session.commit()
     flash('Událost byla smazána.', 'success')
     return redirect(url_for('home', year=y, month=m))
+
+
+MAX_MESSAGE_LEN = 500
+
+
+@bp.route('/message/post', methods=['POST'], endpoint='message_post')
+@team_login_required
+def message_post():
+    """Post a team message to the message board (coach or player)."""
+    from flask import session
+    text = (request.form.get('text') or '').strip()
+    if not text:
+        return redirect(request.referrer or url_for('home'))
+    try:
+        role = session.get('team_role') or 'player'
+        tid = get_team_id()
+        if not tid:
+            return redirect(request.referrer or url_for('home'))
+        # store in AuditEvent as event='message' with meta JSON
+        if len(text) > MAX_MESSAGE_LEN:
+            text = text[:MAX_MESSAGE_LEN]
+        meta = { 'text': text, 'role': role, 'pinned': False }
+        from json import dumps
+        ev = AuditEvent(event='message', team_id=tid, role=role, meta=dumps(meta))
+        db.session.add(ev)
+        db.session.commit()
+    except Exception:
+        pass
+    return redirect(request.referrer or url_for('home'))
+
+
+@bp.route('/message/delete/<int:msg_id>', methods=['POST'], endpoint='message_delete')
+@team_login_required
+def message_delete(msg_id: int):
+    """Delete a team message (coach only)."""
+    resp = coach_required(lambda: None)()
+    if resp is not None:
+        return resp
+    tid = get_team_id()
+    if not tid:
+        return redirect(request.referrer or url_for('home'))
+    ev = AuditEvent.query.get_or_404(msg_id)
+    if ev.team_id != tid or ev.event != 'message':
+        return redirect(request.referrer or url_for('home'))
+    try:
+        db.session.delete(ev)
+        db.session.commit()
+    except Exception:
+        pass
+    return redirect(request.referrer or url_for('home'))
+
+
+@bp.route('/message/pin/<int:msg_id>', methods=['POST'], endpoint='message_pin')
+@team_login_required
+def message_pin(msg_id: int):
+    """Toggle pin on a message (coach only)."""
+    resp = coach_required(lambda: None)()
+    if resp is not None:
+        return resp
+    tid = get_team_id()
+    if not tid:
+        return redirect(request.referrer or url_for('home'))
+    ev = AuditEvent.query.get_or_404(msg_id)
+    if ev.team_id != tid or ev.event != 'message':
+        return redirect(request.referrer or url_for('home'))
+    from json import loads, dumps
+    try:
+        payload = loads(ev.meta or '{}') if ev.meta else {}
+    except Exception:
+        payload = {}
+    payload['pinned'] = not bool(payload.get('pinned'))
+    try:
+        ev.meta = dumps(payload)
+        db.session.commit()
+    except Exception:
+        pass
+    return redirect(request.referrer or url_for('home'))
