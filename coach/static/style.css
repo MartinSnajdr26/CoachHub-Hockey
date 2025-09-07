@@ -520,6 +520,12 @@ li {
   .calendar-col { min-width: 0; max-width: 100%; width: 100%; }
 }
 
+/* Home: reorder message board above cards on mobile */
+@media (max-width: 768px){
+  .cards-holder { display: flex; flex-direction: column; gap: 12px; }
+  .cards-holder .message-card { order: -1; }
+}
+
 /* Události v buňkách – zalamování, aby nešířily tabulku */
 .cal-event {
   margin-top: 4px; padding: 4px 6px; border-radius: 4px; font-size: 14px;
