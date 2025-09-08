@@ -37,6 +37,7 @@ def create_app():
                 pass
     # Register team auth first so /team/auth is always available
     _reg('coach.blueprints.teamauth', 'teamauth')
+    _reg('coach.blueprints.public', 'public')
     _reg('coach.blueprints.legal', 'legal')
     _reg('coach.blueprints.calendar', 'calendar')
     _reg('coach.blueprints.players', 'players')
@@ -85,7 +86,7 @@ def create_app():
             ('/admin/audit-log', 'audit_log', 'admin.audit_log', None),
             ('/settings', 'settings', 'settings.settings', ['GET','POST']),
             ('/team/members/action', 'team_members_action', 'settings.team_members_action', ['POST']),
-            ('/', 'home', 'calendar.home', None),
+            ('/app', 'home', 'calendar.home', None),
             ('/calendar/add', 'calendar_add', 'calendar.calendar_add', ['POST']),
             ('/calendar/update', 'calendar_update', 'calendar.calendar_update', ['POST']),
             ('/calendar/delete', 'calendar_delete', 'calendar.calendar_delete', ['POST'])
@@ -190,6 +191,12 @@ app.config['EMAIL_TOKEN_MAX_AGE'] = int(os.getenv('EMAIL_TOKEN_MAX_AGE', '172800
 app.config['PASSWORD_RESET_TOKEN_MAX_AGE'] = int(os.getenv('PASSWORD_RESET_TOKEN_MAX_AGE', '3600'))
 # Terms & Privacy
 app.config['TERMS_VERSION'] = os.getenv('TERMS_VERSION', 'v1.0')
+# Persistent session lifetime (for team sessions)
+try:
+    _sess_days = int(os.getenv('SESSION_LIFETIME_DAYS', '30'))
+except Exception:
+    _sess_days = 30
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=max(1, min(_sess_days, 365)))
 # Enforce email confirmation (production default: on). Set REQUIRE_EMAIL_CONFIRMATION=0 to relax.
 def _env_bool(key: str, default: bool = True) -> bool:
     v = os.getenv(key)

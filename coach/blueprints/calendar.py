@@ -9,7 +9,7 @@ from coach.models import TrainingEvent, AuditEvent
 bp = Blueprint('calendar', __name__)
 
 
-@bp.route('/', endpoint='home')
+@bp.route('/app', endpoint='home')
 @team_login_required
 def home():
     try:

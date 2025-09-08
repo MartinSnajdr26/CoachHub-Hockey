@@ -75,6 +75,7 @@ def team_login():
         flash('Neplatný klíč.', 'error')
         return redirect(url_for('teamauth.team_auth'))
     # establish session
+    session.permanent = True  # keep team session across browser restarts
     session['team_id'] = team.id
     session['team_role'] = role
     session['team_login'] = True

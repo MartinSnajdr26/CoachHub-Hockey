@@ -50,7 +50,7 @@ def register_security(app):
         p = request.path or '/'
         if p.startswith('/static/'):
             return
-        if p in ('/team/auth', '/team/login', '/team/create', '/terms', '/privacy', '/about'):
+        if p in ('/', '/favicon.ico', '/team/auth', '/team/login', '/team/create', '/terms', '/privacy', '/about'):
             return
         # Everything else goes to team auth
         return redirect('/team/auth')

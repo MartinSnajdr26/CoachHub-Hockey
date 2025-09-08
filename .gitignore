@@ -21,6 +21,7 @@ coach/include/
 coach/lib/
 coach/lib64/
 coach/pyvenv.cfg
+coach/coach/
 
 coach/players.db
 coach/static/uploads/

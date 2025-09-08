@@ -12,26 +12,53 @@
     .top-links a{color:#000; text-decoration:none; font-weight:700;}
     .hero{background:#000; display:flex; justify-content:center; padding:10px 12px;}
     .hero img{height:120px;}
-    .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:16px;}
-    .panel{width:100%; max-width:1400px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;}
-    .card{border:2px solid #000; border-radius:12px; padding:18px; background:#fff;}
+    .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; padding:0;}
+    .panel{width:100%; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;}
+    .card{border:none; border-radius:12px; padding:18px; background:#fff; text-align:center;}
     .card h3{margin:0 0 6px;}
     .card .row{display:flex; gap:12px; align-items:center;}
     .btn{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; text-decoration:none; display:inline-block;}
-    .foot{width:100%; max-width:1400px; margin:18px auto 0; text-align:center; font-size:14px;}
-    .foot a{color:#000; text-decoration:underline;}
-    .slogan{width:100%; max-width:1400px; margin:14px 0; font-size:18px;}
-    .cta-top{width:100%; max-width:1400px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px;}
+    .foot{width:100%; margin:18px auto 0; text-align:center; font-size:14px;}
+    .foot a{color:currentColor; text-decoration:underline;}
+    .slogan{width:100%; margin:14px 0; font-size:18px;}
+    .cta-top{width:100%; display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px;}
     .cta-top .sep{opacity:.4;}
-    .grid-5{width:100%; max-width:1400px; display:grid; grid-template-columns:1fr; gap:18px;}
-    .grid-2{width:100%; max-width:1400px; display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+    .grid-5{width:100%; display:grid; grid-template-columns:1fr; gap:18px;}
+    .grid-2{width:100%; display:grid; grid-template-columns:1fr; gap:18px;}
+    .video{width:100%; border:none; border-radius:12px; overflow:hidden; background:#000;}
+    .zig{width:100%;}
+    .zig .card{width:100%; margin:0 auto 0 0;}
+    .zig .card:nth-child(even){margin:0 0 0 auto; text-align:right;}
+    .zig .card:nth-child(even) .row{justify-content:flex-end;}
     .ph{border:2px dashed #b9b9b9; border-radius:10px; background:#fafafa; color:#666; display:flex; align-items:center; justify-content:center; text-align:center; padding:14px; min-height:84px;}
     .ph.large{min-height:240px;}
     .shot{width:100%; height:auto; object-fit:contain; border:1px solid #ddd; border-radius:8px; background:#fff; padding:8px;}
     .shot.large{width:100%; height:auto; padding:10px;}
-    .bullets{margin:6px 0 0 0; padding-left:18px;}
+    .bullets{margin:6px 0 0 0; padding-left:18px; display:inline-block; text-align:left;}
     .bullets li{margin:2px 0;}
+    .grid-3{width:100%; max-width:1400px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+    .card{background:#fff; border:none; border-radius:12px; padding:18px; text-align:center;}
+    @media (max-width: 1200px){ .grid-3{grid-template-columns:repeat(2,1fr);} }
+    @media (max-width: 800px){ .grid-3{grid-template-columns:1fr;} }
+    /* New simplified layout styles */
+    .section{width:100%; max-width:1400px; margin:0 auto; padding:24px 16px;}
+    .section h1, .section h2{color:#c44747; margin:0 0 10px;}
+    .intro{ text-align:center; }
+    .intro h1{ font-size:64px; }
+    .intro p{margin:6px 0; font-size:32px;}
+    .btn.inv{background:#000; color:#fff;}
+    .cta-duo{ display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:600px; margin:12px auto 0; align-items:center; justify-items:center; }
+    /* Sekce s plnou šířkou a střídáním barev pozadí */
+    .sec{width:100%; padding:22px 16px;}
+    .sec.white{background:#fff; color:#000;}
+    .sec.red{background:#c44747; color:#fff;}
+    .sec.black{background:#000; color:#fff;}
+    .badge{display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid currentColor; font-size:12px; opacity:.9;}
     @media (max-width: 1100px){ .panel{grid-template-columns:1fr;} .grid-5{grid-template-columns:1fr 1fr;} .grid-2{grid-template-columns:1fr;} .hero img{height:90px;} }
+    /* 2-sloupcové rozložení pro dvě sekce */
+    .grid-2{ width:100%; max-width:1200px; margin:0 auto; display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+    @media (max-width: 900px){ .cta-duo{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;} }
+    .video.small{ max-width:700px; margin:0 auto; }
   </style>
 </head>
 <body>
@@ -43,105 +70,93 @@
   <div class="hero"><img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo"></div>
 
   <div class="wrap">
-    <!-- Slogan + role CTA -->
-    <div class="slogan">„CoachHub – jednoduchá správa hokejového týmu na jednom místě“</div>
-    <div class="cta-top">
-      <a href="{{ url_for('team_auth') }}?role=coach" class="btn">Přihlásit se jako Trenér</a>
-      <span class="sep">|</span>
-      <a href="{{ url_for('team_auth') }}?role=player" class="btn" style="background:#000; color:#fff;">Přihlásit se jako Hráč</a>
-    </div>
+    <!-- Intro -->
+    <section class="section intro">
+      <h1>CoachHub Hockey</h1>
+      <p>Organizuj svůj hokejový tým online.</p>
+      <p>V mobilu i na webu.</p>
+      <div class="cta-duo">
+        <a href="{{ url_for('team_auth') }}?role=coach" class="btn" style="width:100%; text-align:center;">Přihlásit se jako Trenér</a>
+        <a href="{{ url_for('team_auth') }}?role=player" class="btn inv" style="width:100%; text-align:center;">Přihlásit se jako Hráč</a>
+      </div>
+      
+    </section>
 
-    <!-- 2. Co aplikace nabízí -->
-    <div class="grid-5" style="margin-top:6px;">
-      <div class="card">
-        <h3 style="margin-bottom:6px;">Soupiska</h3>
-        <div style="margin-bottom:8px;">Správa hráčů, nominace na zápasy.</div>
-        <div class="row" style="width:100%;">
-          <img src="{{ url_for('static', filename='soupiska.png') }}" alt="Soupiska – ukázka" class="shot">
+    <!-- 3-sloupcový přehled -->
+    <section class="section">
+      <div class="grid-3">
+        <div class="card">
+          <h2>Trenér má všechno pod kontrolou</h2>
+          <ul class="bullets">
+            <li>Soupiska hráčů</li>
+            <li>Nominace na zápasy</li>
+            <li>Tvorba a ukládání formací</li>
+            <li>Kalendář zápasů a tréninků</li>
+            <li>Sdílená nástěnka se zprávami</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Hlavní tahák – Tréninky</h2>
+          <ul class="bullets">
+            <li>Maluj cvičení přímo na hřišti</li>
+            <li>Převeď je do animací</li>
+            <li>Rozděl do kategorií</li>
+            <li>Exportuj jako PDF nebo do složky přímo v aplikaci</li>
+            <li>Sdílej přes WhatsApp s týmem</li>
+            <li>Náhled cvičení + rychlá animace tréninkových jednotek</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Personalizace</h2>
+          <ul class="bullets">
+            <li>Změň barevné schéma</li>
+            <li>Nahraj logo svého týmu</li>
+          </ul>
         </div>
       </div>
-      <div class="card">
-        <h3 style="margin-bottom:6px;">Formace</h3>
-        <div style="margin-bottom:8px;">Tvoření a ukládání lajn + rychlé sdílení.</div>
-        <div class="row" style="width:100%;">
-          <img src="{{ url_for('static', filename='formace.png') }}" alt="Formace – ukázka" class="shot">
+    </section>
+
+    <!-- Dvě sekce vedle sebe uprostřed -->
+    <section class="section">
+      <div class="grid-2">
+        <div class="card">
+          <h2>Jednoduchý a bezpečný přístup</h2>
+          <ul class="bullets">
+            <li>Žádné osobní údaje</li>
+            <li>Přihlášení jen přes vygenerovaný klíč</li>
+            <li>Coach = plná kontrola</li>
+            <li>Player = jen náhled, bez mazání a ukládání</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Proč CoachHub?</h2>
+          <ul class="bullets">
+            <li>Vše na jednom místě – od soupisky po tréninky</li>
+            <li>Intuitivní ovládání, žádná zbytečná administrativa</li>
+            <li>Rychlé sdílení s týmem během pár vteřin</li>
+          </ul>
         </div>
       </div>
-      <div class="card">
-        <h3 style="margin-bottom:6px;">Kalendář</h3>
-        <div style="margin-bottom:8px;">Zápasy a tréninky na jednom místě.</div>
-        <div class="row" style="width:100%;">
-          <img src="{{ url_for('static', filename='kalendar.png') }}" alt="Kalendář – ukázka" class="shot">
-        </div>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:6px;">Tréninky</h3>
-        <div style="margin-bottom:8px;">Kreslení cvičení, animace, kategorie, PDF export.</div>
-        <div class="row" style="width:100%;">
-          <img src="{{ url_for('static', filename='treninkova_jednotka.png') }}" alt="Tréninky – ukázka" class="shot">
-        </div>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:6px;">Message Board</h3>
-        <div style="margin-bottom:8px;">Rychlé zprávy pro tým.</div>
-        <div class="row" style="width:100%;">
-          <img src="{{ url_for('static', filename='message_board.png') }}" alt="Message Board – ukázka" class="shot">
-        </div>
-      </div>
-    </div>
+    </section>
 
-    <!-- 3. Highlight sekce (Tréninky) -->
-    <div class="grid-2" style="margin-top:16px; align-items:stretch;">
-      <div class="card" style="display:flex;">
-        <img class="shot large" alt="Tréninky – animace/obrázek" id="trainShot"
-             src="{{ url_for('static', filename='tvorba_cviceni.png') }}"
-             onerror="this.onerror=null; this.src='{{ url_for('static', filename='treninkova_jednotka.png') }}';">
+    <!-- CTA spodní -->
+    <section class="section" style="text-align:center;">
+      <h2>Začni ještě dnes</h2>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <a href="{{ url_for('team_auth') }}#register" class="btn">👉 Vytvořit tým zdarma</a>
+        <a href="{{ url_for('team_auth') }}" class="btn inv">👉 Přihlásit se</a>
       </div>
-      <div class="card" style="display:flex; align-items:center;">
-        <div>
-          <h3 style="margin-bottom:8px;">Tréninky – hlavní tahák</h3>
-          <div>„Navrhni trénink, ulož ho jako animaci nebo PDF, sdílej s týmem přes WhatsApp. Vše přímo z aplikace.“</div>
-        </div>
+    </section>
+    <!-- Video úplně dole -->
+    <section class="section">
+      <div class="video small">
+        <video controls autoplay muted loop playsinline preload="metadata" poster="{{ url_for('static', filename='tvorba_cviceni.png') }}" style="width:100%; height:auto; display:block;">
+          <source src="{{ url_for('static', filename='app_demo.webm') }}" type="video/webm">
+          <source src="{{ url_for('static', filename='app_demo.mp4') }}" type="video/mp4">
+          Váš prohlížeč nepodporuje HTML5 video. Stáhnout: <a href="{{ url_for('static', filename='app_demo.mp4') }}">MP4</a>.
+        </video>
       </div>
-    </div>
-
-    <!-- 4. Personalizace -->
-    <div class="grid-2" style="margin-top:16px;">
-      <div class="card">
-        <h3>Změna barevného schématu</h3>
-        <img src="{{ url_for('static', filename='nastaveni.png') }}" alt="Personalizace – barvy" class="shot">
-        <ul class="bullets">
-          <li>Nastav barvy klubu</li>
-          <li>Okamžitý náhled v UI</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h3>Vlastní logo týmu</h3>
-        <img src="{{ url_for('static', filename='home_page.png') }}" alt="Personalizace – logo" class="shot">
-        <ul class="bullets">
-          <li>SVG/PNG, automatické škálování</li>
-          <li>Bezpečné nahrání</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- 5. Bezpečný přístup -->
-    <div class="card" style="margin-top:16px; width:100%; max-width:1100px;">
-      <h3>Bezpečný přístup</h3>
-      <ul class="bullets">
-        <li>Žádné osobní údaje.</li>
-        <li>Přístup jen přes vygenerovaný klíč (Trenér / Hráč).</li>
-        <li>Trenér = plná kontrola, hráč = pouze náhled.</li>
-      </ul>
-    </div>
-
-    <!-- 6. Call to Action (spodek stránky) -->
-    <div style="margin-top:18px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; width:100%; max-width:1100px;">
-      <a href="{{ url_for('team_auth') }}#register" class="btn">Začni zdarma – vytvořit tým</a>
-      <a href="{{ url_for('team_auth') }}" class="btn" style="background:#000; color:#fff;">Přihlásit se – existující tým</a>
-    </div>
-
-    <!-- Spodní odkazy -->
+    </section>
     <div class="foot">
       <a href="{{ url_for('about') }}">O mně</a>
       &nbsp;•&nbsp;

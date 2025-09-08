@@ -20,47 +20,49 @@
 <canvas id="board" style="border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; background:white;"></canvas>
 
 {% if not embed_mode %}
-<p style="margin-top:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <button type="button" class="btn-anim" data-action="play">▶️ Přehrát</button>
-    <button type="button" class="btn-anim" data-action="pause">⏸ Pauza</button>
-    <button type="button" class="btn-anim" data-action="stop">⏹ Stop</button>
-    <label style="margin-left:10px;">
-        Režim:
-        <select id="animMode">
-            <option value="sequential" selected>Sekvence</option>
-            <option value="grouped">Skupiny (mezi ikonami)</option>
-        </select>
+<style>
+  .viewer-toolbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; background: var(--brand-primary, #d4c76f); padding:8px; border-radius:12px; margin-top:15px; }
+  .viewer-toolbar .btn{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .viewer-toolbar .btn:hover{ background: color-mix(in srgb, #fff 70%, var(--brand-primary, #d4c76f) 30%); }
+  .viewer-toolbar .grp{ display:flex; align-items:center; gap:8px; }
+  .viewer-toolbar label{ font-size:12px; display:flex; align-items:center; gap:6px; margin:0; }
+  .viewer-toolbar select{ padding:4px 8px; border-radius:8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); }
+  .viewer-toolbar input[type="checkbox"]{ width:16px; height:16px; }
+  .viewer-toolbar .zoom{ display:flex; align-items:center; gap:6px; }
+  .viewer-toolbar .zoom #zoomPct{ min-width:48px; text-align:center; }
+  @media (max-width: 700px){ .viewer-toolbar{ gap:8px; } }
+</style>
+<div class="viewer-toolbar">
+  <button type="button" class="btn" title="Přehrát" onclick="playAnimation()">▶</button>
+  <button type="button" class="btn" title="Pauza" onclick="pauseAnimation()">⏸</button>
+  <button type="button" class="btn" title="Stop" onclick="stopAnimation()">⏹</button>
+  <div class="grp" style="margin-left:6px;">
+    <label>Režim:
+      <select id="animMode">
+        <option value="sequential" selected>Sekvence</option>
+        <option value="grouped">Skupiny (mezi ikonami)</option>
+      </select>
     </label>
-    <label style="margin-left:10px;">
-        Sync po přihrávce:
-        <select id="syncOverride">
-            <option value="respect" selected>Respektovat (z editoru)</option>
-            <option value="off">Vypnout</option>
-            <option value="two">Vždy 2 pohyby</option>
-        </select>
+    <label>Párování:
+      <select id="pairMode">
+        <option value="smart" selected>Chytré</option>
+        <option value="order">Dle pořadí ikon</option>
+        <option value="nearest">Dle nejbližší ikony</option>
+      </select>
     </label>
-    <label style="margin-left:10px;">
-        Párování:
-        <select id="pairMode">
-            <option value="smart" selected>Chytré</option>
-            <option value="order">Dle pořadí ikon</option>
-            <option value="nearest">Dle nejbližší ikony</option>
-        </select>
+    <label title="Zobrazit dočasné a trvalé kotvy" style="display:flex; align-items:center; gap:6px;">
+      <input type="checkbox" id="showAnchors"> Kotvy
     </label>
-    <label style="margin-left:10px; display:flex; align-items:center; gap:6px;">
-        <input type="checkbox" id="showAnchors">
-        Kotvy
-    </label>
-    <button type="button" class="btn-anim" data-action="restart">⟲ Restart + Přehrát</button>
-    <span style="margin-left:10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-        Zoom:
-        <button type="button" id="zoomOut" title="Zmenšit">−</button>
-        <span id="zoomPct">100%</span>
-        <button type="button" id="zoomIn" title="Zvětšit">+</button>
-        <button type="button" id="zoomReset" title="Reset">Reset</button>
-        <input type="range" id="zoomRange" min="50" max="200" value="100" step="5" style="vertical-align:middle; width:160px;">
-    </span>
-</p>
+  </div>
+  <div class="zoom" style="margin-left:auto;">
+    <span>Zoom:</span>
+    <button type="button" class="btn" id="zoomOut" title="Zmenšit">−</button>
+    <span id="zoomPct">100%</span>
+    <button type="button" class="btn" id="zoomIn" title="Zvětšit">+</button>
+    <button type="button" class="btn" id="zoomReset" title="Reset">⟲</button>
+    <input type="range" id="zoomRange" min="50" max="200" value="100" step="5" style="vertical-align:middle; width:160px;">
+  </div>
+</div>
 {% endif %}
 
 {% if is_coach %}
@@ -77,6 +79,7 @@
     const rink = new Image();
     rink.src = "/static/rink.png";
     const icons = []; // seznam ikon hráčů z editoru
+    const entityColors = new Map(); // eid -> color (od editoru), fallback podle role
 
 
     // Data z editoru – robustní načtení i pro None/""/string
@@ -95,7 +98,7 @@
     const PUCK_SPEED = 180;   // px/s
     let animMode = 'sequential'; // 'sequential' | 'grouped'
     let pairMode = 'smart';      // 'smart' | 'order' | 'nearest'
-    let syncOverride = 'respect'; // 'respect' | 'off' | 'two'
+    let syncOverride = 'off'; // 'off' only (override select removed)
     let showAnchors = false;      // zobrazovat start/stop/přihrávkové kotvy (default vypnuto)
 
     // Interní stav
@@ -106,7 +109,7 @@
     let totalDuration = 0; // délka celé animace
     const moves = [];    // {kind:'player'|'puck', points, length, start, duration, role, entityId?, lastOfEntity?}
     const statics = [];  // položky, které se prostě vykreslí
-    const initialByEntity = new Map(); // entityId -> {x, y, role}
+    const initialByEntity = new Map(); // entityId -> {x, y, role, color?}
     const finalByEntity = new Map();   // entityId -> {end, x, y, role}
     const passAnchors = [];            // {x, y, role, tStart, tEnd, tHide, entityId}
     const anchorsPermanent = [];       // trvalé kotvy: {x, y, role, t, tHide}
@@ -399,9 +402,11 @@
                     pendingRole = item.role || null;
                     currentEntityId += 1;
                     const ix = offX + (item.x||0)*k, iy = offY + (item.y||0)*k;
-                    initialByEntity.set(currentEntityId, {x: ix, y: iy, role: pendingRole});
+                    const col = (item.color && typeof item.color === 'string' && item.color) || (pendingRole==='D' ? 'red' : (pendingRole==='F' ? 'blue' : 'black'));
+                    initialByEntity.set(currentEntityId, {x: ix, y: iy, role: pendingRole, color: col});
                     entities.set(currentEntityId, {x: ix, y: iy, role: pendingRole});
                     icons.push({eid: currentEntityId, role: pendingRole, x: ix, y: iy, idx});
+                    entityColors.set(currentEntityId, col);
                 } else if(item.tool === 'puck_static'){
                     statics.push({tool:item.tool, x: offX + (item.x||0)*k, y: offY + (item.y||0)*k});
                 } else if(item.tool === 'cone' || item.tool === 'triangle' || item.tool === 'pucks_cluster'){
@@ -617,7 +622,7 @@
             const seq = (m.entityId != null) ? (playerMovesByEntity.get(m.entityId) || []) : [];
             let nextStart = Infinity;
             for(const mv of seq){ if(mv.start > (m.start ?? 0) + 1e-6){ nextStart = mv.start; break; } }
-            anchorsPermanent.push({x: endPt.x, y: endPt.y, role: m.role || 'F', t: end, tHide: nextStart});
+            anchorsPermanent.push({x: endPt.x, y: endPt.y, role: m.role || 'F', t: end, tHide: nextStart, color: entityColors.get(m.entityId) || null});
         }
 
         // Po sestavení tahů přidej startovní kotvy s tHide = začátek prvního pohybu hráče (pokud existuje)
@@ -625,7 +630,7 @@
             let tHide = Infinity;
             const seq = playerMovesByEntity.get(eid) || [];
             if(seq.length){ tHide = seq[0].start; }
-            anchorsPermanent.push({x: init.x, y: init.y, role: init.role || 'F', t: 0, tHide});
+            anchorsPermanent.push({x: init.x, y: init.y, role: init.role || 'F', t: 0, tHide, color: initialByEntity.get(eid)?.color || null});
         }
         function nearestEndBefore(tStart, x0, y0){
             let best = null; let bestDt = Infinity; let bestDist = Infinity;
@@ -665,7 +670,7 @@
                     if(mv.start + 1e-6 >= tEnd){ tHide = mv.start; break; }
                 }
             }
-            passAnchors.push({x: startPt.x, y: startPt.y, role, tStart, tEnd, tHide, entityId: match ? match.entityId : null});
+            passAnchors.push({x: startPt.x, y: startPt.y, role, tStart, tEnd, tHide, entityId: match ? match.entityId : null, color: (match && match.entityId!=null) ? (entityColors.get(match.entityId) || null) : null});
         }
         if(DEBUG){ updateDebug(); }
     }
@@ -695,15 +700,13 @@
 
     // Záměrně nerysujeme podkladové trasy – v animaci se zobrazují jen ikony hráče a puk
 
-    function drawRoleCircle(role, x, y, alpha=1, k=1){
-        const color = role === 'F' ? 'blue' : role === 'D' ? 'red' : 'black';
+    function drawRoleCircle(role, x, y, alpha=1, k=1, colorOverride=null){
+        const color = colorOverride || (role === 'F' ? 'blue' : role === 'D' ? 'red' : 'black');
         const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-        const r = clamp(18 * k, 10, 28);
-        const fontPx = Math.round(clamp(12 * k, 8, 18));
+        const r = clamp(16 * k, 10, 28); // bez textu uvnitř, čistá barva dle role
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
         ctx.beginPath(); ctx.arc(x, y, r, 0, 2*Math.PI); ctx.fillStyle = color; ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = fontPx + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(role || '?', x, y);
         ctx.restore();
     }
 
@@ -747,7 +750,7 @@
             if (active) {
                 const t = globalTime - active.start;
                 const pos = positionAt(active, t);
-                drawRoleCircle(active.role || (initialByEntity.get(eid)?.role) || 'F', pos.x, pos.y, 1, kNow);
+                drawRoleCircle(active.role || (initialByEntity.get(eid)?.role) || 'F', pos.x, pos.y, 1, kNow, entityColors.get(active.entityId) || (initialByEntity.get(eid)?.color) || null);
                 drawnNow.push({x: pos.x, y: pos.y});
                 continue;
             }
@@ -763,7 +766,7 @@
             }
             if (latest) {
                 const lastPt = latest.points[latest.points.length - 1];
-                drawRoleCircle(latest.role || (initialByEntity.get(eid)?.role) || 'F', lastPt.x, lastPt.y, 1, kNow);
+                drawRoleCircle(latest.role || (initialByEntity.get(eid)?.role) || 'F', lastPt.x, lastPt.y, 1, kNow, entityColors.get(latest.entityId) || (initialByEntity.get(eid)?.color) || null);
                 drawnNow.push({x: lastPt.x, y: lastPt.y});
                 continue;
             }
@@ -771,7 +774,7 @@
             // 1c) Před prvním tahem – počáteční ikona
             const init = initialByEntity.get(eid);
             if (init) {
-                drawRoleCircle(init.role || 'F', init.x, init.y, 1, kNow);
+                drawRoleCircle(init.role || 'F', init.x, init.y, 1, kNow, (initialByEntity.get(eid)?.color) || null);
                 drawnNow.push({x: init.x, y: init.y});
             }
         }
@@ -800,7 +803,7 @@
                     // vynech kotvu, pokud už je nakreslená ikona téměř na stejném místě
                     let near = false;
                     for(const p of drawnNow){ if(Math.hypot(p.x - a.x, p.y - a.y) < 14){ near = true; break; } }
-                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1, kNow);
+                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1, kNow, a.color || (a.entityId!=null ? (entityColors.get(a.entityId)||null) : null));
                 }
             }
             // 4) Trvalé kotvy (starty s tHide a konce s tHide)
@@ -808,7 +811,7 @@
                 if(globalTime + 1e-6 >= a.t && globalTime < (a.tHide ?? Infinity) - 1e-6){
                     let near = false;
                     for(const p of drawnNow){ if(Math.hypot(p.x - a.x, p.y - a.y) < 14){ near = true; break; } }
-                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1, kNow);
+                    if(!near) drawRoleCircle(a.role || 'F', a.x, a.y, 1, kNow, a.color || (a.entityId!=null ? (entityColors.get(a.entityId)||null) : null));
                 }
             }
         }

@@ -25,60 +25,74 @@
         <div class="toolbar-toggle-mobile">
           <button type="button" id="btnToggleToolbarMobile">Skrýt nástroje</button>
         </div>
-        <div class="toolbar" id="toolbar">
+        <div class="toolbar toolbar--compact" id="toolbar">
+            <style>
+              .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; background: var(--brand-primary, #d4c76f); padding:8px; border-radius:12px; }
+              .toolbar .tool-group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:transparent; padding:6px 8px; border-radius:10px; }
+              .toolbar .group-title{ font-weight:700; font-size:12px; opacity:.7; margin-right:6px; }
+              .toolbar .btn-tool{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+              .toolbar .btn-tool .ic{ font-size:20px; line-height:1; }
+              .toolbar .btn-tool .lbl{ font-size:12px; }
+              .toolbar .btn-tool:hover{ background: color-mix(in srgb, #fff 70%, var(--brand-primary, #d4c76f) 30%); }
+              .toolbar--compact .group-title{ display:none; }
+              .toolbar--compact .btn-tool{ width:36px; min-width:36px; padding:0; }
+              .toolbar--compact .btn-tool .lbl{ display:none; }
+              .toolbar .toggle-label{ padding:6px 8px; border-radius:6px; background: color-mix(in srgb, var(--brand-primary, #d4c76f) 25%, white); color: var(--brand-secondary, #000); cursor:pointer; font-size:14px; }
+              .toolbar .toggle-label.active { background: #3bb273; color:#fff; }
+              .toolbar .toggle-label.off { background: #c44747; color:#fff; }
+              .toolbar .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:13px; margin-top:6px; }
+              .toolbar .pill.on { background: #3bb273; color:#fff; }
+              .toolbar .pill.off { background: #c44747; color:#fff; }
+            </style>
             <div class="tool-group">
               <span class="group-title">Zobrazení</span>
-              <label class="toggle-label" style="display:flex; align-items:center; gap:6px;">
-                <input type="checkbox" id="compactToggle"> Kompaktní režim
+              <label class="toggle-label" style="display:flex; align-items:center; gap:6px;" title="Kompaktní režim toolbaru (ikony)">
+                <input type="checkbox" id="compactToggle" checked> <span class="lbl">Kompaktní režim</span>
               </label>
             </div>
             <div class="tool-group">
               <span class="group-title">Pohyb</span>
-              <button type="button" class="btn-tool" data-tool="straight">─ Bez puku</button>
-              <button type="button" class="btn-tool" data-tool="curve">〰 Volný</button>
-              <button type="button" class="btn-tool" data-tool="wave">≈ S pukem</button>
-              <button type="button" class="btn-tool" data-tool="zigzag">^^^^ Zpět</button>
+              <button type="button" class="btn-tool" data-tool="straight" title="Pohyb bez puku"><span class="ic">→</span><span class="lbl">Pohyb bez puku (rovně)</span></button>
+              <button type="button" class="btn-tool" data-tool="curve" title="Pohyb bez puku (volný)"><span class="ic">〰</span><span class="lbl">Pohyb bez puku</span></button>
+              <button type="button" class="btn-tool" data-tool="wave" title="Pohyb s pukem"><span class="ic">≈</span><span class="lbl">Jízda s pukem</span></button>
+              <button type="button" class="btn-tool" data-tool="zigzag" title="Jízda vzad"><span class="ic">↯</span><span class="lbl">Jízda vzad</span></button>
             </div>
             <div class="tool-group">
               <span class="group-title">Akce s pukem</span>
-              <button type="button" class="btn-tool" data-tool="dotted">⋯⋯ Nahrávka</button>
-              <button type="button" class="btn-tool" data-tool="double">══ Střela</button>
+              <button type="button" class="btn-tool" data-tool="dotted" title="Nahrávka"><span class="ic">⋯→</span><span class="lbl">Nahrávka</span></button>
+              <button type="button" class="btn-tool" data-tool="double" title="Střela"><span class="ic">●→</span><span class="lbl">Střela</span></button>
             </div>
             <div class="tool-group">
               <span class="group-title">Ikony/Objekty</span>
-              <button type="button" class="btn-tool" data-tool="circleF">🔵 F</button>
-              <button type="button" class="btn-tool" data-tool="circleD">🔺 D</button>
-              <button type="button" class="btn-tool" data-tool="circleG">⚫ G</button>
-              <button type="button" class="btn-tool" data-tool="triangle">🔻 Trojúhelník</button>
-              <button type="button" class="btn-tool" data-tool="puck">⚫ Puk</button>
-              <button type="button" class="btn-tool" data-tool="pucks">⚫⚫ Zásoba puků</button>
-              <button type="button" class="btn-tool" data-tool="cone">🔺 Kužel</button>
+              <button type="button" class="btn-tool" data-tool="circleF" title="Útočník (F)"><span class="ic">🔵</span><span class="lbl">F</span></button>
+              <button type="button" class="btn-tool" data-tool="circleD" title="Obránce (D)"><span class="ic">🔺</span><span class="lbl">D</span></button>
+              <button type="button" class="btn-tool" data-tool="circleG" title="Gólman (G)"><span class="ic">⚫</span><span class="lbl">G</span></button>
+              <button type="button" class="btn-tool" data-tool="triangle" title="Trojúhelník"><span class="ic">🔻</span><span class="lbl">Kužel</span></button>
+              <button type="button" class="btn-tool" data-tool="puck" title="Puk"><span class="ic">●</span><span class="lbl">Puk</span></button>
+              <button type="button" class="btn-tool" data-tool="pucks" title="Zásoba puků"><span class="ic">●●</span><span class="lbl">Puky</span></button>
+              <button type="button" class="btn-tool" data-tool="cone" title="Kužel"><span class="ic">▲</span><span class="lbl">Kužel</span></button>
+              <label title="Barva útočníka (F)" style="display:inline-flex; align-items:center; gap:6px; font-size:12px;">
+                <span class="lbl">F</span>
+                <input type="color" id="colorF" value="#0000ff" style="width:28px; height:28px; padding:0; border:none; background:transparent;">
+              </label>
+              <label title="Barva obránce (D)" style="display:inline-flex; align-items:center; gap:6px; font-size:12px;">
+                <span class="lbl">D</span>
+                <input type="color" id="colorD" value="#ff0000" style="width:28px; height:28px; padding:0; border:none; background:transparent;">
+              </label>
             </div>
             <div class="tool-group">
               <span class="group-title">Sync</span>
               <div style="margin-top:0; font-size:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <style>
-                    .toggle-label { padding:6px 8px; border-radius:6px; background:#eee; color: var(--brand-secondary, #000); cursor:pointer; }
-                    .toggle-label.active { background:#3bb273; color:#fff; }
-                    .toggle-label.off { background:#c44747; color:#fff; }
-                    .pill { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; margin-top:6px; }
-                    .pill.on { background:#3bb273; color:#fff; }
-                    .pill.off { background:#c44747; color:#fff; }
-                </style>
-                <label id="lblPassSyncNext" class="toggle-label" style="display:flex; align-items:center; gap:6px;">
-                    <input type="checkbox" id="passSyncNext"> Sync po přihrávce (2 pohyby)
-                </label>
-                 <div style="font-size:12px; opacity:0.8; color: var(--brand-secondary, #000);">Platí pro nástroje Nahrávka/Střela</div>
                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                     <label id="lblSyncStart" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
-                         <input type="checkbox" id="syncStart"> Začít synchronizaci hráčů
+                     <label id="lblSyncStart" class="toggle-label off" style="display:flex; align-items:center; gap:6px;" title="Spustit současný start hráčů (Play)">
+                         <input type="checkbox" id="syncStart"> <span class="ic">▶</span> <span class="lbl">Začít synchronizaci hráčů</span>
                      </label>
-                     <label id="lblSyncEnd" class="toggle-label off" style="display:flex; align-items:center; gap:6px;">
-                         <input type="checkbox" id="syncEnd"> Ukončit synchronizaci hráčů
+                     <label id="lblSyncEnd" class="toggle-label off" style="display:flex; align-items:center; gap:6px;" title="Ukončit současný start hráčů (Stop)">
+                         <input type="checkbox" id="syncEnd"> <span class="ic">⏹</span> <span class="lbl">Ukončit synchronizaci hráčů</span>
                      </label>
                      <span id="syncStatus" class="pill off">Současně: vypnuto</span>
                  </div>
-                 <div class="hint-invert" style="width:100%; font-size:12px; opacity:0.9;">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
+                 <div class="hint-invert" style="width:100%; font-size:16px; opacity:0.95; color: var(--brand-secondary, #000);">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
               </div>
             </div>
         </div>
@@ -127,6 +141,22 @@ function containerWidth(){
 }
 rink.onload = () => { resizeCanvas(containerWidth()); saveState(); };
 
+// Dynamická velikost ikon a volitelné barvy F/D
+const ICON_BASE = 25; // ~1.8× původní 18px
+const TRI_BASE  = 25;
+function _baseWidth(){ return (rink && rink.width) ? rink.width : 1400; }
+function _displayWidth(){ try { return Math.max(1, canvas.getBoundingClientRect().width); } catch(_) { return canvas.width || 1; } }
+function iconR(){ return Math.max(10, Math.round(ICON_BASE * (_displayWidth() / _baseWidth()))); }
+function triR(){ return Math.max(10, Math.round(TRI_BASE  * (_displayWidth() / _baseWidth()))); }
+let colorF = (localStorage.getItem('drillColorF') || '#0000ff');
+let colorD = (localStorage.getItem('drillColorD') || '#ff0000');
+try {
+  const elF = document.getElementById('colorF');
+  const elD = document.getElementById('colorD');
+  if(elF){ elF.value = colorF; elF.addEventListener('input', e=>{ colorF = e.target.value || '#0000ff'; localStorage.setItem('drillColorF', colorF); }); }
+  if(elD){ elD.value = colorD; elD.addEventListener('input', e=>{ colorD = e.target.value || '#ff0000'; localStorage.setItem('drillColorD', colorD); }); }
+} catch(_) {}
+
 const sizeInput = document.getElementById("canvasSize");
 sizeInput.addEventListener("input", e => {
   manualSize = true;
@@ -134,6 +164,8 @@ sizeInput.addEventListener("input", e => {
   // U slideru měníme jen vizuální (CSS) šířku canvasu,
   // nikoli jeho interní souřadnicový systém ani data.
   canvas.style.width = w + 'px';
+  // Překresli, aby se přepočítala velikost ikon dle zobrazené šířky
+  try { redrawAll(); } catch(_) {}
 });
 
 // Auto-resize na změnu okna – pokud uživatel ručně neupravil velikost a nic není nakresleno
@@ -187,8 +219,7 @@ window.addEventListener('resize', function(){
   const lblStart = document.getElementById('lblSyncStart');
   const lblEnd = document.getElementById('lblSyncEnd');
   const pill = document.getElementById('syncStatus');
-  const passChk = document.getElementById('passSyncNext');
-  const lblPass = document.getElementById('lblPassSyncNext');
+  // dropped passSyncNext
 
   function updateSyncIndicators(){
     if(syncActive){
@@ -208,10 +239,7 @@ window.addEventListener('resize', function(){
       pill.classList.add('off');
       pill.textContent = 'Současně: vypnuto';
     }
-    if(passChk){
-      if(passChk.checked) lblPass.classList.add('active');
-      else lblPass.classList.remove('active');
-    }
+    // no passSyncNext
   }
   updateSyncIndicators();
   if(startChk){
@@ -228,7 +256,7 @@ window.addEventListener('resize', function(){
       if(endChk.checked){ syncActive = false; endChk.checked = false; updateSyncIndicators(); }
     });
   }
-  if(passChk){ passChk.addEventListener('change', updateSyncIndicators); }
+  // no passSyncNext listener
   // inicializuj prázdný log
   try { renderSeqLog(); } catch(_) {}
 });
@@ -311,12 +339,13 @@ function renderOverlayToContext(targetCtx){
           ctx.fillStyle = 'purple'; ctx.beginPath(); ctx.moveTo(it.x, it.y-15); ctx.lineTo(it.x-15, it.y+15); ctx.lineTo(it.x+15, it.y+15); ctx.closePath(); ctx.fill();
         } else if(it.tool === 'player_icon' && typeof it.x==='number'){
           const label = it.role || 'F';
+          const col = it.color || (label==='D' ? (typeof colorD!=='undefined'?colorD:'#ff0000') : (label==='F' ? (typeof colorF!=='undefined'?colorF:'#0000ff') : 'black'));
           if(label === 'D'){
-            ctx.fillStyle='red'; ctx.beginPath(); ctx.moveTo(it.x, it.y-18); ctx.lineTo(it.x-18, it.y+18); ctx.lineTo(it.x+18, it.y+18); ctx.closePath(); ctx.fill();
-            ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('D', it.x, it.y+2);
+            const R = triR();
+            ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(it.x, it.y-R); ctx.lineTo(it.x-R, it.y+R); ctx.lineTo(it.x+R, it.y+R); ctx.closePath(); ctx.fill();
           } else {
-            ctx.beginPath(); ctx.arc(it.x, it.y, 18, 0, 2*Math.PI); ctx.fillStyle=(label==='F')?'blue':'black'; ctx.fill();
-            ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label, it.x, it.y);
+            const R = iconR();
+            ctx.beginPath(); ctx.arc(it.x, it.y, R, 0, 2*Math.PI); ctx.fillStyle=col; ctx.fill();
           }
         }
       }catch(_){ /* ignore item draw errors */ }
@@ -487,12 +516,13 @@ function redrawAll(){
         ctx.fillStyle = 'purple'; ctx.beginPath(); ctx.moveTo(it.x, it.y-15); ctx.lineTo(it.x-15, it.y+15); ctx.lineTo(it.x+15, it.y+15); ctx.closePath(); ctx.fill();
       } else if(it.tool === 'player_icon' && typeof it.x==='number'){
         const label = it.role || 'F';
+        const col = it.color || (label==='D' ? (typeof colorD!=='undefined'?colorD:'#ff0000') : (label==='F' ? (typeof colorF!=='undefined'?colorF:'#0000ff') : 'black'));
         if(label === 'D'){
-          ctx.fillStyle='red'; ctx.beginPath(); ctx.moveTo(it.x, it.y-18); ctx.lineTo(it.x-18, it.y+18); ctx.lineTo(it.x+18, it.y+18); ctx.closePath(); ctx.fill();
-          ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('D', it.x, it.y+2);
+          const R = triR();
+          ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(it.x, it.y-R); ctx.lineTo(it.x-R, it.y+R); ctx.lineTo(it.x+R, it.y+R); ctx.closePath(); ctx.fill();
         } else {
-          ctx.beginPath(); ctx.arc(it.x, it.y, 18, 0, 2*Math.PI); ctx.fillStyle=(label==='F')?'blue':'black'; ctx.fill();
-          ctx.fillStyle='white'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label, it.x, it.y);
+          const R = iconR();
+          ctx.beginPath(); ctx.arc(it.x, it.y, R, 0, 2*Math.PI); ctx.fillStyle=col; ctx.fill();
         }
       }
     }catch(_){ /* ignore item draw errors */ }
@@ -536,32 +566,31 @@ function handleDrawingEnd(x,y){
         if(syncGroup) obj.sync_group = syncGroup;
         drawData.push(obj);
     }
-    else if(currentTool==="double"){ctx.beginPath();ctx.arc(startX,startY,6,0,2*Math.PI);ctx.fill();ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",style:"shot",shot:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
-    else if(currentTool==="dotted"){ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();ctx.setLineDash([]);drawArrowHead(startX,startY,x,y,"black");const syncNext = document.getElementById('passSyncNext')?.checked ? 2 : 0;drawData.push({tool:"puck",style:"pass",pass:true,sync_next:syncNext,path:[[startX,startY],[x,y]]});}
+    else if(currentTool==="double"){ctx.beginPath();ctx.arc(startX,startY,6,0,2*Math.PI);ctx.fill();ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();drawArrowHead(startX,startY,x,y,"black");drawData.push({tool:"puck",style:"shot",shot:true,sync_next:0,path:[[startX,startY],[x,y]]});}
+    else if(currentTool==="dotted"){ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();ctx.setLineDash([]);drawArrowHead(startX,startY,x,y,"black");drawData.push({tool:"puck",style:"pass",pass:true,sync_next:0,path:[[startX,startY],[x,y]]});}
     else if(currentTool==="puck"){ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"puck_static",x,y});}
     else if(currentTool==="pucks"){ctx.fillStyle="black";for(let i=-1;i<=1;i++){for(let j=-1;j<=1;j++){if(i||j){ctx.beginPath();ctx.arc(x+i*12,y+j*12,5,0,2*Math.PI);ctx.fill();}}}ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"pucks_cluster",x,y});}
     else if(currentTool==="cone"){ctx.fillStyle="orange";ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-10,y+20);ctx.lineTo(x+10,y+20);ctx.closePath();ctx.fill();drawData.push({tool:"cone",x,y});}
     else if(currentTool.startsWith("circle")){
         let label=(currentTool==="circleF")?"F":(currentTool==="circleD")?"D":"G";
         if(currentTool==="circleD"){
-            // Obránce jako trojúhelník (červený)
-            ctx.fillStyle="red";
+            // Obránce jako trojúhelník – barva a velikost dle nastavení
+            const R = triR();
+            ctx.fillStyle=(typeof colorD!=='undefined'?colorD:"red");
             ctx.beginPath();
-            ctx.moveTo(x, y-18);
-            ctx.lineTo(x-18, y+18);
-            ctx.lineTo(x+18, y+18);
+            ctx.moveTo(x, y-R);
+            ctx.lineTo(x-R, y+R);
+            ctx.lineTo(x+R, y+R);
             ctx.closePath();
             ctx.fill();
-            // popisek D uprostřed
-            ctx.fillStyle="white";ctx.font="12px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("D",x,y+2);
         } else {
-            // Útočník/Brankář jako kolečko (modré/černé)
-            ctx.beginPath();ctx.arc(x,y,18,0,2*Math.PI);
-            ctx.fillStyle=(currentTool==="circleF")?"blue":"black";
+            // Útočník/Brankář jako kolečko – barva a velikost dle nastavení
+            const R = iconR();
+            ctx.beginPath();ctx.arc(x,y,R,0,2*Math.PI);
+            ctx.fillStyle=(currentTool==="circleF")?(typeof colorF!=='undefined'?colorF:"blue"):"black";
             ctx.fill();
-            ctx.fillStyle="white";ctx.font="12px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(label,x,y);
         }
-        drawData.push({tool:"player_icon",role:label,x,y});
+        drawData.push({tool:"player_icon",role:label,x,y,color: (label==="D" ? (typeof colorD!=='undefined'?colorD:'#ff0000') : (label==="F" ? (typeof colorF!=='undefined'?colorF:'#0000ff') : 'black'))});
     }
     else if(currentTool==="triangle"){ctx.fillStyle="purple";ctx.beginPath();ctx.moveTo(x,y-15);ctx.lineTo(x-15,y+15);ctx.lineTo(x+15,y+15);ctx.closePath();ctx.fill();drawData.push({tool:"triangle",x,y});}
     renderSeqLog();
