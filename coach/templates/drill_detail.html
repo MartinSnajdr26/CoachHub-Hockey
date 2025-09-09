@@ -33,9 +33,9 @@
   @media (max-width: 700px){ .viewer-toolbar{ gap:8px; } }
 </style>
 <div class="viewer-toolbar">
-  <button type="button" class="btn" title="Přehrát" onclick="playAnimation()">▶</button>
-  <button type="button" class="btn" title="Pauza" onclick="pauseAnimation()">⏸</button>
-  <button type="button" class="btn" title="Stop" onclick="stopAnimation()">⏹</button>
+  <button type="button" class="btn" id="btnPlay" title="Přehrát">▶</button>
+  <button type="button" class="btn" id="btnPause" title="Pauza">⏸</button>
+  <button type="button" class="btn" id="btnStop" title="Stop">⏹</button>
   <div class="grp" style="margin-left:6px;">
     <label>Režim:
       <select id="animMode">
@@ -863,6 +863,15 @@
     // UI binding
     document.addEventListener('DOMContentLoaded', () => {
         if(DEBUG) ensureDebugPanel();
+        // Toolbar buttons (CSP-safe binding)
+        try {
+          const bPlay = document.getElementById('btnPlay');
+          const bPause = document.getElementById('btnPause');
+          const bStop = document.getElementById('btnStop');
+          if(bPlay) bPlay.addEventListener('click', () => { try{ playAnimation(); }catch(_){} });
+          if(bPause) bPause.addEventListener('click', () => { try{ pauseAnimation(); }catch(_){} });
+          if(bStop) bStop.addEventListener('click', () => { try{ stopAnimation(); }catch(_){} });
+        } catch(_) {}
         const sel = document.getElementById('animMode');
         if(sel){ sel.addEventListener('change', e => setMode(e.target.value)); }
         const chk = document.getElementById('showAnchors');

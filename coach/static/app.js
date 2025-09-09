@@ -198,9 +198,20 @@
         }
         calWrapDesk.addEventListener('click', function(ev){
           var sum = ev.target.closest('summary');
-          if(!sum) return;
-          var det = sum.closest('details');
-          var td = sum.closest('td');
+          var det, td;
+          if(sum){
+            det = sum.closest('details');
+            td = sum.closest('td');
+          } else {
+            // Allow opening overlay by clicking anywhere in empty in-month cell (coach only)
+            td = ev.target.closest('td');
+            if(!td || td.classList.contains('out-month')) return;
+            // Ignore clicks on existing events
+            if(ev.target.closest('.cal-event')) return;
+            var cell = td.querySelector('.cal-cell');
+            det = cell && cell.querySelector('details');
+            if(!det) return;
+          }
           if(!det || !td){ return; }
           ev.preventDefault(); ev.stopPropagation();
           // We'll move the entire <details> block so both update and delete are available
