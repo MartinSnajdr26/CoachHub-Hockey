@@ -30,10 +30,11 @@
               .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; background: var(--brand-primary, #d4c76f); padding:8px; border-radius:12px; }
               .toolbar .tool-group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:transparent; padding:6px 8px; border-radius:10px; }
               .toolbar .group-title{ font-weight:700; font-size:12px; opacity:.7; margin-right:6px; }
-              .toolbar .btn-tool{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+              .toolbar .btn-tool{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
               .toolbar .btn-tool .ic{ font-size:20px; line-height:1; }
               .toolbar .btn-tool .lbl{ font-size:12px; }
               .toolbar .btn-tool:hover{ background: color-mix(in srgb, #fff 70%, var(--brand-primary, #d4c76f) 30%); }
+              .toolbar .btn-tool.is-active{ background: color-mix(in srgb, var(--brand-primary, #d4c76f) 25%, #ffffff); box-shadow: inset 0 0 0 2px var(--brand-secondary, #000); }
               .toolbar--compact .group-title{ display:none; }
               .toolbar--compact .btn-tool{ width:36px; min-width:36px; padding:0; }
               .toolbar--compact .btn-tool .lbl{ display:none; }
@@ -71,6 +72,22 @@
               <button type="button" class="btn-tool" data-tool="puck" title="Puk"><span class="ic">●</span><span class="lbl">Puk</span></button>
               <button type="button" class="btn-tool" data-tool="pucks" title="Zásoba puků"><span class="ic">●●</span><span class="lbl">Puky</span></button>
               <button type="button" class="btn-tool" data-tool="cone" title="Kužel"><span class="ic">▲</span><span class="lbl">Kužel</span></button>
+              <button type="button" class="btn-tool" data-tool="goal" id="btnToolGoal" title="Branka" draggable="true"><span class="ic">🗂</span><span class="lbl">Branka</span></button>
+              <div id="goalRotationPicker" style="display:none; gap:6px; align-items:center; padding:6px; border:1px solid var(--brand-secondary, #000); border-radius:8px; background:#fff;">
+                <span class="group-title" style="margin-right:0;">Orientace:</span>
+                <button type="button" class="btn-tool" data-rot="0" title="0°" style="width:36px; min-width:36px; padding:0; overflow:hidden;">
+                  <img src="/static/branka.png" alt="branka 0" draggable="true" style="width:100%; height:100%; object-fit:contain; transform: rotate(0deg); transform-origin:center;">
+                </button>
+                <button type="button" class="btn-tool" data-rot="90" title="90°" style="width:36px; min-width:36px; padding:0; overflow:hidden;">
+                  <img src="/static/branka.png" alt="branka 90" draggable="true" style="width:100%; height:100%; object-fit:contain; transform: rotate(90deg); transform-origin:center;">
+                </button>
+                <button type="button" class="btn-tool" data-rot="180" title="180°" style="width:36px; min-width:36px; padding:0; overflow:hidden;">
+                  <img src="/static/branka.png" alt="branka 180" draggable="true" style="width:100%; height:100%; object-fit:contain; transform: rotate(180deg); transform-origin:center;">
+                </button>
+                <button type="button" class="btn-tool" data-rot="270" title="270°" style="width:36px; min-width:36px; padding:0; overflow:hidden;">
+                  <img src="/static/branka.png" alt="branka 270" draggable="true" style="width:100%; height:100%; object-fit:contain; transform: rotate(270deg); transform-origin:center;">
+                </button>
+              </div>
               <label title="Barva útočníka (F)" style="display:inline-flex; align-items:center; gap:6px; font-size:12px;">
                 <span class="lbl">F</span>
                 <input type="color" id="colorF" value="#0000ff" style="width:28px; height:28px; padding:0; border:none; background:transparent;">
@@ -125,6 +142,7 @@ let canvas = document.getElementById("board");
 let ctx = canvas.getContext("2d");
 let currentTool = "straight";
 let drawing = false;
+let _placedImmediate = false; // guard to skip mouseup after instant placement
 let startX, startY;
 let pathPoints = [];
 let history = [];
@@ -136,6 +154,11 @@ let syncCounter = 0;    // identifikátor skupiny
 let rink = new Image();
 rink.src = "/static/rink.png";
 let manualSize = false;
+// Branka image
+let goalImg = new Image();
+goalImg.src = "/static/branka.png";
+let currentGoalRotation = 0; // degrees: 0/90/180/270
+try { goalImg.onload = () => { try { redrawAll(); } catch(_){} }; } catch(_){}
 function containerWidth(){
   try { return Math.max(600, Math.floor(canvas.parentElement.clientWidth)); } catch(_) { return 600; }
 }
@@ -213,6 +236,83 @@ window.addEventListener('resize', function(){
       });
     }
   } catch(_) {}
+
+  // Aktivní nástroj: označení v toolbaru + přepínání
+  try {
+    const toolbarEl = document.getElementById('toolbar');
+    function markActive(tool){
+      const btns = toolbarEl ? toolbarEl.querySelectorAll('.btn-tool') : [];
+      btns.forEach(b => b.classList.remove('is-active'));
+      const active = toolbarEl ? toolbarEl.querySelector(`.btn-tool[data-tool="${tool}"]`) : null;
+      if(active) active.classList.add('is-active');
+    }
+    const btns = toolbarEl ? toolbarEl.querySelectorAll('.btn-tool') : [];
+    btns.forEach(btn => {
+      if(btn.id === 'btnToolGoal') return; // handled separately to show rotation picker
+      btn.addEventListener('click', () => {
+        const t = btn.getAttribute('data-tool');
+        if(t){ currentTool = t; markActive(t); }
+      });
+    });
+    // init default
+    markActive(currentTool || 'straight');
+  } catch(_) {}
+
+  // Rotation picker for goal tool
+  try {
+    const btnGoal = document.getElementById('btnToolGoal');
+    const picker = document.getElementById('goalRotationPicker');
+    if(btnGoal && picker){
+      btnGoal.addEventListener('click', (e)=>{
+        currentTool = 'goal';
+        // show picker inline next to buttons in the same group
+        picker.style.display = (picker.style.display === 'none' || picker.style.display === '') ? 'flex' : 'none';
+        // mark active in toolbar highlighter if present
+        try { const tb = document.getElementById('toolbar'); tb?.querySelectorAll('.btn-tool').forEach(b=>b.classList.remove('is-active')); btnGoal.classList.add('is-active'); } catch(_){ }
+        e.stopPropagation();
+      });
+      // Drag from main goal button uses currentGoalRotation
+      btnGoal.addEventListener('dragstart', (ev) => {
+        try {
+          const rot = currentGoalRotation || 0;
+          ev.dataTransfer?.setData('text/plain', `goal:${rot}`);
+          ev.dataTransfer?.setData('application/x-goal', String(rot));
+          if(ev.dataTransfer) ev.dataTransfer.effectAllowed = 'copy';
+        } catch(_){ }
+      });
+      // Click-to-select rotation
+      picker.querySelectorAll('button.btn-tool').forEach(b => {
+        b.addEventListener('click', () => {
+          const rot = parseInt(b.getAttribute('data-rot')||'0',10) || 0;
+          currentGoalRotation = ((rot % 360) + 360) % 360;
+          // ensure tool remains active as 'goal'
+          currentTool = 'goal';
+          try { const tb = document.getElementById('toolbar'); tb?.querySelectorAll('.btn-tool').forEach(x=>x.classList.remove('is-active')); btnGoal.classList.add('is-active'); } catch(_){ }
+          // hide picker after select
+          picker.style.display = 'none';
+        });
+      });
+      // Drag-and-drop support: drag thumbnail from picker onto canvas
+      picker.querySelectorAll('img').forEach(img => {
+        img.addEventListener('dragstart', (ev) => {
+          try {
+            const b = img.closest('button.btn-tool');
+            const rot = parseInt(b?.getAttribute('data-rot')||'0',10) || 0;
+            ev.dataTransfer?.setData('text/plain', `goal:${rot}`);
+            ev.dataTransfer?.setData('application/x-goal', String(rot));
+            if(ev.dataTransfer) ev.dataTransfer.effectAllowed = 'copy';
+            currentTool = 'goal';
+          } catch(_){ }
+        });
+      });
+      // clicking elsewhere hides the picker
+      document.addEventListener('click', (ev)=>{
+        try {
+          if(!picker.contains(ev.target) && ev.target !== btnGoal){ picker.style.display = 'none'; }
+        } catch(_){ }
+      });
+    }
+  } catch(_){}
 
   const startChk = document.getElementById('syncStart');
   const endChk = document.getElementById('syncEnd');
@@ -333,6 +433,8 @@ function renderOverlayToContext(targetCtx){
           ctx.fillStyle = 'black';
           for(let i=-1;i<=1;i++){ for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*12, it.y+j*12, 5, 0, 2*Math.PI); ctx.fill(); } } }
           ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+        } else if(it.tool === 'goal' && typeof it.x==='number'){
+          drawGoalImage(it.x, it.y, parseInt(it.rot||0,10)||0);
         } else if(it.tool === 'cone' && typeof it.x==='number'){
           ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-10, it.y+20); ctx.lineTo(it.x+10, it.y+20); ctx.closePath(); ctx.fill();
         } else if(it.tool === 'triangle' && typeof it.x==='number'){
@@ -412,7 +514,15 @@ function getCanvasCoords(e){
 }
 
 // Mouse
-canvas.addEventListener("mousedown",e=>{drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);});
+canvas.addEventListener("mousedown",e=>{
+    drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);
+    // Instant-place tools (no drag): goal
+    if(currentTool === 'goal'){
+        handleDrawingEnd(startX, startY);
+        saveState();
+        drawing = false; _placedImmediate = true;
+    }
+});
 canvas.addEventListener("mousemove",e=>{
     if(!drawing) return;
     let [x,y] = getCanvasCoords(e);
@@ -428,10 +538,40 @@ canvas.addEventListener("mousemove",e=>{
         pathPoints.push([x,y]);
     }
 });
-canvas.addEventListener("mouseup",e=>{if(!drawing)return;drawing=false;let[x,y]=getCanvasCoords(e);handleDrawingEnd(x,y);saveState();});
+canvas.addEventListener("mouseup",e=>{ if(_placedImmediate){ _placedImmediate=false; return; } if(!drawing)return; drawing=false; let[x,y]=getCanvasCoords(e); handleDrawingEnd(x,y); saveState(); });
+
+// Drag & drop (goal from toolbar)
+try {
+  canvas.addEventListener('dragover', (e) => { e.preventDefault(); try{ e.dataTransfer.dropEffect = 'copy'; }catch(_){} });
+  canvas.addEventListener('drop', (e) => {
+    e.preventDefault();
+    try {
+      let data = e.dataTransfer?.getData('application/x-goal') || e.dataTransfer?.getData('text/plain') || '';
+      let rot = 0;
+      if(typeof data === 'string' && data){
+        if(/^\d+$/.test(data.trim())) rot = parseInt(data.trim(),10) || 0;
+        else if(data.startsWith('goal:')) rot = parseInt(data.slice(5).trim(),10) || 0;
+      }
+      const [x,y] = getCanvasCoords(e);
+      currentTool = 'goal';
+      currentGoalRotation = ((rot % 360) + 360) % 360;
+      drawGoalImage(x,y,currentGoalRotation);
+      drawData.push({tool:'goal', x, y, rot: currentGoalRotation});
+      saveState();
+      try { document.getElementById('goalRotationPicker')?.style && (document.getElementById('goalRotationPicker').style.display = 'none'); } catch(_){}
+      renderSeqLog();
+    } catch(_){}
+  });
+} catch(_){}
 
 // Touch
-canvas.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);}, {passive:false});
+canvas.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;[startX,startY]=getCanvasCoords(e);pathPoints=[[startX,startY]];ctx.beginPath();ctx.moveTo(startX,startY);
+  if(currentTool === 'goal'){
+    handleDrawingEnd(startX, startY);
+    saveState();
+    drawing = false; _placedImmediate = true;
+  }
+}, {passive:false});
 canvas.addEventListener("touchmove", e => {
     e.preventDefault();
     if(!drawing) return;
@@ -447,6 +587,7 @@ canvas.addEventListener("touchmove", e => {
 }, {passive:false});
 canvas.addEventListener("touchend", e => {
     e.preventDefault();
+    if(_placedImmediate){ _placedImmediate=false; return; }
     if(!drawing) return;
     drawing = false;
     let x = startX, y = startY;
@@ -510,6 +651,8 @@ function redrawAll(){
         ctx.fillStyle = 'black';
         for(let i=-1;i<=1;i++){ for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*12, it.y+j*12, 5, 0, 2*Math.PI); ctx.fill(); } } }
         ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, 2*Math.PI); ctx.fill();
+      } else if(it.tool === 'goal' && typeof it.x==='number'){
+        drawGoalImage(it.x, it.y, parseInt(it.rot||0,10)||0);
       } else if(it.tool === 'cone' && typeof it.x==='number'){
         ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.lineTo(it.x-10, it.y+20); ctx.lineTo(it.x+10, it.y+20); ctx.closePath(); ctx.fill();
       } else if(it.tool === 'triangle' && typeof it.x==='number'){
@@ -571,6 +714,7 @@ function handleDrawingEnd(x,y){
     else if(currentTool==="puck"){ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"puck_static",x,y});}
     else if(currentTool==="pucks"){ctx.fillStyle="black";for(let i=-1;i<=1;i++){for(let j=-1;j<=1;j++){if(i||j){ctx.beginPath();ctx.arc(x+i*12,y+j*12,5,0,2*Math.PI);ctx.fill();}}}ctx.beginPath();ctx.arc(x,y,6,0,2*Math.PI);ctx.fill();drawData.push({tool:"pucks_cluster",x,y});}
     else if(currentTool==="cone"){ctx.fillStyle="orange";ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-10,y+20);ctx.lineTo(x+10,y+20);ctx.closePath();ctx.fill();drawData.push({tool:"cone",x,y});}
+    else if(currentTool==="goal"){ drawGoalImage(x,y,currentGoalRotation||0); drawData.push({tool:"goal", x, y, rot: (currentGoalRotation||0)}); }
     else if(currentTool.startsWith("circle")){
         let label=(currentTool==="circleF")?"F":(currentTool==="circleD")?"D":"G";
         if(currentTool==="circleD"){
@@ -597,6 +741,18 @@ function handleDrawingEnd(x,y){
 }
 
 // Utility kreslení
+function goalSize(){ return Math.round(iconR() * 2 * 1.25); } // trošku větší než hráčská ikona
+function drawGoalImage(x,y,deg){
+    try{
+        const size = goalSize();
+        const r = (deg||0) * Math.PI/180;
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(r);
+        ctx.drawImage(goalImg, -size/2, -size/2, size, size);
+        ctx.restore();
+    }catch(_){/* ignore */}
+}
 function drawArrowHead(x1,y1,x2,y2,color){let a=Math.atan2(y2-y1,x2-x1);ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-10*Math.cos(a-Math.PI/6),y2-10*Math.sin(a-Math.PI/6));ctx.lineTo(x2-10*Math.cos(a+Math.PI/6),y2-10*Math.sin(a+Math.PI/6));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
 function simplifyPath(points,tol){
     if(points.length<=2) return points.slice();

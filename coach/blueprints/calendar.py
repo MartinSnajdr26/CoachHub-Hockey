@@ -52,6 +52,7 @@ def home():
     # Load team messages (message board) without DB migration, using AuditEvent
     msgs = []
     view_messages = []
+    month_num = m  # keep month safe from shadowing
     if tid:
         try:
             msgs = (AuditEvent.query
@@ -60,30 +61,34 @@ def home():
                     .limit(50)
                     .all())
             from json import loads
-            for m in msgs:
+            for msg in msgs:
                 try:
-                    payload = loads(m.meta or '{}') if m.meta else {}
+                    payload = loads(msg.meta or '{}') if msg.meta else {}
                 except Exception:
                     payload = {}
                 view_messages.append({
-                    'id': m.id,
+                    'id': msg.id,
                     'text': (payload.get('text') or '').strip(),
-                    'role': (payload.get('role') or m.role or 'player'),
+                    'role': (payload.get('role') or msg.role or 'player'),
                     'pinned': bool(payload.get('pinned')),
-                    'created_at': m.created_at,
+                    'created_at': msg.created_at,
                 })
             # Pinned first, then by time desc
             view_messages.sort(key=lambda x: (not x['pinned'], x['created_at']), reverse=True)
         except Exception:
             view_messages = []
+    # Determine role explicitly for template (robust against any transient context issues)
+    from coach.auth_utils import get_team_role
+    is_coach_home = (get_team_role() == 'coach')
     return render_template('home.html',
-                           cal_year=y, cal_month=m, month_title=month_title, weeks=weeks,
+                           cal_year=y, cal_month=month_num, month_title=month_title, weeks=weeks,
                            events_by_day=events_by_day,
                            prev_year=prev_y, prev_month=prev_m,
                            next_year=next_y, next_month=next_m,
                            today_label=today_label,
                            today_iso=today.isoformat(),
-                           team_messages=view_messages)
+                           team_messages=view_messages,
+                           is_coach_home=is_coach_home)
 
 
 @bp.route('/calendar/add', methods=['POST'], endpoint='calendar_add')
@@ -174,7 +179,9 @@ def message_post():
     if not text:
         return redirect(request.referrer or url_for('home'))
     try:
-        role = session.get('team_role') or 'player'
+        # Do not mutate session role here; just read current role for message meta
+        from coach.auth_utils import get_team_role
+        role = get_team_role()
         tid = get_team_id()
         if not tid:
             return redirect(request.referrer or url_for('home'))

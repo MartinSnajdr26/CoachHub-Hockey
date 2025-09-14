@@ -78,6 +78,8 @@
     const ctx = canvas.getContext("2d");
     const rink = new Image();
     rink.src = "/static/rink.png";
+    const goalImg = new Image();
+    goalImg.src = "/static/branka.png";
     const icons = []; // seznam ikon hráčů z editoru
     const entityColors = new Map(); // eid -> color (od editoru), fallback podle role
 
@@ -411,6 +413,8 @@
                     statics.push({tool:item.tool, x: offX + (item.x||0)*k, y: offY + (item.y||0)*k});
                 } else if(item.tool === 'cone' || item.tool === 'triangle' || item.tool === 'pucks_cluster'){
                     statics.push({tool:item.tool, x: offX + (item.x||0)*k, y: offY + (item.y||0)*k});
+                } else if(item.tool === 'goal' && typeof item.x==='number'){
+                    statics.push({tool:'goal', x: offX + (item.x||0)*k, y: offY + (item.y||0)*k, rot: (parseInt(item.rot||0,10)||0)});
                 } else if((item.tool === 'player_move' || item.tool === 'player_move_puck') && item.path){
                     const pts = item.path.map(p=>({x: offX + (p[0]||0)*k, y: offY + (p[1]||0)*k}));
                     if(pts.length < 2) continue;
@@ -540,6 +544,8 @@
                     statics.push({tool:item.tool, x: offX + (item.x||0)*k, y: offY + (item.y||0)*k});
                 } else if(item.tool === 'cone' || item.tool === 'triangle' || item.tool === 'pucks_cluster'){
                     statics.push({tool:item.tool, x: offX + (item.x||0)*k, y: offY + (item.y||0)*k});
+                } else if(item.tool === 'goal' && typeof item.x==='number'){
+                    statics.push({tool:'goal', x: offX + (item.x||0)*k, y: offY + (item.y||0)*k, rot: (parseInt(item.rot||0,10)||0)});
                 } else if((item.tool === 'player_move' || item.tool === 'player_move_puck') && item.path){
                     const pts = item.path.map(p=>({x: offX + (p[0]||0)*k, y: offY + (p[1]||0)*k}));
                     if(pts.length < 2) continue;
@@ -683,6 +689,18 @@
         const clusterOff = 12 * k;
         const coneW = 10 * k, coneH = 20 * k;
         const tri = 15 * k;
+        function drawGoalAt(x,y,deg){
+            try{
+                const playerR = clamp(16 * k, 10, 28);
+                const size = Math.round(playerR * 2 * 1.25);
+                const r = (deg||0) * Math.PI/180;
+                ctx.save();
+                ctx.translate(x,y);
+                ctx.rotate(r);
+                ctx.drawImage(goalImg, -size/2, -size/2, size, size);
+                ctx.restore();
+            } catch(_){}
+        }
         for(const it of statics){
             if(it.tool === 'puck_static'){
                 ctx.beginPath(); ctx.arc(it.x, it.y, puckR, 0, 2*Math.PI); ctx.fillStyle = 'black'; ctx.fill();
@@ -694,6 +712,8 @@
                 ctx.fillStyle = 'black';
                 for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ if(i||j){ ctx.beginPath(); ctx.arc(it.x+i*clusterOff, it.y+j*clusterOff, clusterR, 0, 2*Math.PI); ctx.fill(); } }
                 ctx.beginPath(); ctx.arc(it.x, it.y, puckR, 0, 2*Math.PI); ctx.fill();
+            } else if(it.tool === 'goal'){
+                drawGoalAt(it.x, it.y, parseInt(it.rot||0,10)||0);
             }
         }
     }
