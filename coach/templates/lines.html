@@ -3,11 +3,11 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
-<div style="display:flex; align-items:center; justify-content:center; gap:10px;">
-  <h1 style="text-align:center; margin:0;">Rozdělení hráčů do formací</h1>
+<div class="lines-head">
+  <h1>Rozdělení hráčů do formací</h1>
   <button type="button" class="help-btn" data-help="lines" data-help-src="help-lines"><span class="ico">i</span> Nápověda</button>
 </div>
-<div id="help-lines" style="display:none;">
+<div id="help-lines">
   <h3>Jak používat Formace</h3>
   <ul>
     <li>Přetáhni hráče z poolu do slotu (LW/C/RW, LD/RD), nebo ťukni na pilulku a pak na slot.</li>
@@ -35,11 +35,11 @@
 
         {# Render one formation card (used for grid and mobile swiper) #}
         {% macro formation_card(line) -%}
-          <div class="formation" data-line="{{ line }}" style="--form-bg:#f9f9f9; --form-fg:#000;">
+          <div class="formation" data-line="{{ line }}">
             <h3>{{ line }}. Formace</h3>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; margin-bottom:6px;">
-              <label>Podklad <input type="color" value="{{ brand.secondary or '#000000' }}" data-bg style="vertical-align:middle; width:32px; height:22px; padding:0; border:none; background:transparent;"></label>
-              <label>Text <input type="color" value="{{ brand.primary or '#d4c76f' }}" data-fg style="vertical-align:middle; width:32px; height:22px; padding:0; border:none; background:transparent;"></label>
+            <div class="lines-colorpick">
+              <label>Podklad <input type="color" value="{{ brand.secondary or '#000000' }}" data-bg class="lines-color"></label>
+              <label>Text <input type="color" value="{{ brand.primary or '#d4c76f' }}" data-fg class="lines-color"></label>
             </div>
             <div class="slots">
               {{ slot_row('L' ~ line ~ 'LW', 'F', 'LW') }}
@@ -56,11 +56,11 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             {# Pools: F, D, G (show all; assigned will be color-badged) #}
-            <div style="display:flex; align-items:center; gap:12px; margin:8px 0 6px; flex-wrap:wrap;">
-              <label style="font-size:14px; display:flex; align-items:center; gap:6px;">
+            <div class="lines-controls">
+              <label class="lines-ctrl-label">
                 <input type="checkbox" id="hideAssigned"> Skrýt obsazené hráče
               </label>
-              <button type="button" id="btnResetColors" style="padding:6px 10px; border-radius:8px; border:1px solid #bbb; background:#fff; cursor:pointer;">Vynulovat barvy formací</button>
+              <button type="button" id="btnResetColors" class="btn-reset-colors">Vynulovat barvy formací</button>
             </div>
             {% set assigned_ids = assignments.values()|list %}
             <div class="pool-title">Útočníci</div>
@@ -107,7 +107,7 @@
             </div>
 
             <h2 class="desktop-only">Brankáři</h2>
-            <div class="slots desktop-only" style="grid-template-columns: repeat(2, minmax(220px, 1fr));">
+            <div class="slots desktop-only slots--g">
               <div class="slot accept-G" data-slot="G1" data-accept="G" data-label="G1">
                 <input type="hidden" name="G1" value="{{ assignments.get('G1','') }}">
                 {% set pid = assignments.get('G1') %}
@@ -137,7 +137,7 @@
                   </div>
                 {% endfor %}
                 <div class="slide">
-                  <div class="formation" data-line="G" style="--form-bg:#f9f9f9; --form-fg:#000;">
+                  <div class="formation" data-line="G">
                     <h3>Brankáři</h3>
                     <div class="slots slots--def">
                       {{ slot_row('G1','G','G1') }}
@@ -158,16 +158,16 @@
     </div>
 
     {% if is_coach %}
-    <div style="margin-top: 16px;">
+    <div class="lines-export">
       <hr>
       <h2>Export sestavy do PDF</h2>
-      <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <form method="post" action="{{ url_for('export_lines_pdf') }}" class="lines-export-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Soupeř<br>
-              <input type="text" name="opponent" placeholder="Soupeř" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
+              <input type="text" name="opponent" placeholder="Soupeř" class="lines-input">
           </label>
           <label>Datum<br>
-              <input type="date" name="date" value="{{ (namespace().today if false else '') }}" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
+              <input type="date" name="date" value="{{ (namespace().today if false else '') }}" class="lines-input">
           </label>
           <button type="submit">📄 Exportovat PDF a uložit</button>
           <a href="{{ url_for('lineup_sessions') }}"><button type="button">🗂 Seznam sestav</button></a>
