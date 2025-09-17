@@ -35,7 +35,8 @@
 .lines-container .slot.accept-F::after, .lines-container .slot.accept-D::after, .lines-container .slot.accept-G::after{ content: attr(data-label); font-size:12px; opacity:.6; margin-left:auto; }
 .lines-container .slot .fill{ display:flex; align-items:center; gap:8px; width:100%; justify-content:space-between; user-select:none; background: var(--brand-secondary, #000); color: var(--brand-primary, #d4c76f); border:0; border-radius:999px; padding:6px 12px; font-size:18px; line-height:1.25; white-space:nowrap; }
 /* center the name text inside the pill */
-.slot .fill > span{ flex:1; text-align:center; }
+.lines-container .slot .fill{ min-width: 0; }
+.slot .fill > span{ flex:1; text-align:center; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Pills inside a formation adopt the card colors: bg = --form-bg, text/border = --form-fg */
 .lines-container .formation .slot .fill{ background: var(--form-bg, var(--brand-secondary, #000)); color: var(--form-fg, var(--brand-primary, #d4c76f)); border: 1px solid var(--form-fg, var(--brand-primary, #d4c76f)); }
 .lines-container .slot.over{ background: color-mix(in srgb, var(--brand-secondary, #000) 55%, var(--form-fg, #ffffff) 45%); }
@@ -63,7 +64,8 @@
 }
 .lines-container .lines-form{ width:100%; margin:0; box-sizing:border-box; padding: 12px; }
 /* Override legacy dark wrapper: make section background primary and text secondary */
-.lines-container .lines-form{ background: var(--brand-primary, #d4c76f) !important; color: var(--on-primary) !important; border: 4px solid var(--brand-primary, #d4c76f) !important; border-radius: 10px; }
+/* Let colored formation cards stand out; wrapper stays neutral */
+.lines-container .lines-form{ background: transparent !important; color: var(--on-primary) !important; border: 0 !important; border-radius: 0; }
 /* Ensure common headings/labels inside wrapper inherit secondary text */
 .lines-container .lines-form h1, .lines-container .lines-form h2, .lines-container .lines-form h3, .lines-container .lines-form p, .lines-container .lines-form label, .lines-container .lines-form .pool-title{ color: var(--on-primary) !important; }
 /* Ensure formation title adopts user-selected text color for that card */
@@ -91,14 +93,15 @@
 .lines-container .lines-pager{ display:flex; gap:6px; justify-content:center; margin-top:8px; }
 .lines-container .lines-pager button{ width:8px; height:8px; border-radius:50%; border:0; background: color-mix(in srgb, var(--brand-secondary, #000) 30%, transparent); cursor:pointer; }
 .lines-container .lines-pager button[aria-selected="true"]{ background: var(--brand-secondary, #000); }
-/* Center mobile swiper and actions as the middle block */
-.lines-form .lines-swiper, .lines-form .actions{ width: 100%; margin: 0; }
+/* Center mobile swiper and actions as the middle block ok */
+.lines-form .lines-swiper, .lines-form .actions{ width: 100%; margin: 0; } 
 
 @media (max-width: 700px){
   #formations{ display:none; }
   .desktop-only{ display:none !important; }
   .lines-container .lines-swiper{ display:block; }
-  .lines-container .lines-form{ padding-left: 12px; padding-right: 12px; max-width: 100%; }
+  /* Align with global gutters from `main` (30px); avoid extra inner padding */
+  .lines-container .lines-form{ padding-left: 0; padding-right: 0; max-width: 100%; }
 }
 
 /* Portrait optimizations for very narrow screens */
