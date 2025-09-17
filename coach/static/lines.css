@@ -105,11 +105,14 @@
   .lines-container .lines-swiper{ display:block; }
   /* Align with global gutters from `main` (30px); avoid extra inner padding */
   .lines-container .lines-form{ padding-left: 0; padding-right: 0; max-width: 100%; }
-  /* Stack slides vertically to avoid horizontal scrolling on mobile */
-  .lines-container .lines-track{ display:block; overflow-x: visible; scroll-snap-type: none; }
-  .lines-container .lines-track .slide{ display:block; flex: none; padding: 8px 0; box-sizing: border-box; }
-  .lines-container .lines-track .slide > .formation{ max-width: 460px; margin: 0 auto; width: auto; }
-  .lines-container .lines-pager{ display: none; }
+  /* Restore swiper: one centered card per view with side gutters */
+  .lines-container .lines-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling: touch; gap:12px; }
+  .lines-container .lines-track .slide{ display:flex; flex: 0 0 100%; justify-content: center; padding: 8px 8px; box-sizing: border-box; scroll-snap-align:start; }
+  .lines-container .lines-track .slide > .formation{ max-width: 520px; width: calc(100% - 32px); margin: 0 auto; }
+  .lines-container .lines-pager{ display: flex; }
+  /* Slightly tighter spacing and text for narrow screens */
+  .lines-container .slots{ gap: 6px; }
+  .lines-container .slot .fill, .lines-container .pl-item{ font-size: 15px; padding: 6px 10px; }
 }
 
 /* Desktop tweaks (swiper hidden, but keep sizing consistent if toggled) */
