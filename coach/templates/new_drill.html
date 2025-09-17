@@ -2,7 +2,18 @@
 {% block title %}Nové cvičení{% endblock %}
 
 {% block content %}
-<h1>Nové cvičení</h1>
+<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+  <h1>Nové cvičení</h1>
+  <button type="button" class="help-btn" data-help="new_drill" data-help-src="help-newdrill"><span class="ico">i</span> Nápověda</button>
+</div>
+<div id="help-newdrill" style="display:none;">
+  <h3>Jak kreslit nové cvičení</h3>
+  <ul>
+    <li>Vyber nástroj v toolbaru (pohyb, nahrávka, ikony…); ťukni do plochy a kresli.</li>
+    <li>“Současně” seskupí kroky do jedné sekvence; barvy F/D lze měnit.</li>
+    <li>Uložit: obrázek + animace (path_data) se uloží k cvičení.</li>
+  </ul>
+</div>
 
 <form id="newDrillForm" method="POST" action="{{ url_for('save_drill') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

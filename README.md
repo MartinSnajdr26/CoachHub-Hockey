@@ -1,214 +1,134 @@
-# CoachHub Hockey  
-⚡ Open-source webová aplikace pro trenéry a hráče hokeje.  
-📋 Správa hráčů, sestav, tréninků a exportů do PDF – vše na jednom místě.  
-*(Původně vyvinuto pro HC Smíchov 1913, nyní univerzálně použitelné.)*  
+# CoachHub Hockey
+Open‑source webová aplikace pro trenéry a hráče hokeje. Správa hráčů, soupisky, formací, tréninků a exportů do PDF – vše na jednom místě.
 
-👉 **Cíl:** zjednodušit organizaci týmu, ušetřit čas trenérům a zpřehlednit práci s tréninky a sestavami.  
-👉 **Technologie:** Python (Flask), SQLite/Postgres/MySQL, HTML/CSS/JS.  
+- Cíl: zjednodušit organizaci týmu a ušetřit čas trenérům.
+- Technologie: Python (Flask), SQLite/Postgres/MySQL, HTML/CSS/JS.
 
 ---
 
-## ✨ Funkce
-- **Hráči** – evidence, úpravy, mazání (F/D/G).  
-- **Soupiska** – nominace hráčů do zápasu.  
-- **Lajny** – rozdělení nominovaných do 4 útoků + 4 obran a 2 brankářů.  
-- **Cvičení (drills)** – editor na hřišti s ikonami, animacemi a skupinami pohybů.  
-- **Přehrávání cvičení** – sekvenční i skupinový režim se synchronizací.  
-- **Export do PDF**  
-  - vybraná cvičení (vícestránkové PDF, A4),  
-  - lajny (jednostránkové PDF „Sestava – Zápas – soupeř – datum“).  
-- **Seznam exportů** – přehled tréninků i sestav, možnost stáhnout/otevřít/sdílet/smazat.  
-- **Sdílení přes WhatsApp / Web Share API** (funguje i na mobilech).  
-- **Automatické čištění exportů** – nepoužívané PDF starší než 14 dní se smažou.  
+## Funkce
+- Hráči: evidence, úpravy, mazání (F/D/G).
+- Soupiska: výběr nominovaných hráčů pro zápas.
+- Formace (Lajny): drag&drop i „tap‑to‑assign“, 4 útoky, 4 obrany, 2 G; barvy karty na míru, per‑karta uložení; mobilní „swiper“ mezi kartami.
+- Tréninky (Drills): kreslení na hřiště, skupiny pohybů, přehrávání animací, export do PDF.
+- Kalendář: měsíční přehled tréninků a zápasů, rychlé přidání/úprava (mobilní toast/sheet, desktop overlay), sdílení detailu.
+- Exporty do PDF: vybraná cvičení (vícestránkové A4) a sestavy lajn (jednostránkové); sdílení přes Web Share API/WhatsApp.
+- Seznam exportů: přehled, stažení/otevření/sdílení/smazání; automatické čištění starších PDF (14 dní).
+- Nastavení týmu: název, barvy (primární/sekundární), logo; nástroje pro klíče týmu.
+- Audit log: základní záznamy o akcích (přihlášení, rotace klíčů apod.).
+
+Pozn.: Aplikace běží v „team‑only“ režimu – žádní uživatelé/hesla, přístup je přes týmové klíče pro role coach/player.
 
 ---
 
-## ⚙️ Požadavky
-- Python **3.10+**  
-- Knihovny viz `requirements.txt`  
+## Požadavky
+- Python 3.10+
+- `pip install -r requirements.txt`
 
 ---
 
-## 🚀 Instalace & spuštění
-
-```bash
-# virtuální prostředí
+## Instalace a spuštění
+```
+# Vytvoření a aktivace venv
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# instalace balíčků
+# Instalace závislostí
 pip install -r requirements.txt
 
-# spuštění aplikace
+# Spuštění
 python3 -m coach.app
-
-Alternativně přes Flask CLI:
-
+# nebo
 export FLASK_APP=coach.app:app && flask run
+```
+- Aplikace poběží na `http://127.0.0.1:5000`.
+- Při prvním spuštění se v dev vytvoří SQLite databáze automaticky.
 
-
-Aplikace běží na http://127.0.0.1:5000
-.
-První spuštění v dev vytvoří SQLite DB automaticky.
-
-🛠 Konfigurace (.env)
-
-Založ .env podle .env.example a nastav:
-
-SECRET_KEY – náhodný klíč (v produkci povinné).
-
-APP_ENV – dev nebo production.
-
-DB_URL – např. sqlite:///coach/dev.db nebo plná URL (Postgres/MySQL).
-
-TERMS_VERSION – verze Podmínek (např. v1.0).
-
-.env je ignorován v Git – nikdy necommituješ tajné údaje.
-
-🗂 Navigace
-
-Domů, Hráči, Soupiska, Lajny
-
-Tréninky
-
-Nové cvičení
-
-Kategorie
-
-Export cvičení do PDF
-
-Seznam tréninků
-
-Lajny
-
-Nastavit lajny
-
-Export sestavy
-
-📄 Exporty
-
-Cvičení → PDF uložené v coach/protected_exports/, dostupné v seznamu tréninků.
-
-Lajny → PDF se jménem soupeře a datem, uložené stejně.
-
-Sdílení funguje přes odkaz (WhatsApp) nebo Web Share API.
-
-💾 Databáze
-
-Default: coach/players.db (SQLite).
-
-Tabulky:
-
-player, roster, line_assignment, drill
-
-training_session (exporty cvičení)
-
-lineup_session (exporty lajn)
-
-V dev se schema vytvoří přes db.create_all().
-V produkci používej migrace (Alembic).
-
-🔐 Přihlášení & týmy
-
-Registrace = vytvoření týmu (název, barvy, logo).
-
-Přístup pouze přes týmové klíče (coach / player).
-
-Rotace klíčů možná v administraci.
-
-Při změně TERMS_VERSION se vyžaduje nový souhlas.
-
-📑 Právní & privacy
-
-/terms – Podmínky použití (verze z .env).
-
-/privacy – Zásady ochrany osobních údajů.
-
-Kontakt: martinsnajdr@coachhubhockey.com
-
-🔧 Vývoj
-
-Změny závislostí → aktualizuj requirements.txt.
-
-Font pro PDF: arial.ttf (fallback na default Pillow).
-
-Výstup PDF: A4, 72 DPI (595×842 px).
-
-Chování WhatsApp/Share API se liší podle prohlížeče.
-
-📦 Produkční tipy
-
-Nastav silný SECRET_KEY v .env.
-
-HTTPS (HSTS + secure cookies se zapnou v produkci automaticky).
-
-Gunicorn + nginx doporučeno.
-
-Používej migrace (flask db upgrade).
+### Konfigurace (.env)
+Vytvoř `.env` podle `.env.example`:
+- `SECRET_KEY`: náhodný tajný klíč (v produkci povinné).
+- `APP_ENV`: `dev` nebo `production`.
+- `DB_URL`: např. `sqlite:///coach/dev.db` nebo plná URL na Postgres/MySQL.
+- `TERMS_VERSION`: verze Podmínek (např. `v1.0`).
+- `SESSION_LIFETIME_DAYS`: platnost týmové session (default 30).
 
 ---
 
-🔐 Obnova trenérského klíče (CLI, bezpečně)
+## Navigace v aplikaci
+- Domů: dashboard, kalendář, nástěnka zpráv.
+- Hráči, Soupiska, Formace (Sestavit, Seznam sestav).
+- Tréninky (Nové cvičení, Kategorie, Výběr a export, Seznam tréninků).
+- Nastavení, Audit log (pro coach).
 
-Pokud trenér ztratí klíč, nejbezpečnější je rotace klíče přes konzoli (bez veřejných endpointů). Plaintext nového klíče se ukáže jen jednou v konzoli – nikde se neukládá.
+---
 
-Postup (PythonAnywhere/SSH)
+## Exporty
+- Uložené PDF jsou v `coach/protected_exports/` (mimo `/static`).
+- Sdílení: WhatsApp / Web Share API.
+- Retence: starší PDF (14 dní) se automaticky mažou.
 
-1) Otevři Bash konzoli a aktivuj venv
+---
 
-   - `source ~/.venvs/coachhub/bin/activate`
+## Databáze a migrace
+- Default SQLite: `coach/players.db` (lze změnit přes `DB_URL`).
+- Hlavní tabulky: `player`, `roster`, `line_assignment`, `drill`, `training_session`, `lineup_session`, `team`, `team_key`, `audit_event`, `training_event`, `team_login_attempt`.
+- Produkce: používej migrace (Alembic) – `flask db upgrade`.
 
-2) Nastav Flask app
+---
 
-   - `export FLASK_APP=coach.app:app`
+## Přihlášení a klíče týmu
+- Přihlášení probíhá přes týmové klíče: role `coach` / `player`.
+- Vytvoření týmu (název, barvy, logo) vygeneruje oba klíče; zobrazí se jen jednou.
 
-3) Spusť `flask shell`
+### Rotace/obnova klíčů (doporučeno v UI)
+- Jako trenér otevři stránku Klíče týmu (`/team/keys` nebo přes Nastavení) a zvol „Vygenerovat nový klíč“ pro `coach` nebo `player`.
+- Nový klíč se zobrazí jednorázově – bezpečně ho ulož a sdílej mimo aplikaci.
 
-4) V shelli vlož a uprav snippet (změň `TEAM` a případně `ROLE`)
+### Rotace/obnova klíčů (CLI varianta)
+Bezpečná alternativa přes konzoli/SSH. Plaintext nového klíče se ukáže pouze v terminálu a neukládá se.
 
+1) Aktivuj venv a nastav Flask app:
+```
+source .venv/bin/activate
+export FLASK_APP=coach.app:app
+flask shell
+```
+2) V shelli spusť (uprav `TEAM` dle názvu/ID a `ROLE`):
 ```
 from coach.extensions import db
 from coach.models import Team, TeamKey, AuditEvent
 from coach.services.keys import gen_plain_key, hash_team_key
 from datetime import datetime
 
-# Nastavení: název týmu (nebo ID) a role
-TEAM = "HC Smíchov 1913"   # nebo např. 42 pro ID
-ROLE = "coach"              # "coach" | "player"
+TEAM = "HC Smíchov 1913"  # nebo např. 42 pro ID
+ROLE = "coach"            # "coach" | "player"
 
-# Najdi tým podle názvu/ID
 team = Team.query.filter(Team.name==TEAM).first() if isinstance(TEAM, str) else Team.query.get(int(TEAM))
 assert team, "Team not found"
 
 now = datetime.utcnow()
-# Deaktivuj stávající aktivní klíče dané role
 TeamKey.query.filter_by(team_id=team.id, role=ROLE, active=True).update({TeamKey.active: False, TeamKey.rotated_at: now})
 
-# Vygeneruj nový klíč a ulož hash
 plain = gen_plain_key()
 db.session.add(TeamKey(team_id=team.id, role=ROLE, key_hash=hash_team_key(plain), active=True))
-
-# Audit (IP zkrácena na symbolický údaj "admin")
 try:
     db.session.add(AuditEvent(event='team.key_rotated', team_id=team.id, role='coach', ip_truncated='admin', meta=f'{{"role":"{ROLE}"}}'))
 except Exception:
     pass
-
 db.session.commit()
 print("NEW_KEY=", plain)
 ```
+3) Předat trenérovi mimo aplikaci. Starý klíč přestává platit okamžitě.
 
-5) Bezpečně předej nový klíč trenérovi (mimo aplikaci). Klíč nikam neloguj ani nevkládej do URL.
+---
 
-Poznámky
+## Poznámky k UI/UX
+- Barvy značky: `--brand-primary` (pozadí), `--brand-secondary` (text na tmavém podkladu). Aplikace dopočítá `--on-primary`/`--on-secondary` pro čitelnost i při špatném zvolení barev.
+- Formace: barvy jednotlivých karet se ukládají per karta (localStorage) a kontroluje se kontrast textu.
+- Mobil: hamburger menu, swiper mezi formacemi, toast/sheet interakce v kalendáři.
 
-- Rotace je okamžitá – starý klíč přestane fungovat hned.
-- Pro roli hráče změň `ROLE = "player"`.
-- V produkci vždy přes HTTPS/SSH.
+---
 
-Placená varianta (návrh)
+Autor: Martin Šnajdr  
+Kontakt: martinsnajdr@coachhubhockey.com
 
-- Klíče mohou být platné 30 dní (kontrola při přihlášení) a obnova povolena až po zaplacení.
-- Doporučeno zobrazovat v Nastavení počet dnů do expirace a všechny rotace logovat do audit logu.
-
-Autor: Martin Šnajdr – interní nástroj pro trenéry (HC Smíchov 1913 → univerzální použití).

@@ -2,172 +2,200 @@
 {% block title %}Rozdělení do lajn{% endblock %}
 
 {% block content %}
-<h1>Rozdělení hráčů do formací</h1>
+<link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
+<div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+  <h1 style="text-align:center; margin:0;">Rozdělení hráčů do formací</h1>
+  <button type="button" class="help-btn" data-help="lines" data-help-src="help-lines"><span class="ico">i</span> Nápověda</button>
+</div>
+<div id="help-lines" style="display:none;">
+  <h3>Jak používat Formace</h3>
+  <ul>
+    <li>Přetáhni hráče z poolu do slotu (LW/C/RW, LD/RD), nebo ťukni na pilulku a pak na slot.</li>
+    <li>Barvy karty nastav “Podklad”/“Text”; ukládají se automaticky (per karta).</li>
+    <li>Na mobilu swipuj mezi kartami; pager tečky ukazují pozici.</li>
+    <li>Tlačítko “Vymazat všechny výběry” vyprázdní všechny sloty.</li>
+  </ul>
+</div>
 
-<div class="lines-container">
-    <!-- LEVÝ sloupec – formulář -->
+<div class="lines-container" style="grid-template-columns: 1fr; justify-content:center;">
+    <!-- LEVÝ sloupec – drag & drop sestava -->
     <div class="lines-form">
-        <form method="POST">
+        {# Macros to render slots #}
+        {% macro slot_row(slot_name, accept, label) -%}
+          <div class="slot accept-{{ accept }}" data-slot="{{ slot_name }}" data-accept="{{ accept }}" data-label="{{ label }}" aria-label="Slot {{ label }} {{ slot_name }}">
+            <input type="hidden" name="{{ slot_name }}" value="{{ assignments.get(slot_name,'') }}">
+            {% set pid = assignments.get(slot_name) %}
+            {% if pid %}
+              <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
+            {% else %}
+              <span class="ph">Přetáhni {{ 'útočníka' if accept=='F' else ('obránce' if accept=='D' else 'brankáře') }}…</span>
+            {% endif %}
+          </div>
+        {%- endmacro %}
+
+        {# Render one formation card (used for grid and mobile swiper) #}
+        {% macro formation_card(line) -%}
+          <div class="formation" data-line="{{ line }}" style="--form-bg:#f9f9f9; --form-fg:#000;">
+            <h3>{{ line }}. Formace</h3>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; margin-bottom:6px;">
+              <label>Podklad <input type="color" value="{{ brand.secondary or '#000000' }}" data-bg style="vertical-align:middle; width:32px; height:22px; padding:0; border:none; background:transparent;"></label>
+              <label>Text <input type="color" value="{{ brand.primary or '#d4c76f' }}" data-fg style="vertical-align:middle; width:32px; height:22px; padding:0; border:none; background:transparent;"></label>
+            </div>
+            <div class="slots">
+              {{ slot_row('L' ~ line ~ 'LW', 'F', 'LW') }}
+              {{ slot_row('L' ~ line ~ 'C',  'F', 'C') }}
+              {{ slot_row('L' ~ line ~ 'RW', 'F', 'RW') }}
+            </div>
+            <div class="slots slots--def">
+              {{ slot_row('D' ~ line ~ 'LD', 'D', 'LD') }}
+              {{ slot_row('D' ~ line ~ 'RD', 'D', 'RD') }}
+            </div>
+          </div>
+        {%- endmacro %}
+        <form method="POST" id="linesForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {# Pools: F, D, G (show all; assigned will be color-badged) #}
+            <div style="display:flex; align-items:center; gap:12px; margin:8px 0 6px; flex-wrap:wrap;">
+              <label style="font-size:14px; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="hideAssigned"> Skrýt obsazené hráče
+              </label>
+              <button type="button" id="btnResetColors" style="padding:6px 10px; border-radius:8px; border:1px solid #bbb; background:#fff; cursor:pointer;">Vynulovat barvy formací</button>
+            </div>
+            {% set assigned_ids = assignments.values()|list %}
+            <div class="pool-title">Útočníci</div>
+            <div class="pool" id="poolF">
+              {% for r in roster if r.player.position == 'F' %}
+                {% set ass_slot = '' %}
+                {% for k,v in assignments.items() %}
+                  {% if v == r.player.id %}{% set ass_slot = k %}{% endif %}
+                {% endfor %}
+                <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="F" data-ass-slot="{{ ass_slot }}">
+                  <span class="pl-badge" data-badge>—</span> {{ r.player.name }}
+                </div>
+              {% endfor %}
+            </div>
+            <div class="pool-title">Obránci</div>
+            <div class="pool" id="poolD">
+              {% for r in roster if r.player.position == 'D' %}
+                {% set ass_slot = '' %}
+                {% for k,v in assignments.items() %}
+                  {% if v == r.player.id %}{% set ass_slot = k %}{% endif %}
+                {% endfor %}
+                <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="D" data-ass-slot="{{ ass_slot }}">
+                  <span class="pl-badge" data-badge>—</span> {{ r.player.name }}
+                </div>
+              {% endfor %}
+            </div>
+            <div class="pool-title">Brankáři</div>
+            <div class="pool" id="poolG">
+              {% for r in roster if r.player.position == 'G' %}
+                {% set ass_slot = '' %}
+                {% for k,v in assignments.items() %}
+                  {% if v == r.player.id %}{% set ass_slot = k %}{% endif %}
+                {% endfor %}
+                <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="G" data-ass-slot="{{ ass_slot }}">
+                  <span class="pl-badge" data-badge>—</span> {{ r.player.name }}
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="formations-grid" id="formations">
             {% for line in range(1,5) %}
-                <h2>{{ line }}. Formace</h2>
-
-                <p>
-                    <label>LW:
-                        <select name="L{{line}}LW">
-                            <option value="">-- vyber hráče --</option>
-                            {% for r in roster if r.player.position == "F" %}
-                                <option value="{{ r.player.id }}"
-                                    {% if assignments.get("L" ~ line ~ "LW") == r.player.id %}selected{% endif %}>
-                                    {{ r.player.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>C:
-                        <select name="L{{line}}C">
-                            <option value="">-- vyber hráče --</option>
-                            {% for r in roster if r.player.position == "F" %}
-                                <option value="{{ r.player.id }}"
-                                    {% if assignments.get("L" ~ line ~ "C") == r.player.id %}selected{% endif %}>
-                                    {{ r.player.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>RW:
-                        <select name="L{{line}}RW">
-                            <option value="">-- vyber hráče --</option>
-                            {% for r in roster if r.player.position == "F" %}
-                                <option value="{{ r.player.id }}"
-                                    {% if assignments.get("L" ~ line ~ "RW") == r.player.id %}selected{% endif %}>
-                                    {{ r.player.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                </p>
-
-                <p>
-                    <label>LD:
-                        <select name="D{{line}}LD">
-                            <option value="">-- vyber hráče --</option>
-                            {% for r in roster if r.player.position == "D" %}
-                                <option value="{{ r.player.id }}"
-                                    {% if assignments.get("D" ~ line ~ "LD") == r.player.id %}selected{% endif %}>
-                                    {{ r.player.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>RD:
-                        <select name="D{{line}}RD">
-                            <option value="">-- vyber hráče --</option>
-                            {% for r in roster if r.player.position == "D" %}
-                                <option value="{{ r.player.id }}"
-                                    {% if assignments.get("D" ~ line ~ "RD") == r.player.id %}selected{% endif %}>
-                                    {{ r.player.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                </p>
-                <hr>
+              {{ formation_card(line) }}
             {% endfor %}
+            </div>
 
             <h2>Brankáři</h2>
-            <p>
-                <label>G1:
-                    <select name="G1">
-                        <option value="">-- vyber hráče --</option>
-                        {% for r in roster if r.player.position == "G" %}
-                            <option value="{{ r.player.id }}"
-                                {% if assignments.get("G1") == r.player.id %}selected{% endif %}>
-                                {{ r.player.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </label>
+            <div class="slots" style="grid-template-columns: repeat(2, minmax(220px, 1fr));">
+              <div class="slot accept-G" data-slot="G1" data-accept="G" data-label="G1">
+                <input type="hidden" name="G1" value="{{ assignments.get('G1','') }}">
+                {% set pid = assignments.get('G1') %}
+                {% if pid %}
+                  <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
+                {% else %}
+                  <span class="ph">Přetáhni brankáře…</span>
+                {% endif %}
+              </div>
+              <div class="slot accept-G" data-slot="G2" data-accept="G" data-label="G2">
+                <input type="hidden" name="G2" value="{{ assignments.get('G2','') }}">
+                {% set pid = assignments.get('G2') %}
+                {% if pid %}
+                  <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
+                {% else %}
+                  <span class="ph">Přetáhni brankáře…</span>
+                {% endif %}
+              </div>
+            </div>
 
-                <label>G2:
-                    <select name="G2">
-                        <option value="">-- vyber hráče --</option>
-                        {% for r in roster if r.player.position == "G" %}
-                            <option value="{{ r.player.id }}"
-                                {% if assignments.get("G2") == r.player.id %}selected{% endif %}>
-                                {{ r.player.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </label>
-            </p>
-
-            <br>
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <button type="submit">💾 Uložit Formace</button>
-                <button type="button" class="btn-lines-clear">🧹 Vymazat všechny výběry</button>
+            {# Mobile swiper: horizontal slides (1 card per view) #}
+            <div class="lines-swiper" aria-label="Přejeď pro další formace">
+              <div class="lines-track" id="linesTrack">
+                {% for line in range(1,5) %}
+                  <div class="slide">
+                    {{ formation_card(line) }}
+                  </div>
+                {% endfor %}
+                <div class="slide">
+                  <div class="formation" data-line="G" style="--form-bg:#f9f9f9; --form-fg:#000;">
+                    <h3>Brankáři</h3>
+                    <div class="slots slots--def">
+                      {{ slot_row('G1','G','G1') }}
+                      {{ slot_row('G2','G','G2') }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="lines-pager" id="linesPager" aria-label="Stránkování formací"></div>
+            </div>
+            <div class="actions">
+              <button type="submit">💾 Uložit Formace</button>
+              <button type="button" class="btn-lines-clear">🧹 Vymazat všechny výběry</button>
             </div>
         </form>
+
+        {# script moved to scripts block to load late #}
     </div>
 
-    <!-- PRAVÝ sloupec – aktuální rozdělení -->
-    <div class="lines-preview">
-        <h2>Aktuální rozdělení</h2>
-        {% for line in range(1,5) %}
-            <h3>{{ line }}. Formace</h3>
-            <p>
-                Útok:
-                {% set lw = assignments.get("L" ~ line ~ "LW") %}
-                {% set c  = assignments.get("L" ~ line ~ "C") %}
-                {% set rw = assignments.get("L" ~ line ~ "RW") %}
-                {{ (roster|selectattr("player_id","equalto",lw)|map(attribute="player.name")|first) or "-" }}
-                –
-                {{ (roster|selectattr("player_id","equalto",c)|map(attribute="player.name")|first) or "-" }}
-                –
-                {{ (roster|selectattr("player_id","equalto",rw)|map(attribute="player.name")|first) or "-" }}
-            </p>
-            <p>
-                Obrana:
-                {% set ld = assignments.get("D" ~ line ~ "LD") %}
-                {% set rd = assignments.get("D" ~ line ~ "RD") %}
-                {{ (roster|selectattr("player_id","equalto",ld)|map(attribute="player.name")|first) or "-" }}
-                –
-                {{ (roster|selectattr("player_id","equalto",rd)|map(attribute="player.name")|first) or "-" }}
-            </p>
-        {% endfor %}
-
-        <h3>Brankáři</h3>
-        <p>
-            G1:
-            {% set g1 = assignments.get("G1") %}
-            {{ (roster|selectattr("player_id","equalto",g1)|map(attribute="player.name")|first) or "-" }}
-        </p>
-        <p>
-            G2:
-            {% set g2 = assignments.get("G2") %}
-            {{ (roster|selectattr("player_id","equalto",g2)|map(attribute="player.name")|first) or "-" }}
-        </p>
-
-        <hr>
-        {% if is_coach %}
-        <h2>Export sestavy do PDF</h2>
-        <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Soupeř<br>
-                <input type="text" name="opponent" placeholder="Soupeř" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
-            </label>
-            <label>Datum<br>
-                <input type="date" name="date" value="{{ (namespace().today if false else '') }}" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
-            </label>
-            <button type="submit">📄 Exportovat PDF a uložit</button>
-            <a href="{{ url_for('lineup_sessions') }}"><button type="button">🗂 Seznam sestav</button></a>
-        </form>
-        {% endif %}
+    {% if is_coach %}
+    <div style="max-width:980px; margin: 16px auto 0;">
+      <hr>
+      <h2>Export sestavy do PDF</h2>
+      <form method="post" action="{{ url_for('export_lines_pdf') }}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Soupeř<br>
+              <input type="text" name="opponent" placeholder="Soupeř" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
+          </label>
+          <label>Datum<br>
+              <input type="date" name="date" value="{{ (namespace().today if false else '') }}" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc;">
+          </label>
+          <button type="submit">📄 Exportovat PDF a uložit</button>
+          <a href="{{ url_for('lineup_sessions') }}"><button type="button">🗂 Seznam sestav</button></a>
+      </form>
     </div>
+    {% endif %}
 </div>
 
 {# moved to static/app.js #}
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='lines.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script nonce="{{ csp_nonce }}">
+    // Sentinel: if external JS didn't set __linesBound shortly after load, surface a small hint
+    setTimeout(function(){
+      try {
+        if(!window.__linesBound){
+          console.error('[lines] init sentinel: external JS did not run');
+          var note=document.createElement('div');
+          note.textContent='Lines: skript se nespustil (zkontroluj konzoli/CSP)';
+          note.style.cssText='position:fixed;bottom:10px;left:10px;background:#c44747;color:#fff;padding:6px 10px;border-radius:6px;z-index:9999;font:14px/1.2 system-ui';
+          document.body.appendChild(note);
+          setTimeout(function(){ if(note && note.parentNode) note.parentNode.removeChild(note); }, 4000);
+        } else {
+          console.debug('[lines] init sentinel ok', window.__linesBound);
+        }
+      } catch(e){}
+    }, 100);
+  </script>
 {% endblock %}

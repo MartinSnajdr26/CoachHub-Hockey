@@ -4,6 +4,31 @@
     if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
     else fn();
   }
+  // Contrast helpers (mirrors lines.js logic)
+  function hexToRgb(h){ try{ var m=(h||'').trim(); if(!m) return [0,0,0]; m=m.replace('#',''); if(m.length===3){ m=m.split('').map(function(x){return x+x;}).join(''); } return [parseInt(m.slice(0,2),16)||0,parseInt(m.slice(2,4),16)||0,parseInt(m.slice(4,6),16)||0]; }catch(_){ return [0,0,0]; } }
+  function luminance(c){ try{ var s=c.map(function(v){ v/=255; return v<=0.03928? v/12.92: Math.pow((v+0.055)/1.055,2.4)}); return 0.2126*s[0]+0.7152*s[1]+0.0722*s[2]; }catch(_){ return 0; } }
+  function contrast(rgb1,rgb2){ try{ var L1=luminance(rgb1),L2=luminance(rgb2); var a=Math.max(L1,L2), b=Math.min(L1,L2); return (a+0.05)/(b+0.05); }catch(_){ return 1; } }
+  function ensureContrast(bgHex, fgHex, min){
+    min = min || 4.5; try{
+      var bg = hexToRgb(bgHex||'#000000'); var fg = hexToRgb((fgHex||'#ffffff'));
+      if(contrast(bg, fg) >= min) return fgHex;
+      var blackC = contrast(bg, [0,0,0]); var whiteC = contrast(bg,[255,255,255]);
+      return blackC > whiteC ? '#000000' : '#ffffff';
+    }catch(_){ return fgHex || '#ffffff'; }
+  }
+  function cssVar(el, name, fallback){ try{ var v=getComputedStyle(el||document.body).getPropertyValue(name).trim(); return v || fallback; }catch(_){ return fallback; } }
+  function setGlobalOnColors(){
+    try{
+      var el = document.body || document.documentElement;
+      var prim = cssVar(el, '--brand-primary', '#d4c76f');
+      var sec  = cssVar(el, '--brand-secondary', '#000000');
+      // Text colors designed for primary/secondary backgrounds
+      var onPrim = ensureContrast(prim, sec, 4.5);
+      var onSec  = ensureContrast(sec, prim, 4.5);
+      el.style.setProperty('--on-primary', onPrim);
+      el.style.setProperty('--on-secondary', onSec);
+    }catch(_){ }
+  }
 
   // (team mode radios removed; using segmented toggle below)
 
@@ -23,6 +48,8 @@
   }
 
   onReady(function(){
+    // Compute global readable text colors against brand backgrounds
+    setGlobalOnColors();
     // Calendar: mobile tap-to-toast detail
     try {
       var mqMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -597,3 +624,16 @@
   if(rosterSelectAll){ rosterSelectAll.addEventListener('click', function(){ setRosterChecked(true); }); }
   if(rosterDeselectAll){ rosterDeselectAll.addEventListener('click', function(){ setRosterChecked(false); }); }
     });
+
+// --- Fallback binding for Roster page (in case previous block didn't run) ---
+(function(){
+  function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+  ready(function(){
+    var selectAll = document.querySelector('.btn-roster-select-all');
+    var deselectAll = document.querySelector('.btn-roster-deselect-all');
+    var grid = document.querySelector('.players-grid');
+    function setAll(val){ if(!grid) return; Array.prototype.slice.call(grid.querySelectorAll('input[type="checkbox"][name="players"]')).forEach(function(cb){ cb.checked = !!val; }); }
+    if(selectAll && !selectAll.__bound){ selectAll.__bound=true; selectAll.addEventListener('click', function(){ setAll(true); }); }
+    if(deselectAll && !deselectAll.__bound){ deselectAll.__bound=true; deselectAll.addEventListener('click', function(){ setAll(false); }); }
+  });
+})();

@@ -2,7 +2,18 @@
 {% block title %}Soupiska hráčů{% endblock %}
 
 {% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
 <h1>Soupiska hráčů</h1>
+  <button type="button" class="help-btn" data-help="players" data-help-src="help-players"><span class="ico">i</span> Nápověda</button>
+</div>
+<div id="help-players" style="display:none;">
+  <h3>Jak pracovat se stránkou Hráči</h3>
+  <ul>
+    <li>Přidej hráče pomocí formuláře dole, pozice F/D/G.</li>
+    <li>Hráče lze upravit nebo odebrat pomocí akcí u jména.</li>
+    <li>Hráči z této sekce se používají v Rosteru a Formacích.</li>
+  </ul>
+</div>
 
 <!-- Formulář pro přidání hráče -->
 <form action="{{ url_for('add_player') }}" method="POST" style="margin-bottom:20px;">

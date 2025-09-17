@@ -5,7 +5,7 @@
 <h1>Seznam sestav</h1>
 
 <p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-  <a href="{{ url_for('lines') }}"><button>⚙️ Otevřít lajny</button></a>
+  <a href="{{ url_for('lines') }}"><button>⚙️ Otevřít formace</button></a>
   <span style="font-size:12px; opacity:0.8;">Smazání záznamu odstraní i PDF.</span>
   </p>
 
@@ -21,7 +21,7 @@
         <a href="https://api.whatsapp.com/send?text={{ ('Sestava: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
         <button type="button" class="btn-share-pdf" data-url="{{ abs }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
       </p>
-      {% if current_user.is_authenticated and current_user.role == 'coach' %}
+      {% if is_coach %}
       <form method="post" action="{{ url_for('delete_lineup_session', sess_id=s.id) }}" onsubmit="return confirm('Smazat sestavu? PDF bude odstraněno.');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat</button>

@@ -2,85 +2,98 @@
 {% block title %}Nominace na zápas{% endblock %}
 
 {% block content %}
-<h1>Nominace na zápas</h1>
+<link rel="stylesheet" href="{{ url_for('static', filename='roster.css', v=csp_nonce) }}">
+<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+  <h1>Nominace na zápas</h1>
+  <button type="button" class="help-btn" data-help="roster" data-help-src="help-roster"><span class="ico">i</span> Nápověda</button>
+</div>
+<div id="help-roster" style="display:none;">
+  <h3>Jak nominovat hráče</h3>
+  <ul>
+    <li>Přetáhni hráče z poolu do sekce Nominace nebo na pilulku klikni.</li>
+    <li>Pro rychlé akce použij: Vybrat vše / Zrušit výběr / Vyčistit nominaci.</li>
+    <li>Po uložení se výběr uloží a zůstane viditelný.</li>
+  </ul>
+</div>
 
-<form method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div style="margin:10px 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <button type="button" class="btn-roster-select-all">✅ Vybrat vše</button>
-        <button type="button" class="btn-roster-deselect-all">✖️ Zrušit výběr</button>
+{# Macra #}
+{% macro hidden_checkbox(p) -%}
+  <input type="checkbox" name="players" value="{{ p.id }}" {% if p.id in roster_ids %}checked{% endif %} hidden>
+{%- endmacro %}
+{% macro player_pill(p) -%}
+  <div class="pl-item" draggable="true" data-id="{{ p.id }}" data-pos="{{ p.position }}" aria-label="{{ p.name }} ({{ p.position }})" tabindex="0">
+    <span class="pl-badge">{{ p.position }}</span> {{ p.name }}
+  </div>
+{%- endmacro %}
+
+<form id="rosterForm" method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="roster-actions">
+    <button type="button" class="btn-roster-select-all">✅ Vybrat vše</button>
+    <button type="button" class="btn-roster-deselect-all">✖ Zrušit výběr</button>
+    <label class="toggle"><input type="checkbox" id="hideAssigned"> Skrýt vybrané</label>
+    <input type="text" id="playerSearch" placeholder="Hledat hráče…">
+  </div>
+
+  <div class="pools">
+    <div class="pool-block">
+      <h2>Útočníci</h2>
+      <div class="pool" id="poolF">
+        {% for p in players if p.position == 'F' %}
+          {{ player_pill(p) }}
+        {% endfor %}
+      </div>
     </div>
-    <div class="players-grid">
-        <!-- Útočníci -->
-        <div>
-            <h2>Útočníci</h2>
-            <ul>
-            {% for p in players if p.position == "F" %}
-                <li>
-                    <input type="checkbox" name="players" value="{{ p.id }}"
-                        {% if p.id in roster_ids %}checked{% endif %}>
-                    {{ p.name }}
-                </li>
-            {% else %}
-                <li><i>Žádní útočníci</i></li>
-            {% endfor %}
-            </ul>
-        </div>
-
-        <!-- Obránci -->
-        <div>
-            <h2>Obránci</h2>
-            <ul>
-            {% for p in players if p.position == "D" %}
-                <li>
-                    <input type="checkbox" name="players" value="{{ p.id }}"
-                        {% if p.id in roster_ids %}checked{% endif %}>
-                    {{ p.name }}
-                </li>
-            {% else %}
-                <li><i>Žádní obránci</i></li>
-            {% endfor %}
-            </ul>
-        </div>
-
-        <!-- Brankáři -->
-        <div>
-            <h2>Brankáři</h2>
-            <ul>
-            {% for p in players if p.position == "G" %}
-                <li>
-                    <input type="checkbox" name="players" value="{{ p.id }}"
-                        {% if p.id in roster_ids %}checked{% endif %}>
-                    {{ p.name }}
-                </li>
-            {% else %}
-                <li><i>Žádní gólmani</i></li>
-            {% endfor %}
-            </ul>
-        </div>
+    <div class="pool-block">
+      <h2>Obránci</h2>
+      <div class="pool" id="poolD">
+        {% for p in players if p.position == 'D' %}
+          {{ player_pill(p) }}
+        {% endfor %}
+      </div>
     </div>
+    <div class="pool-block">
+      <h2>Brankáři</h2>
+      <div class="pool" id="poolG">
+        {% for p in players if p.position == 'G' %}
+          {{ player_pill(p) }}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 
-    <button type="submit" style="margin-top:15px;">💾 Uložit soupisku</button>
+  <div class="selected-wrap">
+    <h2>Nominace
+      <small>(F: <span id="cntF">0</span> · D: <span id="cntD">0</span> · G: <span id="cntG">0</span>)</small>
+    </h2>
+    <div id="rosterSelected" class="selected" aria-label="Vybraní hráči" tabindex="0">
+      {# Server-side prefill selected (so state persists after save without waiting for JS) #}
+      {% for r in roster %}
+        <div class="sel-item" data-id="{{ r.player.id }}" data-pos="{{ r.player.position }}">
+          <span class="pl-badge">{{ r.player.position }}</span> {{ r.player.name }}
+          <button type="button" class="btn-x" aria-label="Odebrat">×</button>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="submit">💾 Uložit soupisku</button>
+    <button type="button" class="btn-roster-clear">🧹 Vyčistit nominaci</button>
+  </div>
+
+  {# Hidden checkboxes for backend POST #}
+  <div id="hiddenChecks" aria-hidden="true" style="display:none;">
+    {% for p in players %}
+      {{ hidden_checkbox(p) }}
+    {% endfor %}
+  </div>
 </form>
 
-<hr>
+{% endblock %}
 
-<h2>Aktuální nominace</h2>
-<ul>
-{% for r in roster %}
-    <li>
-        {{ r.player.name }} ({{ r.player.position }})
-        <!-- ✏ edit zatím jen placeholder -->
-        <a href="#" title="Upravit">✏</a>
-
-        <!-- ❌ smaže hráče ze soupisky -->
-        <form action="{{ url_for('delete_from_roster', roster_id=r.id) }}" method="POST" style="display:inline;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" title="Odebrat">❌</button>
-        </form>
-    </li>
-{% else %}
-    <li><i>Zatím žádní hráči v soupisce</i></li>
-{% endfor %}
-</ul>
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='roster.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
 {% endblock %}

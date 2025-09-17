@@ -30,8 +30,12 @@
         <h2>🔐 Přihlásit tým</h2>
         <form method="POST" action="{{ url_for('team_login') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Vyhledat tým<br>
+            <input type="text" id="teamSearch" placeholder="Začni psát název týmu…" autocomplete="off">
+          </label>
           <label>Tým<br>
-            <select name="team_id" required>
+            <select name="team_id" id="existingTeam" required>
+              <option value="" selected disabled hidden>Vyber tým…</option>
               {% for t in teams %}
                 <option value="{{ t.id }}">{{ t.name }}</option>
               {% endfor %}

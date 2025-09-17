@@ -1,0 +1,12 @@
+/* Lightweight help modal + info button */
+.help-btn{ display:inline-flex; align-items:center; gap:6px; font-size:14px; padding:4px 8px; border-radius:8px; border:1px solid var(--brand-secondary, #000); background:#fff; color:var(--brand-secondary, #000); cursor:pointer; }
+.help-btn .ico{ width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background: var(--brand-secondary, #000); color: var(--on-secondary); font-weight:700; font-size:12px; }
+
+.help-modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:9999; }
+.help-modal.open{ display:flex; }
+.help-backdrop{ position:absolute; inset:0; background: rgba(0,0,0,0.5); }
+.help-dialog{ position:relative; max-width:720px; width:clamp(280px, 90vw, 720px); max-height:80vh; overflow:auto; background:#fff; color:#000; border-radius:12px; border:2px solid var(--brand-secondary, #000); box-shadow:0 10px 30px rgba(0,0,0,.3); padding:16px; }
+.help-dialog h3{ margin-top:0; }
+.help-close{ position:absolute; top:8px; right:8px; border:none; background:#eee; border-radius:6px; padding:4px 8px; cursor:pointer; }
+.help-foot{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:10px; font-size:12px; }
+.help-foot label{ display:inline-flex; align-items:center; gap:6px; }

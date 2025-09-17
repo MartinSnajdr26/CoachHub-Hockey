@@ -2,7 +2,17 @@
 {% block title %}Vybrat tréninky k exportu{% endblock %}
 
 {% block content %}
-<h1>Vybrat tréninky k exportu (PDF)</h1>
+<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+  <h1>Vybrat tréninky k exportu (PDF)</h1>
+  <button type="button" class="help-btn" data-help="drills_select" data-help-src="help-drills-select"><span class="ico">i</span> Nápověda</button>
+</div>
+<div id="help-drills-select" style="display:none;">
+  <h3>Jak vybrat cvičení pro export</h3>
+  <ul>
+    <li>Zaškrtnutím přidej cvičení do výběru a nastav pořadí.</li>
+    <li>Export do PDF nebo uložení tréninku bez PDF najdeš nahoře/dole.</li>
+  </ul>
+</div>
 
 <form method="get" style="margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
   <input type="text" name="q" value="{{ query }}" placeholder="Hledat podle názvu, popisu, kategorie" style="padding:6px 10px; width:320px; border-radius:6px; border:1px solid #ccc;">
