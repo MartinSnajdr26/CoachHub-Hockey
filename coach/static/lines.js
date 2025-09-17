@@ -9,6 +9,21 @@
     function $all(s,root){ return Array.prototype.slice.call((root||document).querySelectorAll(s)); }
     function poolFor(pos){ return pos==='F' ? $('#poolF') : pos==='D' ? $('#poolD') : $('#poolG'); }
     function findSlotOf(id){ var f=$all('.slot .fill').find(function(x){ return x.getAttribute('data-id')===String(id); }); return f?f.closest('.slot'):null; }
+    // Shrink pill text to fit inside the slot without overflow
+    function adjustPillSpan(span){
+      if(!span) return;
+      try {
+        var max = 18, min = 12, step = 0.5, safety = 48;
+        // Start from max size each time so it can grow when space allows
+        span.style.fontSize = max + 'px';
+        var parent = span.parentElement; if(parent){ parent.style.minWidth = '0'; }
+        while(safety-- > 0 && span.scrollWidth > span.clientWidth + 1 && max > min){
+          max = Math.max(min, max - step);
+          span.style.fontSize = max + 'px';
+        }
+      } catch(_){}
+    }
+    function adjustAllPills(){ $all('.slot .fill > span').forEach(adjustPillSpan); }
     function updatePoolBadges(){
       $all('.pl-item').forEach(function(el){
         var id = el.dataset.id; var b = el.querySelector('[data-badge]');
@@ -50,7 +65,7 @@
       var bx=document.createElement('button'); bx.type='button'; bx.className='btn-x'; bx.textContent='×'; bx.setAttribute('aria-label','Odebrat hráče ze slotu');
       bx.addEventListener('click', function(){ clearSlot(slotEl); });
       fill.appendChild(span); fill.appendChild(bx); slotEl.appendChild(fill);
-      bindFillDrag(fill, slotEl); updatePoolBadges(); applyHide();
+      bindFillDrag(fill, slotEl); updatePoolBadges(); applyHide(); adjustPillSpan(span);
     }
     function bindSelect(el){
       el.addEventListener('click', function(){ if(selectedEl){ selectedEl.classList.remove('is-selected'); if(selectedEl===el){ selectedEl=null; selectedId=null; return; }} selectedEl=el; selectedId=el.dataset.id; el.classList.add('is-selected'); });
@@ -188,7 +203,11 @@
       var hid = slot.querySelector('input[type="hidden"]');
       if(hid && !hid.value){ placeInto(slot, id, name, pos); }
     });
-    updatePoolBadges(); applyHide();
+    updatePoolBadges(); applyHide(); adjustAllPills();
+    var __lines_resize_to = null; window.addEventListener('resize', function(){
+      clearTimeout(__lines_resize_to);
+      __lines_resize_to = setTimeout(adjustAllPills, 80);
+    });
     try { window.__linesBound = { slots: $all('.slot').length, pools: $all('.pl-item').length }; console.debug('[lines] init ok', window.__linesBound); } catch(_) {}
     // Clear all button handler
     var btnClr = document.querySelector('.btn-lines-clear');

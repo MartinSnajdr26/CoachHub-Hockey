@@ -4,7 +4,7 @@
 #help-lines{ display:none; }
 
 /* Page container: align with global content width and gutters */
-.lines-container{ max-width: 960px; margin: 20px auto 0; padding-left: 16px; padding-right: 16px; }
+.lines-container{ max-width: 1100px; margin: 20px auto 0; padding-left: 16px; padding-right: 16px; }
 
 .lines-container .pool{ display:flex; flex-wrap:wrap; gap:8px; padding:6px; border:0; border-radius:8px; background: var(--brand-primary, #d4c76f); color: var(--on-primary); margin-bottom:10px; }
 .lines-container .pool-title{ font-weight:700; margin:6px 0 4px; }
@@ -16,7 +16,7 @@
 .ln3{ background: var(--line3-accent, #ff9800) !important; }
 .ln4{ background: var(--line4-accent, #9c27b0) !important; }
 
-.lines-container .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(320px, 1fr)); gap:12px; margin-top:8px; }
+.lines-container .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(380px, 1fr)); gap:12px; margin-top:8px; }
 @media (max-width: 1100px){ .lines-container .formations-grid{ grid-template-columns: repeat(2, minmax(280px, 1fr)); } }
 @media (max-width: 640px){ .lines-container .formations-grid{ grid-template-columns: 1fr; } }
 /* Center the formations area independently of the overall form width */
@@ -34,9 +34,9 @@
 .lines-container .formation .slot{ background: var(--brand-secondary, #000); color: var(--brand-primary, #d4c76f); }
 .lines-container .lines-form .formation .slot{ background: var(--brand-secondary, #000); }
 
-.lines-container .slot{ min-height:42px; border:0; border-radius:8px; padding:6px; display:flex; align-items:center; justify-content:space-between; gap:8px; user-select:none; }
-.lines-container .slot.accept-F::after, .lines-container .slot.accept-D::after, .lines-container .slot.accept-G::after{ content: attr(data-label); font-size:12px; opacity:.6; margin-left:auto; }
-.lines-container .slot .fill{ display:flex; align-items:center; gap:8px; width:100%; justify-content:space-between; user-select:none; background: var(--brand-secondary, #000); color: var(--brand-primary, #d4c76f); border:0; border-radius:999px; padding:6px 12px; font-size:18px; line-height:1.25; white-space:nowrap; }
+.lines-container .slot{ min-height:42px; border:0; border-radius:8px; padding:6px; display:flex; align-items:center; justify-content:flex-start; gap:8px; user-select:none; min-width:0; }
+.lines-container .slot.accept-F::after, .lines-container .slot.accept-D::after, .lines-container .slot.accept-G::after{ content: attr(data-label); font-size:12px; opacity:.6; margin-left:8px; display:inline-block; white-space:nowrap; }
+.lines-container .slot .fill{ display:flex; align-items:center; gap:8px; flex:1 1 auto; width:auto; justify-content:space-between; user-select:none; background: var(--brand-secondary, #000); color: var(--brand-primary, #d4c76f); border:0; border-radius:999px; padding:6px 12px; font-size:18px; line-height:1.25; white-space:nowrap; box-sizing:border-box; min-width:0; }
 /* center the name text inside the pill */
 .lines-container .slot .fill{ min-width: 0; }
 .slot .fill > span{ flex:1; text-align:center; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -102,13 +102,13 @@
 @media (max-width: 700px){
   #formations{ display:none; }
   .desktop-only{ display:none !important; }
-  .lines-container .lines-swiper{ display:block; }
+  .lines-container .lines-swiper{ display:block; max-width: 100%; overflow: hidden; }
   /* Align with global gutters from `main` (30px); avoid extra inner padding */
   .lines-container .lines-form{ padding-left: 0; padding-right: 0; max-width: 100%; }
   /* Restore swiper: one centered card per view with side gutters */
-  .lines-container .lines-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling: touch; gap:12px; }
+  .lines-container .lines-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling: touch; gap:0; padding: 0 8px; box-sizing: border-box; }
   .lines-container .lines-track .slide{ display:flex; flex: 0 0 100%; justify-content: center; padding: 8px 8px; box-sizing: border-box; scroll-snap-align:start; }
-  .lines-container .lines-track .slide > .formation{ max-width: 520px; width: calc(100% - 32px); margin: 0 auto; }
+  .lines-container .lines-track .slide > .formation{ max-width: 560px; width: calc(100% - 32px); margin: 0 auto; }
   .lines-container .lines-pager{ display: flex; }
   /* Slightly tighter spacing and text for narrow screens */
   .lines-container .slots{ gap: 6px; }
