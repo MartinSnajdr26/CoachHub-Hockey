@@ -105,9 +105,11 @@
   .lines-container .lines-swiper{ display:block; }
   /* Align with global gutters from `main` (30px); avoid extra inner padding */
   .lines-container .lines-form{ padding-left: 0; padding-right: 0; max-width: 100%; }
-  /* Center and size cards within each slide for a carousel look */
-  .lines-container .lines-track .slide{ justify-content: center; padding: 8px 0; box-sizing: border-box; }
-  .lines-container .lines-track .slide > .formation{ max-width: 460px; margin: 0 auto; }
+  /* Stack slides vertically to avoid horizontal scrolling on mobile */
+  .lines-container .lines-track{ display:block; overflow-x: visible; scroll-snap-type: none; }
+  .lines-container .lines-track .slide{ display:block; flex: none; padding: 8px 0; box-sizing: border-box; }
+  .lines-container .lines-track .slide > .formation{ max-width: 460px; margin: 0 auto; width: auto; }
+  .lines-container .lines-pager{ display: none; }
 }
 
 /* Desktop tweaks (swiper hidden, but keep sizing consistent if toggled) */
