@@ -21,6 +21,8 @@
 .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(320px, 1fr)); gap:12px; margin-top:8px; }
 @media (max-width: 1100px){ .formations-grid{ grid-template-columns: repeat(2, minmax(280px, 1fr)); } }
 @media (max-width: 640px){ .formations-grid{ grid-template-columns: 1fr; } }
+/* Center the formations area independently of the overall form width */
+.lines-form #formations{ max-width: 980px; margin-left:auto; margin-right:auto; width:100%; }
 
 /* Formation card uses CSS variables for easy color control */
 .formation{ padding:12px; border:4px solid var(--brand-primary, #d4c76f); border-radius:12px; background: var(--form-bg, var(--brand-secondary, #000)); color: var(--form-fg, var(--brand-primary, #d4c76f)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary, #d4c76f) 60%, transparent); }
@@ -63,7 +65,7 @@
     0 0 0 3px var(--on-secondary),
     0 0 0 6px color-mix(in srgb, var(--brand-secondary, #000) 45%, transparent);
 }
-.lines-form{ width:100%; max-width:980px; margin:0 auto; box-sizing:border-box; }
+.lines-form{ width:100%; max-width:none; margin:0; box-sizing:border-box; }
 /* Override legacy dark wrapper: make section background primary and text secondary */
 .lines-form{ background: var(--brand-primary, #d4c76f) !important; color: var(--on-primary) !important; border: 4px solid var(--brand-primary, #d4c76f) !important; border-radius: 10px; padding: 10px; }
 /* Ensure common headings/labels inside wrapper inherit secondary text */
@@ -78,11 +80,15 @@
 .lines-pager{ display:flex; gap:6px; justify-content:center; margin-top:8px; }
 .lines-pager button{ width:8px; height:8px; border-radius:50%; border:0; background: color-mix(in srgb, var(--brand-secondary, #000) 30%, transparent); cursor:pointer; }
 .lines-pager button[aria-selected="true"]{ background: var(--brand-secondary, #000); }
+/* Center mobile swiper and actions as the middle block */
+.lines-form .lines-swiper, .lines-form .actions{ max-width: 980px; margin-left:auto; margin-right:auto; width: 100%; }
 
 @media (max-width: 700px){
   #formations{ display:none; }
   .desktop-only{ display:none !important; }
   .lines-swiper{ display:block; }
+  /* On small screens keep middle block slightly inset for visual balance */
+  .lines-form .lines-swiper, .lines-form .actions{ max-width: none; width: calc(100% - 24px); }
 }
 
 /* Portrait optimizations for very narrow screens */

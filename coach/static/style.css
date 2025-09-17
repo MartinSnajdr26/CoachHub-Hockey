@@ -286,8 +286,8 @@ li {
     display: grid;
     grid-template-columns: 1fr;
     gap: 40px;
-    margin: 20px auto 0;
-    max-width: 980px;
+    margin: 20px 0 0;
+    width: 100%;
     box-sizing: border-box;
 }
 .lines-form, .lines-preview {
