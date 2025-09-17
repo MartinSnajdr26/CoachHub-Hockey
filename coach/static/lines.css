@@ -49,7 +49,20 @@
 /* Make selected pill clearly visible on dark pool background */
 .is-selected{ outline:3px solid var(--on-secondary); outline-offset:2px; }
 /* Improve keyboard focus visibility for pool items */
-.pl-item:focus{ outline:3px solid var(--on-secondary); outline-offset:2px; }
+.pl-item:focus{
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--on-secondary),
+    0 0 0 6px color-mix(in srgb, var(--brand-secondary, #000) 45%, transparent);
+}
+/* Strong, high-contrast selection ring for player pills */
+.pl-item.is-selected{
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    0 0 0 3px var(--on-secondary),
+    0 0 0 6px color-mix(in srgb, var(--brand-secondary, #000) 45%, transparent);
+}
 .lines-form{ width:100%; max-width:none; margin:0 auto; }
 /* Override legacy dark wrapper: make section background primary and text secondary */
 .lines-form{ background: var(--brand-primary, #d4c76f) !important; color: var(--on-primary) !important; border: 4px solid var(--brand-primary, #d4c76f) !important; border-radius: 10px; padding: 10px; }
@@ -60,7 +73,7 @@
 
 /* Mobile swiper (only on small screens) */
 .lines-swiper{ display:none; }
-.lines-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling: touch; gap:12px; }
+.lines-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling: touch; gap:12px; scroll-padding: 12px; }
 .lines-track .slide{ flex:0 0 100%; scroll-snap-align:start; }
 .lines-pager{ display:flex; gap:6px; justify-content:center; margin-top:8px; }
 .lines-pager button{ width:8px; height:8px; border-radius:50%; border:0; background: color-mix(in srgb, var(--brand-secondary, #000) 30%, transparent); cursor:pointer; }
@@ -70,4 +83,12 @@
   #formations{ display:none; }
   .desktop-only{ display:none !important; }
   .lines-swiper{ display:block; }
+}
+
+/* Portrait optimizations for very narrow screens */
+@media (orientation: portrait) and (max-width: 480px){
+  .slots{ grid-template-columns: 1fr; }
+  .slots.slots--def{ grid-template-columns: 1fr; }
+  .slot .fill, .pl-item{ font-size: 16px; padding: 6px 10px; }
+  .lines-pager button{ width:10px; height:10px; }
 }
