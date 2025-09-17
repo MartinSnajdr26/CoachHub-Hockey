@@ -148,20 +148,59 @@
   .lines-container .lines-pager button{ width:10px; height:10px; }
 }
 
-/* (duplicate focus/selection rules removed — consolidated above) */
-
-/* Jen pro stránku /lines a jen na mobilech */
-@media (max-width: 700px){
-  .lines-page .header-top,
-  .lines-page .header-bottom {
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
+/* --- Mobile (jen jedna karta pod sebou) --- */
+@media (max-width: 700px) {
+  /* Skryj swiper */
+  .lines-page .lines-swiper,
+  .lines-page .lines-pager {
+    display: none !important;
   }
-  .lines-page .header-bottom nav {
+
+  /* Uprav grid -> 1 karta pod sebou */
+  .lines-page .formations-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
     width: 100% !important;
-    max-width: none !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Formace na 100 % šířky */
+  .lines-page .formation {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Čitelné písmo */
+  .lines-page .pl-item,
+  .lines-page .slot .fill {
+    font-size: 14px !important;
+    padding: 6px 10px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 }
+@media (max-width: 700px) {
+  /* Útočníci/Obránci → hráči pod sebou */
+  .lines-page .slots {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
 
+  /* Brankáři (už 2 sloupce) → taky pod sebou */
+  .lines-page .slots--g {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Menší text a padding */
+  .lines-page .slot .fill {
+    font-size: 14px !important;
+    padding: 6px 10px !important;
+  }
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}{{ brand.team_name or 'CoachHub' }} – Coach Manager{% endblock %}</title>
+    <title>{% block title %}{{ brand.team_name or 'CoachHub' }} {% endblock %}</title>
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='help.css', v=csp_nonce) }}">
@@ -15,7 +15,7 @@
     <header class="header-top">
         <div class="logo">
             <img src="{{ brand.logo_url or url_for('static', filename='logo.png') }}" alt="Logo klubu">
-            <h1>{{ brand.team_name or 'CoachHub' }} – COACH MANAGER</h1>
+            <h1>{{ brand.team_name or 'CoachHub' }} </h1>
         </div>
         {# Vítej/uživatel odstraněn – přihlášení je týmovým klíčem #}
         <a href="{{ url_for('home') }}" class="app-top-right-logo-link" aria-label="Domů">

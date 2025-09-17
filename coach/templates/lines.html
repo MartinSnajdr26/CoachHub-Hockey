@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% block bodyclass %}lines-page{% endblock %}
 {% block title %}Rozdělení do lajn{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
 <script nonce="{{ csp_nonce }}">try{document.body.classList.add('lines-page');}catch(e){}</script>
 <div class="lines-head">
