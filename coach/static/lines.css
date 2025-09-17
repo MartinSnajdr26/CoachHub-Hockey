@@ -46,7 +46,10 @@
 .btn-x{ border:none; background:#eee; border-radius:6px; cursor:pointer; padding:2px 6px; }
 .btn-x:hover{ background:#ddd; }
 .actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
-.is-selected{ outline:2px solid var(--brand-secondary, #000); }
+/* Make selected pill clearly visible on dark pool background */
+.is-selected{ outline:3px solid var(--on-secondary); outline-offset:2px; }
+/* Improve keyboard focus visibility for pool items */
+.pl-item:focus{ outline:3px solid var(--on-secondary); outline-offset:2px; }
 .lines-form{ width:100%; max-width:none; margin:0 auto; }
 /* Override legacy dark wrapper: make section background primary and text secondary */
 .lines-form{ background: var(--brand-primary, #d4c76f) !important; color: var(--on-primary) !important; border: 4px solid var(--brand-primary, #d4c76f) !important; border-radius: 10px; padding: 10px; }
@@ -65,5 +68,6 @@
 
 @media (max-width: 700px){
   #formations{ display:none; }
+  .desktop-only{ display:none !important; }
   .lines-swiper{ display:block; }
 }

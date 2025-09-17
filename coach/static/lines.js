@@ -89,6 +89,17 @@
       slot.addEventListener('drop', dropHandlerFactory(slot));
       slot.setAttribute('tabindex','0'); slot.setAttribute('role','button'); slot.setAttribute('aria-label','Slot; Enter/Space vložit vybraného hráče');
       slot.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(!selectedId) return; var item=selectedEl; var id=selectedId; var name=item?item.textContent.replace(/^\s*\S+\s+/,''):''; var pos=item?item.dataset.pos:slot.getAttribute('data-accept'); placeInto(slot, id, name, pos); selectedId=null; if(selectedEl){ selectedEl.classList.remove('is-selected'); selectedEl=null; } }});
+      // Mobile/touch: tap slot to place selected player (tap-to-assign)
+      slot.addEventListener('click', function(e){
+        if(!selectedId) return; // nothing selected
+        if(e && e.target && e.target.closest('.btn-x')) return; // ignore remove clicks
+        var item = selectedEl;
+        var id = selectedId;
+        var name = item ? (item.textContent||'').replace(/^\s*\S+\s+/, '') : '';
+        var pos = item ? (item.dataset.pos) : slot.getAttribute('data-accept');
+        placeInto(slot, id, name, pos);
+        selectedId=null; if(selectedEl){ selectedEl.classList.remove('is-selected'); selectedEl=null; }
+      }, {passive:true});
       var fill=slot.querySelector('.fill'); if(fill) bindFillDrag(fill, slot);
       var bx=slot.querySelector('.btn-x'); if(bx){ bx.addEventListener('click', function(){ clearSlot(slot); }); }
     });

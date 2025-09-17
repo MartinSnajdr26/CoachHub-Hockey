@@ -100,14 +100,14 @@
               {% endfor %}
             </div>
 
-            <div class="formations-grid" id="formations">
+            <div class="formations-grid desktop-only" id="formations">
             {% for line in range(1,5) %}
               {{ formation_card(line) }}
             {% endfor %}
             </div>
 
-            <h2>Brankáři</h2>
-            <div class="slots" style="grid-template-columns: repeat(2, minmax(220px, 1fr));">
+            <h2 class="desktop-only">Brankáři</h2>
+            <div class="slots desktop-only" style="grid-template-columns: repeat(2, minmax(220px, 1fr));">
               <div class="slot accept-G" data-slot="G1" data-accept="G" data-label="G1">
                 <input type="hidden" name="G1" value="{{ assignments.get('G1','') }}">
                 {% set pid = assignments.get('G1') %}
