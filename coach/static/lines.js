@@ -9,21 +9,29 @@
     function $all(s,root){ return Array.prototype.slice.call((root||document).querySelectorAll(s)); }
     function poolFor(pos){ return pos==='F' ? $('#poolF') : pos==='D' ? $('#poolD') : $('#poolG'); }
     function findSlotOf(id){ var f=$all('.slot .fill').find(function(x){ return x.getAttribute('data-id')===String(id); }); return f?f.closest('.slot'):null; }
-    // Shrink pill text to fit inside the slot without overflow
-    function adjustPillSpan(span){
-      if(!span) return;
-      try {
-        var max = 18, min = 12, step = 0.5, safety = 48;
-        // Start from max size each time so it can grow when space allows
-        span.style.fontSize = max + 'px';
-        var parent = span.parentElement; if(parent){ parent.style.minWidth = '0'; }
-        while(safety-- > 0 && span.scrollWidth > span.clientWidth + 1 && max > min){
-          max = Math.max(min, max - step);
-          span.style.fontSize = max + 'px';
+    // Compute the smallest font-size that allows a span to fit
+    function fitSizeForSpan(span, max, min, step){
+      try{
+        var size = max, safety=48; span.style.fontSize = size + 'px';
+        var parent = span.parentElement; if(parent){ parent.style.minWidth='0'; }
+        while(safety-- > 0 && span.scrollWidth > span.clientWidth + 1 && size > min){
+          size = Math.max(min, size - step); span.style.fontSize = size + 'px';
         }
-      } catch(_){}
+        return size;
+      }catch(_){ return max; }
     }
-    function adjustAllPills(){ $all('.slot .fill > span').forEach(adjustPillSpan); }
+    // Within a formation card, make all pill texts the same size = smallest needed
+    function adjustFormationPills(fm){
+      if(!fm) return;
+      var spans = $all('.slot .fill > span', fm);
+      if(!spans.length) return;
+      var MAX=18, MIN=12, STEP=0.5, minFound=MAX;
+      // Reset to max before measuring to allow growth when space increases
+      spans.forEach(function(s){ s.style.fontSize = MAX + 'px'; });
+      spans.forEach(function(s){ var fs = fitSizeForSpan(s, MAX, MIN, STEP); if(fs < minFound) minFound = fs; });
+      spans.forEach(function(s){ s.style.fontSize = minFound + 'px'; });
+    }
+    function adjustAllFormations(){ $all('.formation').forEach(adjustFormationPills); }
     function updatePoolBadges(){
       $all('.pl-item').forEach(function(el){
         var id = el.dataset.id; var b = el.querySelector('[data-badge]');
@@ -65,7 +73,7 @@
       var bx=document.createElement('button'); bx.type='button'; bx.className='btn-x'; bx.textContent='×'; bx.setAttribute('aria-label','Odebrat hráče ze slotu');
       bx.addEventListener('click', function(){ clearSlot(slotEl); });
       fill.appendChild(span); fill.appendChild(bx); slotEl.appendChild(fill);
-      bindFillDrag(fill, slotEl); updatePoolBadges(); applyHide(); adjustPillSpan(span);
+      bindFillDrag(fill, slotEl); updatePoolBadges(); applyHide(); adjustFormationPills(slotEl.closest('.formation'));
     }
     function bindSelect(el){
       el.addEventListener('click', function(){ if(selectedEl){ selectedEl.classList.remove('is-selected'); if(selectedEl===el){ selectedEl=null; selectedId=null; return; }} selectedEl=el; selectedId=el.dataset.id; el.classList.add('is-selected'); });
@@ -203,10 +211,10 @@
       var hid = slot.querySelector('input[type="hidden"]');
       if(hid && !hid.value){ placeInto(slot, id, name, pos); }
     });
-    updatePoolBadges(); applyHide(); adjustAllPills();
+    updatePoolBadges(); applyHide(); adjustAllFormations();
     var __lines_resize_to = null; window.addEventListener('resize', function(){
       clearTimeout(__lines_resize_to);
-      __lines_resize_to = setTimeout(adjustAllPills, 80);
+      __lines_resize_to = setTimeout(adjustAllFormations, 80);
     });
     try { window.__linesBound = { slots: $all('.slot').length, pools: $all('.pl-item').length }; console.debug('[lines] init ok', window.__linesBound); } catch(_) {}
     // Clear all button handler
@@ -226,5 +234,17 @@
       var io = new IntersectionObserver(function(entries){ entries.forEach(function(ent){ if(ent.isIntersecting){ var idx = slides.indexOf(ent.target); if(idx>=0){ Array.prototype.slice.call(pager.children).forEach(function(d,k){ d.setAttribute('aria-selected', k===idx ? 'true':'false'); }); } } }); }, { root: track, threshold: 0.6 });
       slides.forEach(function(s){ io.observe(s); });
     }
+
+    // Allow dropping outside any slot to remove player from original slot
+    document.addEventListener('dragover', function(e){ if(dragSourceSlot){ try{ e.preventDefault(); }catch(_){} } }, { passive:false });
+    document.addEventListener('drop', function(e){
+      try {
+        if(dragSourceSlot){
+          var inSlot = e.target && (e.target.closest && e.target.closest('.slot'));
+          if(!inSlot){ e.preventDefault(); clearSlot(dragSourceSlot); }
+        }
+      } catch(_){}
+      dragSourceSlot=null;
+    }, { passive:false });
   });
 })();

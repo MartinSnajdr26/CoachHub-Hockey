@@ -4,7 +4,7 @@
 #help-lines{ display:none; }
 
 /* Page container: align with global content width and gutters */
-.lines-container{ max-width: 1100px; margin: 20px auto 0; padding-left: 16px; padding-right: 16px; }
+.lines-container{ max-width: 1280px; margin: 20px auto 0; padding-left: 16px; padding-right: 16px; }
 
 .lines-container .pool{ display:flex; flex-wrap:wrap; gap:8px; padding:6px; border:0; border-radius:8px; background: var(--brand-primary, #d4c76f); color: var(--on-primary); margin-bottom:10px; }
 .lines-container .pool-title{ font-weight:700; margin:6px 0 4px; }
@@ -16,7 +16,7 @@
 .ln3{ background: var(--line3-accent, #ff9800) !important; }
 .ln4{ background: var(--line4-accent, #9c27b0) !important; }
 
-.lines-container .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(380px, 1fr)); gap:12px; margin-top:8px; }
+.lines-container .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(480px, 1fr)); gap:12px; margin-top:8px; }
 @media (max-width: 1100px){ .lines-container .formations-grid{ grid-template-columns: repeat(2, minmax(280px, 1fr)); } }
 @media (max-width: 640px){ .lines-container .formations-grid{ grid-template-columns: 1fr; } }
 /* Center the formations area independently of the overall form width */
@@ -46,6 +46,11 @@
 .lines-container .formation .slot.over{ box-shadow: 0 0 0 3px var(--form-fg, #ffffff) inset, 0 0 0 2px var(--form-fg, #ffffff); }
 
 .lines-container .btn-x{ border:none; background:#eee; border-radius:6px; cursor:pointer; padding:2px 6px; }
+.lines-container .slot .fill .btn-x{ flex: 0 0 auto; }
+@media (max-width: 700px){
+  /* Hide remove icon on mobile; removal is via drag outside card */
+  .lines-container .slot .fill .btn-x{ display:none !important; }
+}
 .lines-container .btn-x:hover{ background:#ddd; }
 .lines-container .actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
 /* Make selected pill clearly visible on dark pool background */
@@ -108,7 +113,7 @@
   /* Restore swiper: one centered card per view with side gutters */
   .lines-container .lines-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling: touch; gap:0; padding: 0 8px; box-sizing: border-box; }
   .lines-container .lines-track .slide{ display:flex; flex: 0 0 100%; justify-content: center; padding: 8px 8px; box-sizing: border-box; scroll-snap-align:start; }
-  .lines-container .lines-track .slide > .formation{ max-width: 560px; width: calc(100% - 32px); margin: 0 auto; }
+  .lines-container .lines-track .slide > .formation{ max-width: 600px; width: calc(100% - 32px); margin: 0 auto; }
   .lines-container .lines-pager{ display: flex; }
   /* Slightly tighter spacing and text for narrow screens */
   .lines-container .slots{ gap: 6px; }
