@@ -4,7 +4,7 @@
 #help-lines{ display:none; }
 
 /* Page container: align with global content width and gutters */
-.lines-container{ max-width: 1280px; margin: 20px auto 0; padding-left: 16px; padding-right: 16px; }
+.lines-container{ width: calc(100% - 10%); max-width: none; margin: 20px 0 0 0; padding-left: 12px; padding-right: 12px; box-sizing: border-box; }
 
 .lines-container .pool{ display:flex; flex-wrap:wrap; gap:8px; padding:6px; border:0; border-radius:8px; background: var(--brand-primary, #d4c76f); color: var(--on-primary); margin-bottom:10px; }
 .lines-container .pool-title{ font-weight:700; margin:6px 0 4px; }
@@ -16,7 +16,7 @@
 .ln3{ background: var(--line3-accent, #ff9800) !important; }
 .ln4{ background: var(--line4-accent, #9c27b0) !important; }
 
-.lines-container .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(480px, 1fr)); gap:12px; margin-top:8px; }
+.lines-container .formations-grid{ display:grid; grid-template-columns: repeat(2, minmax(460px, 1fr)); gap:12px; margin-top:8px; }
 @media (max-width: 1100px){ .lines-container .formations-grid{ grid-template-columns: repeat(2, minmax(280px, 1fr)); } }
 @media (max-width: 640px){ .lines-container .formations-grid{ grid-template-columns: 1fr; } }
 /* Center the formations area independently of the overall form width */
@@ -126,6 +126,12 @@
   .lines-container .lines-track .slide{ justify-content: center; }
   .lines-container .lines-track .slide > .formation{ max-width: 720px; margin: 0 auto; }
 }
+/* Desktop formations alignment within container (only on /lines) */
+@media (min-width: 1024px){
+  /* Keep formations respecting the container (90% global width) */
+  .lines-page #formations{ width: 100%; max-width: 100%; margin: 0; transform: none; padding-left: 0; padding-right: 0; box-sizing: border-box; }
+  .lines-page .formations-grid{ grid-template-columns: 1fr 1fr; gap: 16px; }
+}
 
 /* Portrait optimizations for very narrow screens */
 @media (orientation: portrait) and (max-width: 480px){
@@ -143,3 +149,16 @@
 }
 
 /* (duplicate focus/selection rules removed — consolidated above) */
+
+/* Scoped mobile overrides for /lines page only */
+@media (max-width: 700px){
+  /* Make header bars span full width on lines page */
+  .lines-page .header-top,
+  .lines-page .header-bottom,
+  .lines-page .header-bottom nav{
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+}
