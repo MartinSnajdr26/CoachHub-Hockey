@@ -63,7 +63,7 @@
     0 0 0 3px var(--on-secondary),
     0 0 0 6px color-mix(in srgb, var(--brand-secondary, #000) 45%, transparent);
 }
-.lines-form{ width:100%; max-width:none; margin:0 auto; }
+.lines-form{ width:100%; max-width:980px; margin:0 auto; box-sizing:border-box; }
 /* Override legacy dark wrapper: make section background primary and text secondary */
 .lines-form{ background: var(--brand-primary, #d4c76f) !important; color: var(--on-primary) !important; border: 4px solid var(--brand-primary, #d4c76f) !important; border-radius: 10px; padding: 10px; }
 /* Ensure common headings/labels inside wrapper inherit secondary text */
@@ -87,6 +87,7 @@
 
 /* Portrait optimizations for very narrow screens */
 @media (orientation: portrait) and (max-width: 480px){
+  .lines-form{ max-width: 100%; }
   /* Keep forwards as 2 cols to reduce height, defense 2 cols as well */
   .slots{ grid-template-columns: repeat(2, 1fr); }
   .slots.slots--def{ grid-template-columns: repeat(2, 1fr); }

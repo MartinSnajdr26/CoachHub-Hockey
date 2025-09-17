@@ -284,9 +284,11 @@ li {
 /* ====== Layout pro lajny ====== */
 .lines-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 40px;
-    margin-top: 20px;
+    margin: 20px auto 0;
+    max-width: 980px;
+    box-sizing: border-box;
 }
 .lines-form, .lines-preview {
     background: var(--brand-secondary, #111);
