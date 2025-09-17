@@ -102,6 +102,16 @@
   .lines-container .lines-swiper{ display:block; }
   /* Align with global gutters from `main` (30px); avoid extra inner padding */
   .lines-container .lines-form{ padding-left: 0; padding-right: 0; max-width: 100%; }
+  /* Center and size cards within each slide for a carousel look */
+  .lines-container .lines-track .slide{ justify-content: center; padding: 8px 0; box-sizing: border-box; }
+  .lines-container .lines-track .slide > .formation{ max-width: 460px; margin: 0 auto; }
+}
+
+/* Desktop tweaks (swiper hidden, but keep sizing consistent if toggled) */
+@media (min-width: 701px){
+  .lines-container .lines-swiper{ max-width: 960px; margin-left: auto; margin-right: auto; }
+  .lines-container .lines-track .slide{ justify-content: center; }
+  .lines-container .lines-track .slide > .formation{ max-width: 720px; margin: 0 auto; }
 }
 
 /* Portrait optimizations for very narrow screens */
