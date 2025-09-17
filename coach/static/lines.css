@@ -3,6 +3,9 @@
 /* Helpers: hide inline help content block by default */
 #help-lines{ display:none; }
 
+/* Page container: align with global content width and gutters */
+.lines-container{ max-width: 960px; margin: 20px auto 0; padding-left: 16px; padding-right: 16px; }
+
 .lines-container .pool{ display:flex; flex-wrap:wrap; gap:8px; padding:6px; border:0; border-radius:8px; background: var(--brand-primary, #d4c76f); color: var(--on-primary); margin-bottom:10px; }
 .lines-container .pool-title{ font-weight:700; margin:6px 0 4px; }
 .lines-container .pl-item{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:6px 12px; border:1px solid var(--brand-primary, #d4c76f); border-radius:999px; background: var(--brand-secondary, #000); color: var(--on-secondary); cursor:grab; user-select:none; font-size:18px; line-height:1.25; white-space:nowrap; }
