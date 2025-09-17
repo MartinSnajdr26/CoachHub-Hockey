@@ -87,8 +87,32 @@
 
 /* Portrait optimizations for very narrow screens */
 @media (orientation: portrait) and (max-width: 480px){
-  .slots{ grid-template-columns: 1fr; }
-  .slots.slots--def{ grid-template-columns: 1fr; }
+  /* Keep forwards as 2 cols to reduce height, defense 2 cols as well */
+  .slots{ grid-template-columns: repeat(2, 1fr); }
+  .slots.slots--def{ grid-template-columns: repeat(2, 1fr); }
+  /* Improve labels inside slots: pin to the right, reserve space */
+  .slot{ position: relative; padding-right: 44px; min-height: 38px; }
+  .slot.accept-F::after, .slot.accept-D::after, .slot.accept-G::after{
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; opacity: .7; margin: 0;
+  }
+  /* Compact pills */
   .slot .fill, .pl-item{ font-size: 16px; padding: 6px 10px; }
+  /* Larger pager dots for finger targeting */
   .lines-pager button{ width:10px; height:10px; }
+}
+
+/* Strong selection ring visible on both gold and dark backgrounds */
+.pl-item.is-selected{
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    0 0 0 3px var(--on-secondary),
+    0 0 0 6px rgba(0,0,0,.25);
+}
+.pl-item:focus{
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--on-secondary),
+    0 0 0 6px rgba(0,0,0,.25);
 }
