@@ -87,6 +87,10 @@
   #formations{ display:none; }
   .desktop-only{ display:none !important; }
   .lines-swiper{ display:block; }
+  /* Avoid horizontal overflow: slides account for track padding */
+  .lines-track{ padding: 0 12px; }
+  .lines-track .slide{ flex: 0 0 calc(100% - 24px); }
+  .lines-form .actions{ padding: 0 12px; }
   /* On small screens keep middle block slightly inset for visual balance */
   .lines-form .lines-swiper, .lines-form .actions{ max-width: none; width: calc(100% - 24px); }
 }

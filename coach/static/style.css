@@ -454,6 +454,8 @@ li {
   .players-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
+  /* Make content span full width on mobile; inner sections manage their own inset */
+  main { padding-left: 0; padding-right: 0; }
   .players-grid { grid-template-columns: 1fr; }
   /* Lehčí padding a písmo u tlačítek a linků v navigaci */
   button, .header-bottom a { padding: 6px 10px; font-size: 0.95rem; }
