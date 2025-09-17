@@ -150,15 +150,18 @@
 
 /* (duplicate focus/selection rules removed — consolidated above) */
 
-/* Scoped mobile overrides for /lines page only */
+/* Jen pro stránku /lines a jen na mobilech */
 @media (max-width: 700px){
-  /* Make header bars span full width on lines page */
   .lines-page .header-top,
-  .lines-page .header-bottom,
-  .lines-page .header-bottom nav{
+  .lines-page .header-bottom {
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
     border-radius: 0 !important;
   }
+  .lines-page .header-bottom nav {
+    width: 100% !important;
+    max-width: none !important;
+  }
 }
+
