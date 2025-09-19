@@ -44,16 +44,18 @@
     <span id="selCount" style="font-size:14px; opacity:0.8;">0 vybráno</span>
   </div>
 
+  <input type="hidden" name="selection_order" id="selectionOrder" value="">
+
   <div class="cards">
     {% for d in drills %}
-      <div class="card" style="position:relative;">
+      <div class="card" style="position:relative;" data-card-index="{{ loop.index0 }}">
         <div class="selection-toolbar">
           <label style="cursor:pointer; display:flex; align-items:center; gap:6px; margin:0;">
             <input type="checkbox" name="drill_ids" value="{{ d.id }}" class="drill-check"> Vybrat
           </label>
           <label title="Pořadí v PDF">
             #
-            <input type="number" name="order[{{ d.id }}]" class="order-input" min="1" step="1" style="width:56px; padding:2px 6px; border-radius:4px; border:1px solid #888;">
+            <input type="number" name="order[{{ d.id }}]" class="order-input" data-drill-id="{{ d.id }}" min="1" step="1" style="width:56px; padding:2px 6px; border-radius:4px; border:1px solid #888;">
           </label>
         </div>
         <h2>{{ d.name }}</h2>

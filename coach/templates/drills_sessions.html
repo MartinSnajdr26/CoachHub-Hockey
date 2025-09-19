@@ -33,6 +33,14 @@
           <a href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}"><button>👁 Otevřít stránku tréninku</button></a>
           <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank"><button>📲 Sdílet stránku</button></a>
         </p>
+        {% if current_user.is_authenticated and current_user.role == 'coach' %}
+        <form method="post" action="{{ url_for('export_drills_pdf') }}" style="margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="session_id" value="{{ s.id }}">
+          <input type="hidden" name="session_title" value="{{ s.title }}">
+          <button type="submit">📄 Vygenerovat PDF</button>
+        </form>
+        {% endif %}
       {% endif %}
       {% set ids = (s.drill_ids or '') %}
       {% set id_list = ids.split(',') if ids else [] %}

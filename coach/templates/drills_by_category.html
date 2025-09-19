@@ -21,7 +21,12 @@
                 <img src="{{ drill.image_data }}" style="max-width:100%; border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; margin:10px 0;">
             {% endif %}
 
-            <p><a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><button>👁 Otevřít detail</button></a></p>
+            <p>
+                <a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><button>👁 Otevřít detail</button></a>
+                {% if is_coach %}
+                    <a href="{{ url_for('edit_drill', drill_id=drill.id) }}"><button>✏️ Upravit</button></a>
+                {% endif %}
+            </p>
             {% if is_coach %}
             <form action="{{ url_for('delete_drill', drill_id=drill.id) }}" method="POST" style="margin-top:10px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

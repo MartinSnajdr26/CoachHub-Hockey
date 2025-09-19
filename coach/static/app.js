@@ -455,6 +455,13 @@
     }
 
     // Drills select toggles + ordering
+    var selectionHidden = document.getElementById('selectionOrder');
+    var selectionOrder = [];
+
+    function updateHiddenOrder(){
+      if(selectionHidden){ selectionHidden.value = selectionOrder.join(','); }
+    }
+
     function updateCount(){
       var boxes = document.querySelectorAll('input[name="drill_ids"]');
       var n = Array.prototype.slice.call(boxes).filter(function(cb){ return cb.checked; }).length;
@@ -462,31 +469,62 @@
       if(el) el.textContent = n + ' vybráno';
     }
 
-    function nextOrderValue(){
-      var vals = [];
-      document.querySelectorAll('.order-input').forEach(function(inp){
-        var v = parseInt(inp.value, 10);
-        if(!isNaN(v)) vals.push(v);
-      });
-      if(vals.length === 0) return 1;
-      return Math.max.apply(null, vals) + 1;
+    function cardMetaForCheckbox(cb){
+      if(!cb) return null;
+      var card = cb.closest('.card');
+      if(!card) return null;
+      var inp = card.querySelector('.order-input');
+      var domIdx = parseInt(card.getAttribute('data-card-index'), 10);
+      if(isNaN(domIdx)) domIdx = 0;
+      return {card: card, inp: inp, domIndex: domIdx};
     }
 
-    function compactOrders(){
-      // Optional: keep stable relative order, just compact to 1..N based on current numeric order
+    function normalizeFromInputs(){
       var pairs = [];
-      document.querySelectorAll('.card').forEach(function(card){
-        var cb = card.querySelector('input.drill-check');
-        var inp = card.querySelector('input.order-input');
-        if(cb && cb.checked && inp){
-          var v = parseInt(inp.value, 10);
-          pairs.push({inp: inp, v: isNaN(v) ? Infinity : v});
+      document.querySelectorAll('input[name="drill_ids"]:checked').forEach(function(cb){
+        var meta = cardMetaForCheckbox(cb);
+        if(!meta || !meta.inp) return;
+        var orderVal = parseInt(meta.inp.value, 10);
+        pairs.push({
+          id: cb.value,
+          order: isNaN(orderVal) ? null : orderVal,
+          domIndex: meta.domIndex,
+          inp: meta.inp
+        });
+      });
+      pairs.sort(function(a,b){
+        var aHas = a.order !== null;
+        var bHas = b.order !== null;
+        if(aHas && bHas){
+          if(a.order !== b.order) return a.order - b.order;
+          return a.domIndex - b.domIndex;
+        }
+        if(aHas) return -1;
+        if(bHas) return 1;
+        return a.domIndex - b.domIndex;
+      });
+      selectionOrder = pairs.map(function(p){ return p.id; });
+      selectionOrder.forEach(function(id, idx){
+        var input = document.querySelector('.order-input[data-drill-id="'+id+'"]');
+        if(input){ input.value = idx + 1; }
+      });
+      updateHiddenOrder();
+    }
+
+    function applySelectionOrder(){
+      var checked = Array.prototype.slice.call(document.querySelectorAll('input[name="drill_ids"]:checked'));
+      var checkedSet = new Set(checked.map(function(cb){ return cb.value; }));
+      selectionOrder = selectionOrder.filter(function(id){ return checkedSet.has(id); });
+      checked.forEach(function(cb){
+        if(!selectionOrder.includes(cb.value)){
+          selectionOrder.push(cb.value);
         }
       });
-      pairs.sort(function(a,b){ return a.v - b.v; });
-      for(var i=0;i<pairs.length;i++){
-        pairs[i].inp.value = (i+1);
-      }
+      selectionOrder.forEach(function(id, idx){
+        var input = document.querySelector('.order-input[data-drill-id="'+id+'"]');
+        if(input){ input.value = idx + 1; }
+      });
+      updateHiddenOrder();
     }
 
     document.querySelectorAll('.btn-toggle-all').forEach(function(btn){
@@ -494,53 +532,47 @@
         var state = btn.getAttribute('data-state') === 'true';
         document.querySelectorAll('.card').forEach(function(card){
           var cb = card.querySelector('input.drill-check');
-          var inp = card.querySelector('input.order-input');
+          var inp = card.querySelector('.order-input');
           if(cb){ cb.checked = !!state; }
-          if(inp){ inp.value = state ? '' : ''; }
+          if(inp){ inp.value = ''; }
         });
-        // Auto-assign sequential order if selecting all
         if(state){
-          var i = 1;
-          document.querySelectorAll('.card').forEach(function(card){
-            var cb = card.querySelector('input.drill-check');
-            var inp = card.querySelector('input.order-input');
-            if(cb && cb.checked && inp){ inp.value = i++; }
-          });
+          selectionOrder = Array.prototype.slice.call(document.querySelectorAll('input[name="drill_ids"]')).map(function(cb){ return cb.value; });
+        } else {
+          selectionOrder = [];
         }
+        applySelectionOrder();
         updateCount();
       });
     });
+
     document.querySelectorAll('input[name="drill_ids"]').forEach(function(cb){
       cb.addEventListener('change', function(){
-        var card = cb.closest('.card');
-        var inp = card ? card.querySelector('input.order-input') : null;
         if(cb.checked){
-          if(inp && (inp.value === '' || isNaN(parseInt(inp.value,10)))){
-            inp.value = nextOrderValue();
-          }
+          selectionOrder = selectionOrder.filter(function(id){ return id !== cb.value; });
+          selectionOrder.push(cb.value);
         } else {
-          if(inp){ inp.value = ''; }
-          compactOrders();
+          selectionOrder = selectionOrder.filter(function(id){ return id !== cb.value; });
         }
+        applySelectionOrder();
         updateCount();
       });
+    });
+
+    document.querySelectorAll('.order-input').forEach(function(inp){
+      inp.addEventListener('change', normalizeFromInputs);
+      inp.addEventListener('blur', normalizeFromInputs);
     });
 
     var exportForm = document.getElementById('exportForm');
     if(exportForm){
       exportForm.addEventListener('submit', function(){
-        // Before submit: ensure checked drills have an order; compact orders to 1..N
-        document.querySelectorAll('.card').forEach(function(card){
-          var cb = card.querySelector('input.drill-check');
-          var inp = card.querySelector('input.order-input');
-          if(cb && cb.checked && inp){
-            if(inp.value === '' || isNaN(parseInt(inp.value,10))){ inp.value = nextOrderValue(); }
-          }
-        });
-        compactOrders();
+        normalizeFromInputs();
+        applySelectionOrder();
       });
     }
 
+    applySelectionOrder();
     updateCount();
 
     // New drill toolbar bindings

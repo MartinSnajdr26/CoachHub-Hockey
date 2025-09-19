@@ -73,6 +73,8 @@ def create_app():
             ('/lineup-sessions/delete/<int:sess_id>', 'delete_lineup_session', 'lines.delete_lineup_session', ['POST']),
             ('/drill/new', 'new_drill', 'drills.new_drill', None),
             ('/drill/save', 'save_drill', 'drills.save_drill', ['POST']),
+            ('/drill/<int:drill_id>/edit', 'edit_drill', 'drills.edit_drill', None),
+            ('/drill/<int:drill_id>/update', 'update_drill', 'drills.update_drill', ['POST']),
             ('/drills', 'drills', 'drills.drills', None),
             ('/drills/<category>', 'drills_by_category', 'drills.drills_by_category', None),
             ('/drill/<int:drill_id>', 'drill_detail', 'drills.drill_detail', None),

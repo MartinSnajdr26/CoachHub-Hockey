@@ -12,6 +12,13 @@
   <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ sess.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
   {% if sess.filename and sess.filename != '-' %}
     <a href="{{ url_for('download_export', filename=sess.filename) }}" target="_blank"><button>📄 Otevřít PDF</button></a>
+  {% elif is_coach %}
+    <form method="post" action="{{ url_for('export_drills_pdf') }}" style="display:inline-flex; align-items:center; gap:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="session_id" value="{{ sess.id }}">
+      <input type="hidden" name="session_title" value="{{ sess.title }}">
+      <button type="submit">📄 Vygenerovat PDF</button>
+    </form>
   {% endif %}
   <span style="font-size:12px; opacity:0.8;">Sdílejte tento odkaz s hráči – uvidí seznam cvičení a v detailu spustí animaci.</span>
   {% if is_coach %}

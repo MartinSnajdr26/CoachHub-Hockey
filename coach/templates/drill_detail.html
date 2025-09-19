@@ -65,6 +65,10 @@
 </div>
 {% endif %}
 
+{% if is_coach and not embed_mode %}
+<p><a href="{{ url_for('edit_drill', drill_id=drill.id) }}"><button>✏️ Upravit cvičení</button></a></p>
+{% endif %}
+
 {% if is_coach %}
 <form method="POST" action="{{ url_for('delete_drill', drill_id=drill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

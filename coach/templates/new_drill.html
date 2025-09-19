@@ -1,9 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Nové cvičení{% endblock %}
+{% block title %}{{ 'Upravit cvičení' if drill else 'Nové cvičení' }}{% endblock %}
 
 {% block content %}
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-  <h1>Nové cvičení</h1>
+  <div>
+    <h1>{{ 'Upravit cvičení' if drill else 'Nové cvičení' }}</h1>
+    {% if drill %}
+      <p style="margin:4px 0 0; font-size:15px; opacity:0.8;">{{ drill.name }}</p>
+    {% endif %}
+  </div>
   <button type="button" class="help-btn" data-help="new_drill" data-help-src="help-newdrill"><span class="ico">i</span> Nápověda</button>
 </div>
 <div id="help-newdrill" style="display:none;">
@@ -15,12 +20,12 @@
   </ul>
 </div>
 
-<form id="newDrillForm" method="POST" action="{{ url_for('save_drill') }}">
+<form id="newDrillForm" method="POST" action="{{ url_for('update_drill', drill_id=drill.id) if drill else url_for('save_drill') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p><b>Název:</b> <input type="text" name="name" required></p>
-    <p><b>Kategorie:</b> <input type="text" name="category" required></p>
-    <p><b>Popis:</b><br><textarea name="description" rows="3" style="width:100%;"></textarea></p>
-    <p><b>Doba (min):</b> <input type="number" name="duration" min="1"></p>
+    <p><b>Název:</b> <input type="text" name="name" required value="{{ drill.name if drill else '' }}"></p>
+    <p><b>Kategorie:</b> <input type="text" name="category" required value="{{ drill.category if drill else '' }}"></p>
+    <p><b>Popis:</b><br><textarea name="description" rows="3" style="width:100%;">{{ drill.description if drill and drill.description else '' }}</textarea></p>
+    <p><b>Doba (min):</b> <input type="number" name="duration" min="1" value="{{ drill.duration if drill and drill.duration is not none else '' }}"></p>
 
     <!-- 🎚 Slider na velikost rink canvasu -->
     <p>
@@ -128,8 +133,8 @@
         <canvas id="board" class="rink-canvas"></canvas>
     </div>
 
-    <input type="hidden" name="image_data" id="image_data">
-    <input type="hidden" name="path_data" id="path_data">
+    <input type="hidden" name="image_data" id="image_data" value="{{ drill.image_data if drill and drill.image_data else '' }}">
+    <input type="hidden" name="path_data" id="path_data" value="{{ drill.path_data if drill and drill.path_data else '' }}">
 
     <p style="margin-top:15px;">
         <button type="button" class="btn-clear">🧹 Vymazat</button>
@@ -149,6 +154,37 @@
     </div>
 
 <script nonce="{{ csp_nonce }}">
+const IS_EDIT_MODE = {{ 'true' if drill else 'false' }};
+const EXISTING_PATH_RAW = {{ drill.path_data | tojson if drill else 'null' }};
+const EXISTING_IMAGE_DATA = {{ drill.image_data | tojson if drill and drill.image_data else 'null' }};
+let initialDrawData = [];
+let initialCanvasWidth = null;
+let initialCanvasHeight = null;
+
+if (IS_EDIT_MODE) {
+  let parsed = EXISTING_PATH_RAW;
+  if (Array.isArray(parsed)) {
+    initialDrawData = parsed;
+  } else if (typeof parsed === 'string') {
+    try {
+      initialDrawData = JSON.parse(parsed);
+    } catch (_) {
+      initialDrawData = [];
+    }
+  }
+  if (!Array.isArray(initialDrawData)) {
+    initialDrawData = [];
+  }
+  if (initialDrawData.length && initialDrawData[0] && initialDrawData[0].tool === 'meta') {
+    const meta = initialDrawData[0];
+    const mw = parseInt(meta.canvas_w, 10);
+    const mh = parseInt(meta.canvas_h, 10);
+    if (!Number.isNaN(mw) && mw > 0) { initialCanvasWidth = mw; }
+    if (!Number.isNaN(mh) && mh > 0) { initialCanvasHeight = mh; }
+    initialDrawData = initialDrawData.slice(1);
+  }
+}
+
 let canvas = document.getElementById("board");
 let ctx = canvas.getContext("2d");
 let currentTool = "straight";
@@ -156,11 +192,19 @@ let drawing = false;
 let _placedImmediate = false; // guard to skip mouseup after instant placement
 let startX, startY;
 let pathPoints = [];
-let history = [];
 let drawData = []; // pro uložení cesty
+if (IS_EDIT_MODE && Array.isArray(initialDrawData) && initialDrawData.length) {
+  try {
+    drawData = JSON.parse(JSON.stringify(initialDrawData));
+  } catch (_) {
+    drawData = initialDrawData.slice();
+  }
+}
+// pro uložení cesty
 let dataHistory = [];
 let syncActive = false; // běžící skupina hráčských tahů
 let syncCounter = 0;    // identifikátor skupiny
+const MAX_UNDO = 120;
 
 let rink = new Image();
 rink.src = "/static/rink.png";
@@ -173,7 +217,61 @@ try { goalImg.onload = () => { try { redrawAll(); } catch(_){} }; } catch(_){}
 function containerWidth(){
   try { return Math.max(600, Math.floor(canvas.parentElement.clientWidth)); } catch(_) { return 600; }
 }
-rink.onload = () => { resizeCanvas(containerWidth()); saveState(); };
+function loadInitialDrillState(){
+  const items = Array.isArray(initialDrawData) ? initialDrawData.slice() : [];
+  const hasMetaSize = (initialCanvasWidth && initialCanvasWidth > 0);
+  const baseWidth = hasMetaSize ? initialCanvasWidth : containerWidth();
+  const aspect = (rink && rink.width) ? (rink.height / Math.max(1, rink.width)) : (canvas.height ? (canvas.height / Math.max(1, canvas.width)) : 0.714);
+  const baseHeight = hasMetaSize && initialCanvasHeight && initialCanvasHeight > 0
+        ? initialCanvasHeight
+        : Math.round(baseWidth * aspect);
+
+  canvas.width = baseWidth;
+  canvas.height = baseHeight;
+  try {
+    const slider = document.getElementById('canvasSize');
+    if (slider) {
+      const min = parseInt(slider.min || '600', 10) || 600;
+      const max = parseInt(slider.max || '2000', 10) || 2000;
+      const sliderValue = Math.max(min, Math.min(max, Math.round(baseWidth)));
+      slider.value = sliderValue;
+    }
+  } catch (_) {}
+  canvas.style.width = baseWidth + 'px';
+  manualSize = !!hasMetaSize;
+
+  drawData = [];
+  dataHistory = [];
+  redrawAll();
+  saveState();
+
+  for (const item of items) {
+    drawData.push(item);
+    redrawAll();
+    saveState();
+  }
+
+  try { renderSeqLog(); } catch (_) {}
+  try {
+    const pathField = document.getElementById('path_data');
+    if (pathField) {
+      pathField.value = JSON.stringify(_dataWithMeta());
+    }
+    const imgField = document.getElementById('image_data');
+    if (imgField && typeof EXISTING_IMAGE_DATA === 'string' && EXISTING_IMAGE_DATA.startsWith('data:image')) {
+      imgField.value = EXISTING_IMAGE_DATA;
+    }
+  } catch (_) {}
+}
+
+rink.onload = () => {
+  if (IS_EDIT_MODE) {
+    loadInitialDrillState();
+  } else {
+    resizeCanvas(containerWidth());
+    saveState();
+  }
+};
 
 // Dynamická velikost ikon a volitelné barvy F/D
 const ICON_BASE = 25; // ~1.8× původní 18px
@@ -391,21 +489,40 @@ function resizeCanvas(width) {
 function setTool(t) { currentTool = t; }
 function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(rink,0,0,canvas.width,canvas.height); drawData = []; saveState(); renderSeqLog(); }
 function saveState() {
-    history.push(canvas.toDataURL());
-    dataHistory.push(JSON.stringify(drawData));
-    if(history.length>30){ history.shift(); dataHistory.shift(); }
+    try {
+        dataHistory.push(JSON.stringify(drawData));
+    } catch (_) {
+        dataHistory.push('[]');
+    }
+    if(dataHistory.length > MAX_UNDO){
+        if(dataHistory.length > 1){
+            dataHistory.splice(1, 1);
+        } else {
+            dataHistory.shift();
+        }
+    }
+    try {
+        const pathField = document.getElementById('path_data');
+        if (pathField) {
+            pathField.value = JSON.stringify(_dataWithMeta());
+        }
+    } catch (_) {}
 }
 function undo() {
-    if(history.length>1){
-        history.pop();
-        dataHistory.pop();
-        const prevData = dataHistory.at(-1);
-        try { drawData = JSON.parse(prevData || '[]'); } catch(_) { drawData = []; }
-        let img=new Image();
-        img.src=history.at(-1);
-        img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);};
-        renderSeqLog();
+    if(!dataHistory || dataHistory.length <= 1){
+        return;
     }
+    dataHistory.pop();
+    const prevData = dataHistory.at(-1);
+    try { drawData = JSON.parse(prevData || '[]'); } catch(_) { drawData = []; }
+    redrawAll();
+    renderSeqLog();
+    try {
+        const pathField = document.getElementById('path_data');
+        if (pathField) {
+            pathField.value = JSON.stringify(_dataWithMeta());
+        }
+    } catch (_) {}
 }
 // --- Minimal-size snapshot helper: overlay-only, downscaled WebP ---
 function renderOverlayToContext(targetCtx){
