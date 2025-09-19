@@ -9,6 +9,7 @@ import base64
 import io
 import os
 import uuid
+from sqlalchemy import or_
 
 bp = Blueprint('drills', __name__)
 
@@ -17,7 +18,19 @@ bp = Blueprint('drills', __name__)
 @team_login_required
 def new_drill():
     # Player may open the editor, but only coach can save
-    return render_template('new_drill.html')
+    return render_template('new_drill.html', drill=None)
+
+
+@bp.route('/drill/<int:drill_id>/edit', endpoint='edit_drill')
+@team_login_required
+def edit_drill(drill_id):
+    # Allow team members to open the editor; saving is still coach-gated
+    drill = Drill.query.get_or_404(drill_id)
+    tid = get_team_id()
+    if tid and drill.team_id != tid:
+        flash('Není povoleno upravovat cvičení jiného týmu.', 'error')
+        return redirect(url_for('drills'))
+    return render_template('new_drill.html', drill=drill)
 
 
 @bp.route('/drill/save', methods=['POST'], endpoint='save_drill')
@@ -44,6 +57,29 @@ def save_drill():
     db.session.add(drill)
     db.session.commit()
     return redirect(url_for('drills'))
+
+
+@bp.route('/drill/<int:drill_id>/update', methods=['POST'], endpoint='update_drill')
+@team_login_required
+def update_drill(drill_id):
+    resp = coach_required(lambda: None)()
+    if resp is not None:
+        return resp
+    drill = Drill.query.get_or_404(drill_id)
+    tid = get_team_id()
+    if tid and drill.team_id != tid:
+        flash('Není povoleno upravovat cvičení jiného týmu.', 'error')
+        return redirect(url_for('drills'))
+    drill.name = request.form.get('name')
+    drill.description = request.form.get('description')
+    duration = request.form.get('duration')
+    drill.duration = int(duration) if duration else None
+    drill.category = request.form.get('category')
+    drill.image_data = request.form.get('image_data')
+    drill.path_data = request.form.get('path_data') or '[]'
+    db.session.commit()
+    flash('Cvičení bylo upraveno.', 'success')
+    return redirect(url_for('drill_detail', drill_id=drill.id))
 
 
 @bp.route('/drills', endpoint='drills')
@@ -198,8 +234,23 @@ def export_drills_pdf():
     resp = coach_required(lambda: None)()
     if resp is not None:
         return resp
-    ids = request.form.getlist('drill_ids')
+    tid = get_team_id()
+    session_id_raw = request.form.get('session_id')
+    try:
+        session_id = int(session_id_raw) if session_id_raw else None
+    except (TypeError, ValueError):
+        session_id = None
     session_title = (request.form.get('session_title') or '').strip()
+    ids = request.form.getlist('drill_ids')
+    existing_session = None
+    if not ids and session_id is not None:
+        existing_session = TrainingSession.query.get_or_404(session_id)
+        if tid and existing_session.team_id and existing_session.team_id != tid:
+            flash('Tento trénink nepatří do vašeho týmu.', 'error')
+            return redirect(url_for('drill_sessions'))
+        ids = [i for i in (existing_session.drill_ids or '').split(',') if i.strip()]
+        if not session_title:
+            session_title = (existing_session.title or '').strip()
     if not ids:
         return redirect(url_for('drills_select'))
     # Parse custom order map
@@ -210,14 +261,31 @@ def export_drills_pdf():
                 did = int(k[len('order['):-1]); order_map[did] = int(v)
     except Exception:
         order_map = {}
+    selection_raw = (request.form.get('selection_order') or '').strip()
+    selection_positions = {}
+    if selection_raw:
+        for idx, tok in enumerate(selection_raw.split(',')):
+            tok = tok.strip()
+            if not tok:
+                continue
+            try:
+                selection_positions[int(tok)] = idx
+            except ValueError:
+                continue
     sel_ids = [int(i) for i in ids]
+    sel_position_map = {sid: idx for idx, sid in enumerate(sel_ids)}
     q = Drill.query.filter(Drill.id.in_(sel_ids))
     tid = get_team_id()
     if tid:
         q = q.filter(Drill.team_id == tid)
     drills = q.all()
     def order_key(d):
-        return (order_map.get(d.id, 10**9), (d.category or ''), (d.name or ''))
+        if d.id in order_map:
+            return (0, order_map[d.id], 0, 0)
+        sel_idx = selection_positions.get(d.id)
+        if sel_idx is not None:
+            return (1, sel_idx, 0, 0)
+        return (2, sel_position_map.get(d.id, 10**9), d.category or '', d.name or '')
     drills.sort(key=order_key)
     if not drills:
         return redirect(url_for('drills_select'))
@@ -235,8 +303,31 @@ def export_drills_pdf():
         pages[0].save(path, save_all=True, append_images=pages[1:], format='PDF')
     if not session_title:
         session_title = f"Tréninková jednotka {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-    sess = TrainingSession(title=session_title, filename=filename, drill_ids=','.join(str(d.id) for d in drills), team_id=(get_team_id()))
-    db.session.add(sess); db.session.commit()
+    target_session = existing_session if existing_session is not None else TrainingSession()
+    if not session_title:
+        session_title = target_session.title or f"Tréninková jednotka {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    target_session.title = session_title
+    target_session.filename = filename
+    target_session.drill_ids = ','.join(str(d.id) for d in drills)
+    if target_session.team_id is None:
+        target_session.team_id = tid
+    if existing_session is None:
+        db.session.add(target_session)
+    db.session.flush()
+
+    stale_q = TrainingSession.query.filter(TrainingSession.id != target_session.id)
+    if target_session.team_id is not None:
+        stale_q = stale_q.filter(TrainingSession.team_id == target_session.team_id)
+    else:
+        stale_q = stale_q.filter(TrainingSession.team_id.is_(None))
+    stale_q = stale_q.filter(
+        or_(TrainingSession.drill_ids == target_session.drill_ids,
+            TrainingSession.title == target_session.title)
+    ).filter(
+        or_(TrainingSession.filename == '-', TrainingSession.filename == '', TrainingSession.filename.is_(None))
+    )
+    stale_q.delete(synchronize_session=False)
+    db.session.commit()
     cleanup_exports()
     return redirect(url_for('drills_export_result', file=filename))
 
@@ -262,6 +353,17 @@ def save_session():
                 did = int(k[len('order['):-1]); order_map[did] = int(v)
     except Exception:
         order_map = {}
+    selection_raw = (request.form.get('selection_order') or '').strip()
+    selection_positions = {}
+    if selection_raw:
+        for idx, tok in enumerate(selection_raw.split(',')):
+            tok = tok.strip()
+            if not tok:
+                continue
+            try:
+                selection_positions[int(tok)] = idx
+            except ValueError:
+                continue
     sel_ids = [int(i) for i in ids]
     q = Drill.query.filter(Drill.id.in_(sel_ids))
     tid = get_team_id()
@@ -269,7 +371,12 @@ def save_session():
         q = q.filter(Drill.team_id == tid)
     drills = q.all()
     def order_key(d):
-        return (order_map.get(d.id, 10**9), (d.category or ''), (d.name or ''))
+        if d.id in order_map:
+            return (0, order_map[d.id], 0, 0)
+        sel_idx = selection_positions.get(d.id)
+        if sel_idx is not None:
+            return (1, sel_idx, 0, 0)
+        return (2, 0, d.category or '', d.name or '')
     drills.sort(key=order_key)
     if not drills:
         return redirect(url_for('drills_select'))
