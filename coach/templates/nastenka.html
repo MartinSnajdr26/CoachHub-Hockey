@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Nástěnka{% endblock %}
+{% set REACTS = [('like','👍'),('thanks','❤️'),('funny','😂'),('question','❓')] %}
+{% block content %}
+<div class="cm-wrap" id="cm-root" data-is-coach="{{ '1' if is_coach else '0' }}">
+  <div class="cm-head">
+    <h1 style="margin:0;">Nástěnka</h1>
+    <p style="margin:4px 0 0; color:var(--text-muted);">Rychlá komunikace celého týmu.</p>
+  </div>
+
+  {# ---------------- Composer ---------------- #}
+  <form class="cm-composer" method="post" action="{{ url_for('communication.post') }}" id="cm-composer">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="token" id="cm-token" value="">
+    <input type="hidden" name="pub" id="cm-pub" value="">
+    <div class="cm-comp-row">
+      <select name="category" class="cm-select" aria-label="Kategorie">
+        {% for code, meta in categories.items() %}
+          <option value="{{ code }}" {{ 'selected' if code=='general' }}>{{ meta[0] }} {{ meta[1] }}</option>
+        {% endfor %}
+      </select>
+      <div class="cm-nick-field">
+        <input type="text" name="nickname" id="cm-nick" maxlength="30" placeholder="Přezdívka (např. Kuba #17)" aria-label="Přezdívka" autocomplete="off">
+      </div>
+    </div>
+    <textarea name="text" id="cm-text" rows="3" maxlength="500" required placeholder="Napiš zprávu týmu…" class="cm-textarea"></textarea>
+    <div class="cm-comp-foot">
+      {% if is_coach %}
+      <label class="cm-check"><input type="checkbox" name="pinned"> 📌 Připnout</label>
+      <label class="cm-check"><input type="checkbox" name="important"> ⚠️ Důležité</label>
+      {% endif %}
+      <span class="cm-count"><span id="cm-count">0</span>/500</span>
+      <button type="submit" class="btn">Publikovat</button>
+    </div>
+  </form>
+
+  {# ---------------- Filters ---------------- #}
+  <div class="cm-filters">
+    <input type="search" id="cm-search" class="cm-search" placeholder="🔍 Hledat ve zprávách…" aria-label="Hledat">
+    <select id="cm-cat-filter" class="cm-select" aria-label="Filtr kategorie">
+      <option value="">Všechny kategorie</option>
+      {% for code, meta in categories.items() %}<option value="{{ code }}">{{ meta[0] }} {{ meta[1] }}</option>{% endfor %}
+    </select>
+    <label class="cm-chip-toggle"><input type="checkbox" id="cm-only-pinned"> 📌 Připnuté</label>
+    <label class="cm-chip-toggle"><input type="checkbox" id="cm-only-important"> ⚠️ Důležité</label>
+  </div>
+
+  {# ---------------- Feed ---------------- #}
+  <div class="cm-feed" id="cm-feed">
+    {% for m in messages %}
+    <article class="cm-card cm-cat-{{ m.category }}{{ ' is-important' if m.important }}{{ ' is-pinned' if m.pinned }}"
+             data-id="{{ m.id }}" data-age="{{ m.age }}" data-cat="{{ m.category }}"
+             data-pinned="{{ '1' if m.pinned else '0' }}" data-important="{{ '1' if m.important else '0' }}"
+             data-role="{{ m.role }}" data-owner="{{ m.pub }}" data-search="{{ (m.nickname ~ ' ' ~ m.text)|lower }}">
+      <header class="cm-card-head">
+        <span class="cm-badge cm-badge-{{ m.category }}">{{ m.cat_emoji }} {{ m.cat_label }}</span>
+        {% if m.pinned %}<span class="cm-flag cm-flag-pin">📌 Připnuto</span>{% endif %}
+        {% if m.important %}<span class="cm-flag cm-flag-imp">⚠️ Důležité</span>{% endif %}
+        <span class="cm-when">{{ m.when_label }}</span>
+      </header>
+      <div class="cm-meta">
+        <span class="cm-nick">{{ m.nickname }}</span>
+        {% if m.role == 'coach' %}<span class="cm-role">Trenér</span>{% endif %}
+      </div>
+      <div class="cm-text">{{ m.text }}</div>
+
+      <div class="cm-foot">
+        <div class="cm-reacts" data-id="{{ m.id }}">
+          {% for code, emoji in REACTS %}
+          <button type="button" class="cm-react" data-react="{{ code }}" aria-label="Reagovat {{ emoji }}">
+            <span class="cm-react-e">{{ emoji }}</span><b class="cm-react-c" data-c="{{ code }}">{{ m.reactions[code] }}</b>
+          </button>
+          {% endfor %}
+        </div>
+        <button type="button" class="cm-wa" data-wa="message" data-wa-text="{{ m.text }}">📲 WhatsApp</button>
+      </div>
+
+      <div class="cm-mod" data-id="{{ m.id }}">
+        {% if is_coach %}
+        <form method="post" action="{{ url_for('communication.pin', msg_id=m.id) }}" class="cm-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="cm-mod-btn">{{ 'Odepnout' if m.pinned else 'Připnout' }}</button></form>
+        <form method="post" action="{{ url_for('communication.important', msg_id=m.id) }}" class="cm-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="cm-mod-btn">{{ 'Zrušit důležité' if m.important else 'Důležité' }}</button></form>
+        {% endif %}
+        <button type="button" class="cm-mod-btn cm-edit-btn" data-own="{{ '1' if m.editable_window else '0' }}" hidden>Upravit</button>
+        <form method="post" action="{{ url_for('communication.delete', msg_id=m.id) }}" class="cm-inline cm-del-form form-confirm" data-message="Smazat zprávu?" data-own="{{ '1' if m.editable_window else '0' }}" hidden>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="token" value="">
+          <button type="submit" class="cm-mod-btn cm-mod-btn--danger">Smazat</button>
+        </form>
+      </div>
+
+      <form method="post" action="{{ url_for('communication.edit', msg_id=m.id) }}" class="cm-edit-form" hidden>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="token" value="">
+        <textarea name="text" rows="3" maxlength="500" class="cm-textarea">{{ m.text }}</textarea>
+        <div class="cm-edit-actions">
+          <button type="button" class="cm-mod-btn cm-edit-cancel">Zrušit</button>
+          <button type="submit" class="cm-mod-btn">Uložit</button>
+        </div>
+      </form>
+    </article>
+    {% endfor %}
+    <div class="cm-empty" id="cm-empty" {% if messages %}hidden{% endif %}>Zatím žádné zprávy. Napiš první! 👋</div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">window.CM_CFG = { reactUrl: "{{ url_for('communication.react', msg_id=0) }}", csrf: "{{ csrf_token() }}" };</script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='communication.js', v=csp_nonce) }}"></script>
+{% endblock %}

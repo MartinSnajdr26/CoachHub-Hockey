@@ -1,231 +1,668 @@
 {% extends "base.html" %}
-{% block title %} Domů{% endblock %}
+{% block title %} Přehled{% endblock %}
+
+{%- macro dico(name) -%}
+{%- set p = {
+  'plus': '<path d="M12 5v14M5 12h14"/>',
+  'calendar': '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+  'chart': '<path d="M4 20V11M10 20V5M16 20v-7M3.5 20h17"/>',
+  'users': '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c0-3 2.6-5 5.5-5s5.5 2 5.5 5"/><path d="M16 5.6a3 3 0 0 1 0 5.6"/><path d="M20.5 19.5c0-2-1-3.4-2.8-4.3"/>',
+  'chat': '<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l.9-4.4A8 8 0 1 1 21 12z"/>',
+  'flag': '<path d="M5 21V4"/><path d="M5 4h11l-2 3 2 3H5"/>',
+  'target': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+  'grid': '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  'download': '<path d="M12 4v10m0 0 4-4m-4 4-4-4"/><path d="M5 20h14"/>',
+  'percent': '<path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/>'
+} -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ p.get(name, '')|safe }}</svg>
+{%- endmacro -%}
 
 {% block content %}
+<div class="dash">
 
-<div class="home-wrap">
-  <div class="home-cards-col">
-    <div class="cards-holder" style="text-align:left; width:100%;">
-      
-      <div class="cards cards-home">
-          <div class="card">
-              <h2>👥 Hráči</h2>
-              <p>Správa kádru, přidávání a mazání hráčů.</p>
-              <a href="/players"><button>Otevřít</button></a>
-          </div>
-          <div class="card">
-              <h2>📋 Soupiska</h2>
-              <p>Vyber nominaci na zápas a připrav soupisku.</p>
-              <a href="/roster"><button>Otevřít</button></a>
-          </div>
-          <div class="card">
-              <h2>🏒 Formace</h2>
-              <p>Rozděl hráče do lajn a sestav útoky i obrany.</p>
-              <a href="/lines"><button>Otevřít</button></a>
-          </div>
-          <div class="card">
-              <h2>📝 Tréninky</h2>
-              <p>Vytvářej a ukládej cvičení, plánuj tréninky.</p>
-              <a href="/drills"><button>Otevřít</button></a>
-          </div>
-      </div>
-
-      <!-- Message board moved under cards -->
-      <div class="card message-card" style="margin-top:16px; text-align:left;">
-        <h2 style="margin-top:0;">📣 Nástěnka týmu</h2>
-        <p style="margin-top:-6px; opacity:0.8;">Posledních 50 zpráv</p>
-        <form class="mb-form" method="post" action="{{ url_for('calendar.message_post') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <textarea name="text" rows="2" maxlength="500" placeholder="Napiš zprávu pro tým… (max 500 znaků)"></textarea>
-          <button type="submit">➤ Odeslat</button>
-        </form>
-        <div class="mb-list">
-          {% for msg in team_messages %}
-            <div class="mb-item">
-              <div class="mb-meta">
-                <span>
-                  {% if msg.pinned %}📌 {% endif %}
-                  {{ msg.created_at.strftime('%Y-%m-%d %H:%M') }} • {{ 'Trenér' if (msg.role=='coach') else 'Hráč' }}
-                </span>
-                {% if (is_coach_home|default(is_coach)) %}
-                  <span class="mb-actions">
-                    <form method="post" action="{{ url_for('calendar.message_pin', msg_id=msg.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" title="Připnout / odepnout">📌</button>
-                    </form>
-                    <form method="post" action="{{ url_for('calendar.message_delete', msg_id=msg.id) }}" onsubmit="return confirm('Smazat zprávu?');">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" title="Smazat">🗑</button>
-                    </form>
-                  </span>
-                {% endif %}
-              </div>
-              <div class="mb-text">{{ msg.text }}</div>
-            </div>
-          {% else %}
-            <div style="opacity:0.7;">Zatím žádné zprávy.</div>
-          {% endfor %}
+  <!-- ROW 1 — HERO -->
+  <section class="dash-hero">
+    <div class="hero-main">
+      <p class="hero-eyebrow">{{ today_weekday }} · {{ today_label }}</p>
+      <h1 class="hero-title">Vítej zpět 👋</h1>
+      <p class="hero-sub">Tady je dnešní přehled tvého týmu.</p>
+      {% if dash.next_practice %}
+        <div class="hero-countdown" data-countdown="{{ dash.next_practice.day.isoformat() }}T{{ dash.next_practice.time or '18:00' }}">
+          <span class="cd-label">Další trénink za</span>
+          <span class="cd-value" data-cd-value>—</span>
+          <span class="cd-meta">{{ dash.next_practice.label }}{% if dash.next_practice.time %} · {{ dash.next_practice.time }}{% endif %} · {{ dash.next_practice.title }}</span>
         </div>
+      {% else %}
+        <div class="hero-countdown hero-countdown--empty">Žádný naplánovaný trénink. {% if is_coach_home %}Přidej první níže v kalendáři.{% endif %}</div>
+      {% endif %}
+    </div>
+
+    <div class="hero-actions">
+      <span class="qa-title">Rychlé akce</span>
+      <div class="qa-grid">
+        {% if is_coach_home %}
+          <button type="button" class="qa qa-primary" data-quick="new-practice">{{ dico('plus') }} Nový trénink</button>
+          <a class="qa" href="{{ url_for('dochazka') }}">{{ dico('chart') }} Docházka</a>
+          <a class="qa" href="{{ url_for('new_drill') }}">{{ dico('target') }} Nové cvičení</a>
+          <button type="button" class="qa" data-quick="message">{{ dico('chat') }} Napsat zprávu</button>
+          <a class="qa" href="{{ url_for('lines') }}">{{ dico('grid') }} Sestavit formaci</a>
+          <a class="qa" href="{{ url_for('drills_select') }}">{{ dico('download') }} Export PDF</a>
+        {% else %}
+          <a class="qa" href="{{ url_for('dochazka') }}">{{ dico('chart') }} Docházka</a>
+          <button type="button" class="qa" data-quick="message">{{ dico('chat') }} Napsat zprávu</button>
+          <a class="qa" href="{{ url_for('lines') }}">{{ dico('grid') }} Formace</a>
+          <a class="qa" href="{{ url_for('drills') }}">{{ dico('target') }} Cvičení</a>
+        {% endif %}
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="calendar-col">
-    <h2 class="month-title" style="margin:0 0 8px;">{{ month_title }}</h2>
-    <p style="margin:0 4px 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:2px solid var(--brand-secondary, #000); border-radius:8px; padding:6px 8px; background:#fff; color: var(--brand-secondary, #000);">
-      <a href="{{ url_for('home', year=prev_year, month=prev_month) }}"><button>◀ Předchozí</button></a>
-      <a href="{{ url_for('home') }}"><button>Dnes</button></a>
-      <a href="{{ url_for('home', year=next_year, month=next_month) }}"><button>Další ▶</button></a>
-      <span style="margin-left:12px; opacity:0.8;">Dnes: {{ today_label }}</span>
-    </p>
-    <p class="calendar-hint">Klepnutím na den zobrazíš detail.</p>
-    <p class="calendar-legend" style="margin:0 0 10px; display:flex; align-items:center; gap:14px;">
-      <span style="display:inline-flex; align-items:center; gap:6px;">
-        <span style="display:inline-block; width:8px; height:6px; background: var(--brand-primary, #d4c76f); border:2px solid var(--brand-secondary, #000); border-radius:2px;"></span>
-        Trénink
-      </span>
-      <span style="display:inline-flex; align-items:center; gap:6px;">
-        <span style="display:inline-block; width:8px; height:6px; background: var(--brand-secondary, #000); border:2px solid var(--brand-primary, #d4c76f); border-radius:2px;"></span>
-        Zápas
-      </span>
-    </p>
-    <div class="calendar-wrap table-scroll" data-is-coach="{{ '1' if (is_coach_home|default(is_coach)) else '0' }}">
-    <table style="width:100%; border-collapse:collapse;">
-      <thead>
-        <tr>
-          {% for wd in ['Po','Út','St','Čt','Pá','So','Ne'] %}
-            <th>{{ wd }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for week in weeks %}
+  <!-- ROW 2 — STAT TILES -->
+  <section class="dash-stats">
+    <div class="stat">
+      <div class="stat-top"><span class="stat-label">Nejbližší trénink</span><span class="stat-icon">{{ dico('calendar') }}</span></div>
+      <div class="stat-value is-small">{% if dash.next_practice %}{{ dash.next_practice.label }}{% else %}—{% endif %}</div>
+      <div class="stat-sub">{% if dash.next_practice %}{% if dash.next_practice.time %}{{ dash.next_practice.time }} · {% endif %}{{ dash.next_practice.title }}{% else %}Nenaplánováno{% endif %}</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-top"><span class="stat-label">Nejbližší zápas</span><span class="stat-icon is-match">{{ dico('flag') }}</span></div>
+      <div class="stat-value is-small">{% if dash.next_game %}{{ dash.next_game.label }}{% else %}—{% endif %}</div>
+      <div class="stat-sub">{% if dash.next_game %}{% if dash.next_game.time %}{{ dash.next_game.time }} · {% endif %}{{ dash.next_game.title }}{% else %}Žádný naplánovaný zápas{% endif %}</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-top"><span class="stat-label">Účast</span><span class="stat-icon">{{ dico('percent') }}</span></div>
+      <div class="stat-value">{% if dash.attendance %}{{ dash.attendance.pct }} %{% else %}—{% endif %}</div>
+      {% if dash.attendance %}
+        <div class="stat-bar"><span style="width: {{ dash.attendance.pct }}%"></span></div>
+        <div class="stat-sub">k dispozici <strong>{{ dash.attendance.going }}/{{ dash.attendance.total }}</strong> · nejbližší událost</div>
+      {% else %}
+        <div class="stat-sub">Zatím žádná data o účasti</div>
+      {% endif %}
+    </div>
+
+    <div class="stat">
+      <div class="stat-top"><span class="stat-label">Hráči k dispozici</span><span class="stat-icon">{{ dico('users') }}</span></div>
+      {% if dash.attendance %}
+        <div class="stat-value">{{ dash.attendance.going }}<span style="color:var(--text-muted);font-size:1rem;font-weight:600;">/{{ dash.attendance.total }}</span></div>
+        <div class="stat-sub"{% if dash.attendance.missing_names %} title="Chybí: {{ dash.attendance.missing_names|join(', ') }}"{% endif %}>
+          Chybí <strong>{{ dash.attendance.not_going }}</strong>{% if dash.attendance.pending %} · <span class="stat-attention">{{ dash.attendance.pending }} nepotvrdilo</span>{% endif %}
+        </div>
+      {% else %}
+        <div class="stat-value">{{ dash.players_total }}</div>
+        <div class="stat-sub">hráčů v týmu</div>
+      {% endif %}
+    </div>
+
+    <div class="stat">
+      <div class="stat-top"><span class="stat-label">Zprávy týmu</span><span class="stat-icon">{{ dico('chat') }}</span></div>
+      <div class="stat-value">{{ dash.recent_messages_7d }}</div>
+      <div class="stat-sub">za 7 dní · {{ team_messages|length }} celkem</div>
+    </div>
+  </section>
+
+  <!-- ROW 3 — CALENDAR + SCHEDULE/ACTIVITY -->
+  <section class="dash-grid dash-grid--main">
+    <div class="card dash-calendar" id="dash-calendar">
+      <div class="cal-head">
+        <div>
+          <h2 class="cal-month">{{ month_title }}</h2>
+          <span class="cal-hint">Klepnutím na den zobrazíš detail{% if is_coach_home %} nebo přidáš událost{% endif %}.</span>
+        </div>
+        <div class="cal-head-controls">
+          <div class="cal-legend">
+            <span class="cal-chip cal-chip--training">Trénink</span>
+            <span class="cal-chip cal-chip--match">Zápas</span>
+          </div>
+          <div class="cal-nav">
+            <a class="cal-nav-btn" href="{{ url_for('home', year=prev_year, month=prev_month) }}" aria-label="Předchozí měsíc">‹</a>
+            <a class="cal-nav-btn" href="{{ url_for('home') }}">Dnes</a>
+            <a class="cal-nav-btn" href="{{ url_for('home', year=next_year, month=next_month) }}" aria-label="Další měsíc">›</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="calendar-wrap table-scroll" data-is-coach="{{ '1' if (is_coach_home|default(is_coach)) else '0' }}">
+      <table>
+        <thead>
           <tr>
-            {% for day in week %}
-              {% set in_month = (day.month == cal_month) %}
-              {% set is_today = (day.isoformat() == today_iso) %}
-              {% set key = day.isoformat() %}
-              {% set evs = events_by_day.get(key, []) %}
-              {% set ns = namespace(has_match=false, has_training=false, first_title='', first_time='') %}
-              {% for ev in evs %}
-                {% set kind = (ev.kind or 'training') %}
-                {% if kind == 'match' %}{% set ns.has_match = true %}{% endif %}
-                {% if kind == 'training' %}{% set ns.has_training = true %}{% endif %}
-                {% if not ns.first_title %}{% set ns.first_title = ev.title %}{% set ns.first_time = ev.time or '' %}{% endif %}
-              {% endfor %}
-              <td class="cal-cell {{ 'in-month' if in_month else 'out-month' }} {{ 'is-today' if is_today else '' }} {{ 'has-match' if ns.has_match else ('has-training' if ns.has_training else '') }}"
-                  data-kind="{{ 'match' if ns.has_match else ('training' if ns.has_training else '') }}"
-                  data-title="{{ ns.first_title }}" data-time="{{ ns.first_time }}">
-                <div class="cal-cell-head" style="display:flex; justify-content:space-between; align-items:center;">
-                  {% if is_today %}
-                    <strong style="color: var(--tertiary, #c44747); font-weight:800;">{{ day.day }}</strong>
-                  {% else %}
-                    <strong>{{ day.day }}</strong>
-                  {% endif %}
-                  {% if ns.has_match or ns.has_training %}
-                    <span class="day-badge" aria-hidden="true">{{ 'Z' if ns.has_match else 'T' }}</span>
-                  {% endif %}
-                  {% if in_month and (is_coach_home|default(is_coach)) %}
-                    <details>
-                      <summary style="cursor:pointer; font-size:12px; line-height:1;">➕</summary>
-                      <form method="POST" action="{{ url_for('calendar_add') }}" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="day" value="{{ day.isoformat() }}">
-                        <label style="font-size:12px;">
-                          Čas (24h)
-                          <span style="display:inline-flex; gap:4px; align-items:center;">
-                            <select name="time_hour" style="padding:4px 6px; border:1px solid #bbb; border-radius:6px;">
-                              {% for h in range(0,24) %}
-                                {% set h2 = '%02d' % h %}
-                                <option value="{{ h2 }}" {% if h==18 %}selected{% endif %}>{{ h2 }}</option>
-                              {% endfor %}
-                            </select>
-                            :
-                            <select name="time_minute" style="padding:4px 6px; border:1px solid #bbb; border-radius:6px;">
-                              {% for minute in range(0,60) %}
-                                {% set min2 = '%02d' % minute %}
-                                <option value="{{ min2 }}" {% if minute==0 %}selected{% endif %}>{{ min2 }}</option>
-                              {% endfor %}
-                            </select>
-                          </span>
-                        </label>
-                        <input type="text" name="title" placeholder="Název (např. Trénink A)" style="padding:4px 6px; border:1px solid #bbb; border-radius:6px;">
-                        <label style="font-size:12px;">Typ
-                          <select name="kind">
-                            <option value="training" selected>Trénink</option>
-                            <option value="match">Zápas</option>
-                          </select>
-                        </label>
-                        <button type="submit">Přidat</button>
-                      </form>
-                    </details>
-                  {% endif %}
-                </div>
+            {% for wd in ['Po','Út','St','Čt','Pá','So','Ne'] %}
+              <th>{{ wd }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+            <tr>
+              {% for day in week %}
+                {% set in_month = (day.month == cal_month) %}
+                {% set is_today = (day.isoformat() == today_iso) %}
+                {% set key = day.isoformat() %}
+                {% set evs = events_by_day.get(key, []) %}
+                {% set ns = namespace(has_match=false, has_training=false, first_title='', first_time='') %}
                 {% for ev in evs %}
-                  {% set c = 'var(--brand-primary, #d4c76f)' if (ev.kind or 'training') == 'training' else 'var(--brand-secondary, #000)' %}
-                  <div class="cal-event" style="border-left:3px solid {{ c }};">
-                    <b>{{ ev.time or '' }}</b> {{ ev.title }}
-                    {% if (is_coach_home|default(is_coach)) %}
+                  {% set kind = (ev.kind or 'training') %}
+                  {% if kind == 'match' %}{% set ns.has_match = true %}{% endif %}
+                  {% if kind == 'training' %}{% set ns.has_training = true %}{% endif %}
+                  {% if not ns.first_title %}{% set ns.first_title = ev.title %}{% set ns.first_time = ev.time or '' %}{% endif %}
+                {% endfor %}
+                <td class="cal-cell {{ 'in-month' if in_month else 'out-month' }} {{ 'is-today' if is_today else '' }} {{ 'has-match' if ns.has_match else ('has-training' if ns.has_training else '') }}"
+                    data-kind="{{ 'match' if ns.has_match else ('training' if ns.has_training else '') }}"
+                    data-title="{{ ns.first_title }}" data-time="{{ ns.first_time }}">
+                  <div class="cal-cell-head" style="display:flex; justify-content:space-between; align-items:center;">
+                    {% if is_today %}
+                      <strong>{{ day.day }}</strong>
+                    {% else %}
+                      <strong>{{ day.day }}</strong>
+                    {% endif %}
+                    {% if ns.has_match or ns.has_training %}
+                      <span class="day-badge" aria-hidden="true">{{ 'Z' if ns.has_match else 'T' }}</span>
+                    {% endif %}
+                    {% if in_month and (is_coach_home|default(is_coach)) %}
                       <details>
-                        <summary style="cursor:pointer; font-size:12px; opacity:0.8;">Upravit</summary>
-                        <form method="POST" action="{{ url_for('calendar_update') }}" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                        <summary style="cursor:pointer; font-size:12px; line-height:1;">➕</summary>
+                        <form method="POST" action="{{ url_for('calendar_add') }}" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                          <input type="hidden" name="id" value="{{ ev.id }}">
+                          <input type="hidden" name="day" value="{{ day.isoformat() }}">
                           <label style="font-size:12px;">
                             Čas (24h)
-                            {% set th = (ev.time or '00:00')[:2] %}
-                            {% set tm = (ev.time or '00:00')[3:5] %}
                             <span style="display:inline-flex; gap:4px; align-items:center;">
-                              <select name="time_hour" style="padding:4px 6px; border:1px solid #bbb; border-radius:6px;">
+                              <select name="time_hour" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
                                 {% for h in range(0,24) %}
                                   {% set h2 = '%02d' % h %}
-                                  <option value="{{ h2 }}" {% if h2==th %}selected{% endif %}>{{ h2 }}</option>
+                                  <option value="{{ h2 }}" {% if h==18 %}selected{% endif %}>{{ h2 }}</option>
                                 {% endfor %}
                               </select>
                               :
-                              <select name="time_minute" style="padding:4px 6px; border:1px solid #bbb; border-radius:6px;">
+                              <select name="time_minute" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
                                 {% for minute in range(0,60) %}
                                   {% set min2 = '%02d' % minute %}
-                                  <option value="{{ min2 }}" {% if min2==tm %}selected{% endif %}>{{ min2 }}</option>
+                                  <option value="{{ min2 }}" {% if minute==0 %}selected{% endif %}>{{ min2 }}</option>
                                 {% endfor %}
                               </select>
                             </span>
                           </label>
-                          <input type="text" name="title" value="{{ ev.title }}" style="padding:4px 6px; border:1px solid #bbb; border-radius:6px;">
-                          <select name="kind">
-                            <option value="training" {% if (ev.kind or 'training')=='training' %}selected{% endif %}>Trénink</option>
-                            <option value="match" {% if (ev.kind or 'training')=='match' %}selected{% endif %}>Zápas</option>
-                          </select>
-                          <button type="submit">Uložit</button>
-                        </form>
-                        <form method="POST" action="{{ url_for('calendar_delete') }}" class="form-confirm" data-message="Smazat událost?" style="margin-top:6px;">
-                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                          <input type="hidden" name="id" value="{{ ev.id }}">
-                          <button type="submit" style="background: var(--tertiary, #c44747); color:#fff;">🗑 Smazat</button>
+                          <input type="text" name="title" placeholder="Název (např. Trénink A)" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                          <label style="font-size:12px;">Typ
+                            <select name="kind">
+                              <option value="training" selected>Trénink</option>
+                              <option value="match">Zápas</option>
+                            </select>
+                          </label>
+                          <label style="font-size:12px;">Opakování
+                            <select name="repeat" class="cal-repeat" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                              <option value="none" selected>Neopakovat</option>
+                              <option value="daily">Denně</option>
+                              <option value="weekly">Týdně</option>
+                              <option value="biweekly">Každé 2 týdny</option>
+                              <option value="monthly">Měsíčně</option>
+                            </select>
+                          </label>
+                          <div class="cal-rep-weekdays" style="display:none; flex-wrap:wrap; gap:4px; font-size:11px;">
+                            {% for code,lbl in [('MO','Po'),('TU','Út'),('WE','St'),('TH','Čt'),('FR','Pá'),('SA','So'),('SU','Ne')] %}
+                              <label style="display:inline-flex; gap:2px; align-items:center;"><input type="checkbox" name="weekday" value="{{ code }}"> {{ lbl }}</label>
+                            {% endfor %}
+                          </div>
+                          <div class="cal-rep-end" style="display:none; font-size:11px;">
+                            <label style="display:block;">Do <input type="date" name="until" style="padding:3px 5px; border:1px solid var(--field-border); border-radius:6px;"></label>
+                            <label style="display:block; margin-top:3px;">nebo počet <input type="number" name="count" min="1" max="100" placeholder="např. 12" style="width:70px; padding:3px 5px; border:1px solid var(--field-border); border-radius:6px;"></label>
+                          </div>
+                          <button type="submit">Přidat</button>
                         </form>
                       </details>
                     {% endif %}
                   </div>
-                {% endfor %}
-              </td>
-            {% endfor %}
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    </div>
+                  {% for ev in evs %}
+                    {% set is_external = ev.get('source') == 'tymuj' if ev is mapping else false %}
+                    {% set kind = (ev.kind if ev is not mapping else (ev.get('kind') or 'tymuj')) %}
+                    <div class="cal-event {{ 'cal-event--match' if kind == 'match' else 'cal-event--training' }}">
+                      <b>{{ ev.time or '' }}</b> {{ ev.title }}{% if is_external %} <span style="opacity:0.75; font-size:12px;">(tymuj.cz)</span>{% endif %}{% if ev is not mapping and ev.series_id %} <span title="Opakovaná událost" aria-label="Opakovaná událost">🔁</span>{% endif %}
+                      {% if (is_coach_home|default(is_coach)) and not is_external %}
+                        <details>
+                          <summary style="cursor:pointer; font-size:12px; opacity:0.8;">Upravit</summary>
+                          <form method="POST" action="{{ url_for('calendar_update') }}" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="id" value="{{ ev.id }}">
+                            <label style="font-size:12px;">
+                              Čas (24h)
+                              {% set th = (ev.time or '00:00')[:2] %}
+                              {% set tm = (ev.time or '00:00')[3:5] %}
+                              <span style="display:inline-flex; gap:4px; align-items:center;">
+                                <select name="time_hour" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                                  {% for h in range(0,24) %}
+                                    {% set h2 = '%02d' % h %}
+                                    <option value="{{ h2 }}" {% if h2==th %}selected{% endif %}>{{ h2 }}</option>
+                                  {% endfor %}
+                                </select>
+                                :
+                                <select name="time_minute" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                                  {% for minute in range(0,60) %}
+                                    {% set min2 = '%02d' % minute %}
+                                    <option value="{{ min2 }}" {% if min2==tm %}selected{% endif %}>{{ min2 }}</option>
+                                  {% endfor %}
+                                </select>
+                              </span>
+                            </label>
+                            <input type="text" name="title" value="{{ ev.title }}" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                            <select name="kind">
+                              <option value="training" {% if (ev.kind or 'training')=='training' %}selected{% endif %}>Trénink</option>
+                              <option value="match" {% if (ev.kind or 'training')=='match' %}selected{% endif %}>Zápas</option>
+                            </select>
+                            {% if ev is not mapping and ev.series_id %}
+                            <label style="font-size:11px;">Rozsah
+                              <select name="scope" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                                <option value="one">Jen tuto</option>
+                                <option value="future">Tuto a další</option>
+                                <option value="series">Celou sérii</option>
+                              </select>
+                            </label>
+                            {% endif %}
+                            <button type="submit">Uložit</button>
+                          </form>
+                          <form method="POST" action="{{ url_for('calendar_delete') }}" class="form-confirm" data-message="Smazat událost?" style="margin-top:6px;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="id" value="{{ ev.id }}">
+                            {% if ev is not mapping and ev.series_id %}
+                            <label style="font-size:11px;">Rozsah
+                              <select name="scope" style="padding:4px 6px; border:1px solid var(--field-border); border-radius:6px;">
+                                <option value="one">Jen tuto</option>
+                                <option value="future">Tuto a další</option>
+                                <option value="series">Celou sérii</option>
+                              </select>
+                            </label>
+                            {% endif %}
+                            <button type="submit" class="btn-danger">🗑 Smazat</button>
+                          </form>
+                        </details>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
 
-    {# Mobilní panel pro přidání/úpravu události přes celou šířku kalendáře #}
-    <div id="calFormSheet" class="cal-form-sheet" aria-hidden="true">
-      <div class="cal-form-sheet__inner">
-        <div class="cal-form-sheet__header">
-          <strong>Přidat / upravit událost</strong>
-          <button type="button" class="cal-form-sheet__close" aria-label="Zavřít">✖</button>
+      {# Mobilní panel pro přidání/úpravu události přes celou šířku kalendáře #}
+      <div id="calFormSheet" class="cal-form-sheet" aria-hidden="true">
+        <div class="cal-form-sheet__inner">
+          <div class="cal-form-sheet__header">
+            <strong>Přidat / upravit událost</strong>
+            <button type="button" class="cal-form-sheet__close" aria-label="Zavřít">✖</button>
+          </div>
+          <div class="cal-form-sheet__content"></div>
         </div>
-        <div class="cal-form-sheet__content"></div>
       </div>
     </div>
-  </div>
-</div>
 
+    <div class="dash-side">
+      <div class="card dash-schedule">
+        <div class="card-head"><h3>Rozpis tréninků</h3><a class="card-head-link" href="{{ url_for('dochazka') }}">Docházka →</a></div>
+        {% if dash.upcoming %}
+          <ul class="sched-list">
+            {% for e in dash.upcoming %}
+              <li class="sched-item {{ 'sched-item--today' if e.is_today }}">
+                <div class="sched-date {{ 'sched-date--match' if e.is_game }}">
+                  <span class="sched-d">{{ e.day.day }}</span>
+                  <span class="sched-mo">{{ ['','led','úno','bře','dub','kvě','čer','čvc','srp','zář','říj','lis','pro'][e.day.month] }}</span>
+                </div>
+                <div class="sched-body">
+                  <div class="sched-title">{{ e.title }}{% if e.is_today %}<span class="sched-badge-today">Dnes</span>{% endif %}</div>
+                  <div class="sched-meta">{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}{% if e.source == 'tymuj' %} · tymuj.cz{% endif %}</div>
+                </div>
+                <div class="sched-end">
+                  <span class="sched-kind {{ 'is-match' if e.is_game else 'is-training' }}">{{ 'Zápas' if e.is_game else 'Trénink' }}</span>
+                  {% if is_coach_home %}<button type="button" class="sched-wa" title="Sdílet na WhatsApp" aria-label="Sdílet na WhatsApp" data-wa="event" data-wa-kind="{{ 'match' if e.is_game else 'training' }}" data-wa-title="{{ e.title }}" data-wa-when="{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}">📲</button>{% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">Žádné nadcházející události.{% if is_coach_home %}<a class="btn-outline btn-sm" href="#dash-calendar" data-quick="new-practice">Přidat trénink</a>{% endif %}</div>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+
+  {% if league and league.enabled and (league.standings or league.error or league.stale_schema) %}
+  <!-- ROW 3b — LEAGUE (standings + position/form + recent results) -->
+  <section class="dash-grid dash-grid--main">
+    <div class="card dash-league">
+      <div class="card-head">
+        <h3>🏆 Tabulka{% if league.info and league.info.competition_name %} — {{ league.info.competition_name }}{% endif %}</h3>
+        {% if league.source_url %}<a class="card-head-link" href="{{ league.source_url }}" target="_blank" rel="noopener noreferrer nofollow">Zdroj →</a>{% endif %}
+      </div>
+      {% if league.stale_schema %}<div class="league-warn">⚠ Data jsou ve starém formátu.{% if is_coach_home %} Otevři <a href="{{ url_for('settings') }}">Nastavení → Liga</a> a klikni „Obnovit data".{% endif %}</div>{% endif %}
+      {% if league.error %}<div class="league-warn">⚠ Data se nepodařilo obnovit — zobrazujeme poslední uložená{% if league.updated %} ({{ league.updated.strftime('%d.%m. %H:%M') }}){% endif %}.</div>{% endif %}
+      {% if league.standings %}
+      <div class="table-scroll">
+        <table class="league-table">
+          <thead><tr><th>#</th><th>Tým</th><th>Z</th><th>V</th><th>R</th><th>P</th><th>Skóre</th><th>B</th><th>+/-</th></tr></thead>
+          <tbody>
+          {% for s in league.standings %}
+            <tr class="{{ 'is-team' if s.is_team }}">
+              <td>{{ s.position }}</td>
+              <td class="lt-team">{{ s.team_name }}</td>
+              <td>{{ s.played }}</td><td>{{ s.wins }}</td><td>{{ s.draws }}</td><td>{{ s.losses }}</td>
+              <td>{{ s.score or (s.goals_for ~ ':' ~ s.goals_against) }}</td><td><strong>{{ s.points }}</strong></td>
+              <td>{{ '%+d'|format(s.plus_minus) if s.plus_minus is not none else '' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="empty">Zatím žádná data.{% if is_coach_home %} Otevři <a href="{{ url_for('settings') }}">Nastavení → Liga</a> a klikni „Obnovit data".{% endif %}</div>
+      {% endif %}
+      <p class="league-src muted">Externí data z {{ league.connector or 'webu' }}{% if league.updated %} · aktualizováno {{ league.updated.strftime('%d.%m.%Y %H:%M') }} UTC{% endif %}.</p>
+    </div>
+
+    <div class="dash-side">
+      <div class="card">
+        <div class="card-head"><h3>🏅 Naše pozice</h3></div>
+        {% if league.team_row %}
+          <div class="league-pos">
+            <span class="league-pos-num">{{ league.team_row.position }}.</span>
+            <span class="league-pos-team">{{ league.team_row.team_name }}</span>
+          </div>
+          <div class="league-pos-meta">{{ league.team_row.played }} zápasů · {{ league.team_row.points }} bodů · skóre {{ league.team_row.score or (league.team_row.goals_for ~ ':' ~ league.team_row.goals_against) }} · bilance {{ league.team_row.wins }}-{{ league.team_row.draws }}-{{ league.team_row.losses }}</div>
+        {% else %}
+          <div class="empty">Tým v tabulce nenalezen.{% if is_coach_home %} <a href="{{ url_for('settings') }}">Potvrdit v Nastavení</a>{% endif %}</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Forma posledních 5 zápasů</h3></div>
+        {% if league.form_cards %}
+          <div class="league-form">
+            {% for f in league.form_cards %}<span class="lf lf-{{ f.code|lower }}" title="{{ f.code }}">{{ f.label }}</span>{% endfor %}
+          </div>
+          {% if league.form_partial %}<p class="league-form-note muted">Forma je počítána pouze z dostupných výsledků.</p>{% endif %}
+        {% else %}
+          <div class="empty">Zatím není dostupných 5 výsledků pro vybraný tým.</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>📅 Poslední výsledky</h3></div>
+        {% if league.results %}
+          <ul class="league-results">
+            {% for r in league.results[:6] %}
+              <li>
+                <span class="lr-main">
+                  <span class="lr-teams">{{ r.home_team }} – {{ r.away_team }}</span>
+                  {% if r.date %}<span class="lr-date">{{ r.date }}</span>{% endif %}
+                </span>
+                <span class="lr-score">{{ r.home_score }}:{{ r.away_score }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}<div class="empty">Žádné výsledky.</div>{% endif %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ROW 4 — MESSAGES + LINEUP + DRILLS -->
+  <section class="dash-comms" id="dash-comms">
+    <div class="card message-card" id="dash-messages">
+      <div class="card-head"><h2>Nástěnka týmu</h2><span class="badge">{{ team_messages|length }}</span><a class="card-head-link" href="{{ url_for('communication.feed') }}" style="margin-left:auto;">Přejít na nástěnku →</a></div>
+      <form class="composer" method="post" action="{{ url_for('calendar.message_post') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea id="composerText" name="text" rows="2" maxlength="500" placeholder="Napiš zprávu pro tým…"></textarea>
+        <div class="composer-foot">
+          <span class="composer-hint">Max 500 znaků</span>
+          <span class="composer-actions">
+            <button type="button" class="btn-ghost btn-sm" data-wa="message" data-wa-source="#composerText">📲 WhatsApp</button>
+            <button type="submit" class="btn-sm">Odeslat</button>
+          </span>
+        </div>
+      </form>
+      <div class="msg-list">
+        {% for msg in team_messages %}
+          <article class="msg {{ 'msg--pinned' if msg.pinned }}">
+            <div class="msg-avatar" data-role="{{ msg.role }}">{{ 'T' if msg.role == 'coach' else 'H' }}</div>
+            <div class="msg-body">
+              <div class="msg-meta">
+                <span class="msg-author">{{ 'Trenér' if msg.role == 'coach' else 'Hráč' }}</span>
+                {% if msg.pinned %}<span class="msg-pin">📌 Připnuto</span>{% endif %}
+                <time class="msg-time" data-ts="{{ msg.created_at.isoformat() }}Z">{{ msg.created_at.strftime('%d.%m. %H:%M') }}</time>
+              </div>
+              <div class="msg-text">{{ msg.text }}</div>
+              {% if (is_coach_home|default(is_coach)) %}
+                <div class="msg-actions">
+                  <button type="button" class="btn-ghost btn-sm" data-wa="message" data-wa-text="{{ msg.text }}">📲 WhatsApp</button>
+                  <form method="post" action="{{ url_for('calendar.message_pin', msg_id=msg.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-ghost btn-sm">{{ 'Odepnout' if msg.pinned else 'Připnout' }}</button>
+                  </form>
+                  <form method="post" action="{{ url_for('calendar.message_delete', msg_id=msg.id) }}" class="form-confirm" data-message="Smazat zprávu?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-ghost btn-sm">Smazat</button>
+                  </form>
+                </div>
+              {% endif %}
+            </div>
+          </article>
+        {% else %}
+          <div class="empty">Zatím žádné zprávy.<br>Napiš první vzkaz svému týmu 👆</div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ROW 5 — RECENT ACTIVITY (full-width, collapsible) -->
+  <section class="dash-activity-row" id="dash-activity" data-activity>
+    <div class="card act-card">
+      <div class="card-head act-head">
+        <h3 style="margin:0;">Poslední aktivita</h3>
+        <div class="act-head-actions">
+          {% if is_coach %}<a class="card-head-link" href="{{ url_for('audit_log') }}">Zobrazit vše →</a>{% endif %}
+          <button type="button" class="act-toggle" data-act-toggle aria-controls="actBody" aria-expanded="true">Skrýt aktivitu</button>
+        </div>
+      </div>
+      <div class="act-body" id="actBody" data-act-body>
+        {% if dash.recent_activity %}
+          {% set act_meta = {
+            'message': ['💬', 'tl-primary', 'Nová zpráva na nástěnce'],
+            'team.brand_update': ['🎨', 'tl-accent', 'Změna vzhledu týmu'],
+            'team.create': ['🏒', 'tl-success', 'Tým byl vytvořen'],
+            'team.login': ['🔑', 'tl-muted', 'Přihlášení do týmu'],
+            'terms.accepted': ['📄', 'tl-muted', 'Souhlas s podmínkami']
+          } %}
+          <ul class="tl-h">
+            {% for a in dash.recent_activity[:5] %}
+              {% set m = act_meta.get(a.event, ['•', 'tl-muted', a.event]) %}
+              <li class="tl-h-item">
+                <span class="tl-icon {{ m[1] }}">{{ m[0] }}</span>
+                <div class="tl-body">
+                  <div class="tl-text">{{ m[2] }}</div>
+                  <div class="tl-meta"><span data-ts="{{ a.created_at.isoformat() }}Z">{{ a.created_at.strftime('%d.%m. %H:%M') }}</span>{% if a.role %} · {{ 'Trenér' if a.role == 'coach' else ('Hráč' if a.role == 'player' else a.role) }}{% endif %}</div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">Zatím žádná aktivita.<br><span class="muted">Akce týmu se objeví tady.</span></div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  function ready(fn){ if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fn); } else { fn(); } }
+  ready(function(){
+    // Live countdown to next practice
+    var cd = document.querySelector('[data-countdown]');
+    if(cd){
+      var out = cd.querySelector('[data-cd-value]');
+      var target = new Date(cd.getAttribute('data-countdown'));
+      function tick(){
+        if(isNaN(target.getTime())){ out.textContent='—'; return; }
+        var diff = target - new Date();
+        if(diff <= 0){ out.textContent='Právě teď'; return; }
+        var d = Math.floor(diff/86400000),
+            h = Math.floor((diff%86400000)/3600000),
+            m = Math.floor((diff%3600000)/60000);
+        if(d > 0){ out.textContent = 'za ' + d + ' ' + (d===1?'den':(d<5?'dny':'dní')) + (h?(' ' + h + ' h'):''); }
+        else if(h > 0){ out.textContent = 'za ' + h + ' h ' + m + ' min'; }
+        else { out.textContent = 'za ' + m + ' min'; }
+      }
+      tick(); setInterval(tick, 30000);
+    }
+
+    // Relative timestamps
+    function rel(ts){
+      var t = new Date(ts); if(isNaN(t.getTime())) return null;
+      var s = (new Date() - t)/1000; if(s < 0) s = 0;
+      if(s < 60) return 'právě teď';
+      if(s < 3600) return 'před ' + Math.floor(s/60) + ' min';
+      if(s < 86400) return 'před ' + Math.floor(s/3600) + ' h';
+      if(s < 604800) return 'před ' + Math.floor(s/86400) + ' dny';
+      return null;
+    }
+    document.querySelectorAll('[data-ts]').forEach(function(n){
+      var r = rel(n.getAttribute('data-ts')); if(r){ n.setAttribute('title', n.textContent.trim()); n.textContent = r; }
+    });
+
+    // Composer character counter
+    var ta = document.querySelector('.composer textarea');
+    var hint = document.querySelector('.composer-hint');
+    if(ta && hint){
+      var max = parseInt(ta.getAttribute('maxlength') || '500', 10);
+      function upd(){ hint.textContent = (max - ta.value.length) + ' znaků zbývá'; }
+      ta.addEventListener('input', upd);
+    }
+
+    // Quick actions
+    document.querySelectorAll('[data-quick]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-quick');
+        if(k === 'message'){
+          var box = document.getElementById('dash-messages');
+          if(box){ box.scrollIntoView({behavior:'smooth', block:'center'}); var t = box.querySelector('textarea'); if(t){ setTimeout(function(){ try{ t.focus(); }catch(e){} }, 320); } }
+        } else if(k === 'new-practice'){
+          var cal = document.getElementById('dash-calendar');
+          if(cal){ cal.scrollIntoView({behavior:'smooth', block:'start'}); }
+          var td = document.querySelector('.calendar-wrap td.is-today details');
+          if(td){ td.open = true; var inp = td.querySelector('input, select'); if(inp){ setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 360); } }
+        }
+      });
+    });
+  });
+})();
+
+/* ---- Calendar month navigation via AJAX — no full reload, keep scroll & focus ---- */
+(function(){
+  var calCard = document.getElementById('dash-calendar');
+  if(!calCard || !window.fetch || !window.DOMParser || !window.history) return;
+
+  function swap(href, push){
+    var wrap = calCard.querySelector('.calendar-wrap');
+    if(!wrap){ window.location.href = href; return; }
+    // Close any open desktop overlay / mobile sheet before swapping
+    var ov = calCard.querySelector('.cal-overlay'); if(ov && ov.parentNode){ ov.parentNode.removeChild(ov); }
+    var sheet = document.getElementById('calFormSheet'); if(sheet){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+
+    calCard.classList.add('cal-loading');
+    calCard.setAttribute('aria-busy', 'true');
+    fetch(href, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+      .then(function(r){ if(!r.ok) throw 0; return r.text(); })
+      .then(function(html){
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var newWrap = doc.querySelector('.calendar-wrap');
+        if(!newWrap) throw 0;
+        // Replace ONLY the inner content; the .calendar-wrap element (with app.js
+        // delegated listeners) stays in place, so all interactions keep working.
+        wrap.innerHTML = newWrap.innerHTML;
+        var newMonth = doc.querySelector('.cal-month');
+        var curMonth = calCard.querySelector('.cal-month');
+        if(curMonth && newMonth){ curMonth.textContent = newMonth.textContent; }
+        var newBtns = doc.querySelectorAll('#dash-calendar .cal-nav-btn');
+        var curBtns = calCard.querySelectorAll('.cal-nav-btn');
+        if(newBtns.length === curBtns.length){
+          curBtns.forEach(function(b, i){ b.setAttribute('href', newBtns[i].getAttribute('href')); });
+        }
+        if(push){ try { history.pushState({ cal: 1 }, '', href); } catch(e){} }
+        calCard.classList.remove('cal-loading');
+        calCard.removeAttribute('aria-busy');
+      })
+      .catch(function(){ window.location.href = href; });
+  }
+
+  calCard.addEventListener('click', function(ev){
+    var a = ev.target.closest('.cal-nav-btn');
+    if(!a) return;
+    ev.preventDefault();
+    swap(a.getAttribute('href'), true);
+  });
+
+  window.addEventListener('popstate', function(){
+    swap(window.location.pathname + window.location.search, false);
+  });
+})();
+
+/* ---- Preserve scroll across the reloads we don't intercept (add/edit/delete event, message post) ---- */
+(function(){
+  var KEY = 'coachhub_dash_scroll';
+  try {
+    var saved = sessionStorage.getItem(KEY);
+    if(saved !== null){
+      sessionStorage.removeItem(KEY);
+      var y = parseInt(saved, 10);
+      if(!isNaN(y)){ window.scrollTo(0, y); }
+    }
+  } catch(e){}
+  document.addEventListener('submit', function(ev){
+    var f = ev.target;
+    if(f && typeof f.action === 'string' && /\/(calendar|message)\//.test(f.action)){
+      try { sessionStorage.setItem(KEY, String(window.scrollY || window.pageYOffset || 0)); } catch(e){}
+    }
+  }, true);
+})();
+
+/* ---- Recent activity show/hide toggle (persisted) ---- */
+(function(){
+  var KEY = 'coachhub_activity_hidden';
+  var row = document.getElementById('dash-activity');
+  var btn = document.querySelector('[data-act-toggle]');
+  if(!row || !btn) return;
+  function apply(hidden){
+    row.classList.toggle('is-collapsed', hidden);
+    btn.setAttribute('aria-expanded', (!hidden).toString());
+    btn.textContent = hidden ? 'Zobrazit aktivitu' : 'Skrýt aktivitu';
+  }
+  var hidden = false;
+  try { hidden = localStorage.getItem(KEY) === '1'; } catch(e){}
+  apply(hidden);
+  btn.addEventListener('click', function(){
+    hidden = !hidden;
+    try { localStorage.setItem(KEY, hidden ? '1' : '0'); } catch(e){}
+    apply(hidden);
+  });
+})();
+</script>
+<script nonce="{{ csp_nonce }}">
+// Calendar 2.0: show/hide recurrence weekday + end fields based on the repeat select.
+(function(){
+  document.addEventListener('change', function(e){
+    var sel = e.target.closest ? e.target.closest('.cal-repeat') : null;
+    if(!sel) return;
+    var form = sel.closest('form'); if(!form) return;
+    var v = sel.value;
+    var wd = form.querySelector('.cal-rep-weekdays');
+    var end = form.querySelector('.cal-rep-end');
+    if(wd) wd.style.display = (v==='weekly' || v==='biweekly') ? 'flex' : 'none';
+    if(end) end.style.display = (v && v!=='none') ? 'block' : 'none';
+  });
+})();
+</script>
 {% endblock %}

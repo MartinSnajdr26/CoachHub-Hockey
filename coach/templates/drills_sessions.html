@@ -5,7 +5,7 @@
 <h1>Seznam tréninkových jednotek</h1>
 
 <p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-  <a href="{{ url_for('drills_select') }}"><button>➕ Nový export</button></a>
+  <a class="btn" href="{{ url_for('drills_select') }}">➕ Nový export</a>
   <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
   <span style="font-size:12px; opacity:0.8;">Staré neuložené exporty se mažou automaticky.</span>
   </p>
@@ -18,22 +18,22 @@
       {% set abs = url_for('download_export', filename=s.filename, _external=True) %}
       {% if s.filename and s.filename != '-' %}
         <p>
-          <a href="{{ url_for('download_export', filename=s.filename) }}" download><button>⬇️ Stáhnout PDF</button></a>
+          <a class="btn" href="{{ url_for('download_export', filename=s.filename) }}" download>⬇️ Stáhnout PDF</a>
           <button type="button" class="btn-share-pdf" data-url="{{ abs }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
         </p>
         <p>
           {% set abs_page = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
-          <a href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}"><button>👁 Otevřít stránku tréninku</button></a>
-          <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank"><button>📲 Sdílet stránku</button></a>
+          <a class="btn" href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}">👁 Otevřít stránku tréninku</a>
+          <a class="btn" href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet stránku</a>
         </p>
       {% else %}
         <p style="opacity:0.8; font-size:14px;">Složka tréninku (bez PDF)</p>
         <p>
           {% set abs_page = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
-          <a href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}"><button>👁 Otevřít stránku tréninku</button></a>
-          <a href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank"><button>📲 Sdílet stránku</button></a>
+          <a class="btn" href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}">👁 Otevřít stránku tréninku</a>
+          <a class="btn" href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet stránku</a>
         </p>
-        {% if current_user.is_authenticated and current_user.role == 'coach' %}
+        {% if is_coach %}
         <form method="post" action="{{ url_for('export_drills_pdf') }}" style="margin-top:8px;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="session_id" value="{{ s.id }}">
@@ -56,10 +56,10 @@
         {% endfor %}
         </ul>
       {% endif %}
-      {% if current_user.is_authenticated and current_user.role == 'coach' %}
-      <form method="post" action="{{ url_for('delete_drill_session', sess_id=s.id) }}" onsubmit="return confirm('Smazat záznam exportu? PDF bude odstraněno.');">
+      {% if is_coach %}
+      <form method="post" action="{{ url_for('delete_drill_session', sess_id=s.id) }}" class="form-confirm" data-message="Smazat záznam exportu? PDF bude odstraněno.">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat</button>
+        <button type="submit" style="background:var(--danger); color:var(--on-danger);">🗑 Smazat</button>
       </form>
       {% endif %}
     </div>

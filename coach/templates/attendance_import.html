@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Import docházky z Týmuj{% endblock %}
+{% block content %}
+<div style="max-width:1000px; margin:0 auto;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
+    <div>
+      <h1 style="margin:0 0 4px;">Import docházky (Týmuj CSV / Excel)</h1>
+      <p style="margin:0; color:var(--text-muted);">Nahraj ručně exportovaný soubor docházky z Týmuj. CoachHub zůstává hlavní platformou — import slouží jen k migraci historických dat.</p>
+    </div>
+    <a class="btn-ghost btn-sm" href="{{ url_for('attendance.import_history') }}">Historie importů →</a>
+  </div>
+
+{% if not preview %}
+  <form method="post" action="{{ url_for('attendance.import_attendance') }}" enctype="multipart/form-data"
+        style="margin-top:16px; border:1px solid var(--field-border); border-radius:12px; padding:16px; background:var(--field-bg);">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="preview">
+    <label>Soubor docházky (.csv nebo .xlsx)<br>
+      <input type="file" name="file" accept=".csv,.xlsx,.txt" required style="margin-top:6px;">
+    </label>
+    <p class="muted" style="font-size:0.85rem;">Soubor se zpracuje v paměti a neukládá se. E-maily, telefony a vzorce jsou ignorovány.</p>
+    <button type="submit" class="btn-secondary">Načíst náhled</button>
+  </form>
+{% else %}
+  {% set s = preview.summary %}
+  <div class="card" style="text-align:left; margin-top:16px;">
+    <h3>Náhled (zatím se nic neuložilo)</h3>
+    <p class="muted">Spolehlivost parseru: {{ (s.confidence*100)|round }} %.</p>
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div><strong>Hráči:</strong> {{ s.players_total }} ({{ s.players_existing }} v soupisce, {{ s.players_similar }} podobných, {{ s.players_new }} nových)</div>
+      <div><strong>Události:</strong> {{ s.events_total }} ({{ s.events_local }} CoachHub, {{ s.events_tymuj }} Týmuj, {{ s.events_new }} nové, {{ s.events_unmatched }} bez data)</div>
+      <div><strong>Docházka:</strong> {{ s.attendance_total }} (✅ {{ s.counts.going }} · ❌ {{ s.counts.not_going }} · 🤔 {{ s.counts.maybe }} · • {{ s.counts.unknown }})</div>
+    </div>
+    {% if s.warnings %}<ul style="color:var(--warning);">{% for w in s.warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('attendance.import_attendance') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="confirm">
+    <input type="hidden" name="plan" value="{{ plan }}">
+    <input type="hidden" name="filename" value="{{ filename or '' }}">
+
+    <div class="card" style="text-align:left;">
+      <h3>Hráči</h3>
+      <div class="table-scroll"><table style="width:100%;">
+        <thead><tr><th>Z Týmuj</th><th>Stav</th><th>Akce</th></tr></thead>
+        <tbody>
+        {% for p in preview.players %}
+          <tr>
+            <td>{{ p.name }}</td>
+            <td>{% if p.kind=='exists' %}V soupisce: {{ p.match_name }}{% elif p.kind=='similar' %}Podobný: {{ p.match_name }}{% else %}Nový{% endif %}</td>
+            <td>
+              <select name="pdec_{{ p.idx }}">
+                {% if p.match_id %}<option value="merge:{{ p.match_id }}" {% if p.default_action=='merge:'~p.match_id %}selected{% endif %}>Sloučit s {{ p.match_name }}</option>{% endif %}
+                <option value="create" {% if p.default_action=='create' %}selected{% endif %}>Vytvořit nového</option>
+                <option value="ignore">Ignorovat</option>
+              </select>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card" style="text-align:left;">
+      <h3>Události</h3>
+      <div class="table-scroll"><table style="width:100%;">
+        <thead><tr><th>Z Týmuj</th><th>Stav</th><th>Akce</th></tr></thead>
+        <tbody>
+        {% for e in preview.events %}
+          <tr>
+            <td>{{ e.raw }}{% if not e.date %} <span style="color:var(--danger);">(bez data)</span>{% endif %}</td>
+            <td>{% if e.kind=='local' %}CoachHub: {{ e.label }}{% elif e.kind=='tymuj' %}Týmuj: {{ e.label }}{% elif e.kind=='new' %}Nová{% else %}Nelze importovat{% endif %}</td>
+            <td>
+              <select name="edec_{{ e.idx }}">
+                {% if e.match_key %}<option value="use:{{ e.match_key }}" {% if e.default_action=='use:'~e.match_key %}selected{% endif %}>Použít existující</option>{% endif %}
+                {% if e.date %}<option value="create" {% if e.default_action=='create' %}selected{% endif %}>Vytvořit novou</option>{% endif %}
+                <option value="ignore" {% if e.default_action=='ignore' %}selected{% endif %}>Ignorovat</option>
+              </select>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px;">
+      <label style="display:flex; gap:8px; align-items:center;">
+        <input type="checkbox" name="overwrite_imported" value="1">
+        Přepsat dříve importovanou Týmuj docházku (docházka zadaná v CoachHubu se nikdy nepřepíše)
+      </label>
+      <span>
+        <a class="btn-ghost" href="{{ url_for('attendance.import_attendance') }}">Zrušit</a>
+        <button type="submit" class="btn-success">Potvrdit import</button>
+      </span>
+    </div>
+  </form>
+{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% block title %}Moje docházka{% endblock %}
+{% set STATUSES = [
+  ('going', 'Jdu', '✅'),
+  ('not_going', 'Nejdu', '❌'),
+  ('maybe', 'Možná', '🤔'),
+  ('unknown', 'Nevyplněno', '◻️')
+] %}
+{% set STATUS_LABEL = {'going':'Jdu','not_going':'Nejdu','maybe':'Možná','unknown':'Nevyplněno'} %}
+{% block content %}
+<div class="pa-wrap">
+  <div class="pa-head">
+    <div>
+      <h1 class="pa-h1">Moje docházka</h1>
+      <p class="pa-lead">Vyber svoje jméno a potvrď docházku na akce.</p>
+    </div>
+    {% if is_coach %}
+    <div class="pa-coachlinks">
+      <a class="btn-ghost btn-sm" href="{{ url_for('dochazka') }}">Týmová tabulka</a>
+      <a class="btn-secondary btn-sm" href="{{ url_for('attendance.import_attendance') }}">Import (CSV/Excel)</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <form method="get" action="{{ url_for('attendance.attendance') }}" id="pa-filter" class="pa-filter">
+    <label class="pa-field">
+      <span>Hráč</span>
+      <select name="player_id" id="pa-player" class="pa-select">
+        <option value="">— vyber hráče —</option>
+        {% for p in players %}
+          <option value="{{ p.id }}" {% if active_player and active_player.id == p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="pa-ranges" role="group" aria-label="Filtr období">
+      {% for key, label in [('future','Budoucí'),('past','Minulé'),('next30','Příštích 30 dní'),('all','Vše')] %}
+        <button type="submit" name="range" value="{{ key }}" class="pa-range {{ 'is-active' if rng==key }}"
+                {% if rng==key %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>{{ label }}</button>
+      {% endfor %}
+    </div>
+  </form>
+
+  {% if not active_player %}
+    <div class="pa-empty">
+      <div class="pa-empty-emoji">🏒</div>
+      <h2>Nejdřív vyber svoje jméno.</h2>
+      <p>Po výběru se ti zobrazí akce a budeš moct potvrdit docházku jedním ťuknutím.</p>
+    </div>
+  {% else %}
+    <div class="pa-hero">
+      <span class="pa-hero-avatar">{{ active_player.name.split()[0][0] }}{{ active_player.name.split()[-1][0] if active_player.name.split()|length > 1 else '' }}</span>
+      <div>
+        <div class="pa-hero-name">{{ active_player.name }}</div>
+        <div class="pa-hero-sub">Tvoje docházka · {{ active_player.position }}</div>
+      </div>
+    </div>
+
+    <div class="pa-summary">
+      <div class="pa-stat"><span class="pa-stat-v" data-sum="upcoming">{{ summary.upcoming }}</span><span class="pa-stat-l">Nadcházející</span></div>
+      <div class="pa-stat pa-stat--go"><span class="pa-stat-v" data-sum="going">{{ summary.going }}</span><span class="pa-stat-l">Potvrzeno</span></div>
+      <div class="pa-stat pa-stat--un"><span class="pa-stat-v" data-sum="unknown">{{ summary.unknown }}</span><span class="pa-stat-l">Nevyplněno</span></div>
+      <div class="pa-stat"><span class="pa-stat-v" data-sum="pct">{{ summary.pct }}%</span><span class="pa-stat-l">Docházka</span></div>
+    </div>
+
+    {% if not groups %}
+      <div class="pa-empty">
+        <div class="pa-empty-emoji">📅</div>
+        <h2>Pro vybraný filtr nejsou žádné události.</h2>
+        <p>Zkus jiné období v horním filtru.</p>
+      </div>
+    {% else %}
+      {% for g in groups %}
+      <h2 class="pa-group-label">{{ g.label }}</h2>
+      <div class="pa-group">
+        {% for e in g.events %}
+        <article class="pa-card pa-card--{{ e.status }} {{ 'is-past' if e.is_past }}">
+          <div class="pa-card-top">
+            <span class="pa-badge pa-badge--{{ e.kind }}">{{ e.kind_label }}</span>
+            <span class="pa-statusbadge pa-statusbadge--{{ e.status }}">{{ STATUS_LABEL[e.status] }}</span>
+          </div>
+          <div class="pa-when">{{ e.day_label }}{% if e.time %} · {{ e.time }}{% endif %}</div>
+          <div class="pa-title">{{ e.title }}</div>
+          {% if e.location %}<div class="pa-loc">📍 {{ e.location }}</div>{% endif %}
+          {% if e.source_label %}<div class="pa-src">Zdroj: {{ e.source_label }}</div>{% endif %}
+          <form method="post" action="{{ url_for('attendance.attendance_set') }}" class="pa-actions" data-pa-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="player_id" value="{{ active_player.id }}">
+            <input type="hidden" name="event_key" value="{{ e.key }}">
+            <input type="hidden" name="range" value="{{ rng }}">
+            {% for code, label, icon in STATUSES %}
+              <button type="submit" name="status" value="{{ code }}"
+                      class="pa-btn pa-btn--{{ code }} {{ 'is-active' if e.status == code }}"
+                      aria-pressed="{{ 'true' if e.status == code else 'false' }}"
+                      aria-label="{{ label }}">
+                <span class="pa-btn-icon" aria-hidden="true">{{ icon }}</span>
+                <span class="pa-btn-label">{{ label }}</span>
+              </button>
+            {% endfor %}
+          </form>
+        </article>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  // --- remember last player + range in localStorage; restore if URL has none ---
+  var form = document.getElementById('pa-filter');
+  var pl = document.getElementById('pa-player');
+  var params = new URLSearchParams(window.location.search);
+  if (!params.get('player_id')) {
+    var lp = localStorage.getItem('att_player');
+    if (lp) {
+      var u = new URL(window.location.href);
+      u.searchParams.set('player_id', lp);
+      if (!params.get('range')) {
+        var lr = localStorage.getItem('att_range');
+        if (lr) u.searchParams.set('range', lr);
+      }
+      window.location.replace(u.toString());
+      return;
+    }
+  }
+  if (params.get('player_id')) localStorage.setItem('att_player', params.get('player_id'));
+  if (params.get('range')) localStorage.setItem('att_range', params.get('range'));
+  if (pl) pl.addEventListener('change', function () {
+    if (pl.value) localStorage.setItem('att_player', pl.value);
+    form.submit();
+  });
+
+  // --- progressive enhancement: one-tap status without full reload ---
+  // Falls back to a normal form POST to /attendance/set when JS is unavailable.
+  var SRC_LABEL = {{ 'true' if is_coach else 'false' }} ? 'CoachHub Coach' : 'CoachHub Player';
+  var STLABEL = {going:'Jdu', not_going:'Nejdu', maybe:'Možná', unknown:'Nevyplněno'};
+  function recalcSummary() {
+    var cards = document.querySelectorAll('.pa-card');
+    var going = 0, unknown = 0;
+    cards.forEach(function (c) {
+      var a = c.querySelector('.pa-btn.is-active');
+      var st = a ? a.value : 'unknown';
+      if (st === 'going') going++; if (st === 'unknown') unknown++;
+    });
+    var set = function (k, v) { var el = document.querySelector('[data-sum="' + k + '"]'); if (el) el.textContent = v; };
+    set('going', going); set('unknown', unknown);
+    var total = cards.length; set('pct', (total ? Math.round(going * 100 / total) : 0) + '%');
+  }
+  document.querySelectorAll('[data-pa-form]').forEach(function (f) {
+    f.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.pa-btn'); if (!btn) return;
+      ev.preventDefault();
+      var status = btn.value;
+      var body = new URLSearchParams();
+      f.querySelectorAll('input[type=hidden]').forEach(function (i) { body.append(i.name, i.value); });
+      body.append('status', status);
+      var card = f.closest('.pa-card');
+      fetch(f.action, { method: 'POST', credentials: 'same-origin', redirect: 'manual', body: body })
+        .then(function (r) {
+          if (!(r.ok || r.status === 0 || r.type === 'opaqueredirect')) throw new Error('bad');
+          // update active button + aria-pressed
+          f.querySelectorAll('.pa-btn').forEach(function (b) {
+            var on = (b === btn); b.classList.toggle('is-active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+          // update status badge + card state class + source
+          var sb = card.querySelector('.pa-statusbadge');
+          if (sb) { sb.className = 'pa-statusbadge pa-statusbadge--' + status; sb.textContent = STLABEL[status]; }
+          card.className = card.className.replace(/pa-card--\w+/, 'pa-card--' + status);
+          var src = card.querySelector('.pa-src');
+          if (!src) { src = document.createElement('div'); src.className = 'pa-src'; card.insertBefore(src, f); }
+          src.textContent = 'Zdroj: ' + SRC_LABEL;
+          recalcSummary();
+        })
+        .catch(function () { f.submit(); });   // fallback to full reload
+    });
+  });
+})();
+</script>
+{% endblock %}

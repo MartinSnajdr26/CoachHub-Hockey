@@ -2,18 +2,37 @@
 (function(){
   function onReady(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
   onReady(function(){
-    try { console.debug('[roster] js loaded'); } catch(_) {}
     var selectedId=null, selectedEl=null, dragSourceList=null; // 'pool' or 'selected'
     function $(s,root){ return (root||document).querySelector(s); }
     function $all(s,root){ return Array.prototype.slice.call((root||document).querySelectorAll(s)); }
     var selected = $('#rosterSelected'); var form = $('#rosterForm'); var checksWrap = $('#hiddenChecks');
-    if(!selected || !form || !checksWrap){ try { console.error('[roster] missing DOM containers'); } catch(_) {} return; }
+    if(!selected || !form || !checksWrap){ return; }
 
     function setCheckbox(id, val){ var cb = checksWrap.querySelector('input[type="checkbox"][name="players"][value="'+id+'"]'); if(cb) cb.checked = !!val; }
     function isChecked(id){ var cb = checksWrap.querySelector('input[type="checkbox"][name="players"][value="'+id+'"]'); return !!(cb && cb.checked); }
     function counters(){ var f=0,d=0,g=0; $all('.sel-item').forEach(function(it){ var pos = it.getAttribute('data-pos'); if(pos==='F') f++; else if(pos==='D') d++; else if(pos==='G') g++; }); $('#cntF').textContent=f; $('#cntD').textContent=d; $('#cntG').textContent=g; }
 
-    function makeSelItem(id, name, pos){ var el=document.createElement('div'); el.className='sel-item'; el.draggable=true; el.setAttribute('data-id', id); el.setAttribute('data-pos', pos); el.innerHTML = '<span class="pl-badge">'+pos+'</span> '+name+' <button type="button" class="btn-x" aria-label="Odebrat">×</button>'; bindSelDrag(el); el.querySelector('.btn-x').addEventListener('click', function(){ removeFromSelected(id); }); return el; }
+    function makeSelItem(id, name, pos){
+      var el=document.createElement('div');
+      el.className='sel-item';
+      el.draggable=true;
+      el.setAttribute('data-id', id);
+      el.setAttribute('data-pos', pos);
+      var badge=document.createElement('span');
+      badge.className='pl-badge';
+      badge.textContent=pos;
+      el.appendChild(badge);
+      el.appendChild(document.createTextNode(' ' + (name || '') + ' '));
+      var btn=document.createElement('button');
+      btn.type='button';
+      btn.className='btn-x';
+      btn.setAttribute('aria-label','Odebrat');
+      btn.textContent='×';
+      el.appendChild(btn);
+      bindSelDrag(el);
+      btn.addEventListener('click', function(){ removeFromSelected(id); });
+      return el;
+    }
     function addToSelected(id, name, pos){ if(isChecked(id)) return; setCheckbox(id, true); selected.appendChild(makeSelItem(id,name,pos)); applyHide(); counters(); }
     function removeFromSelected(id){ setCheckbox(id,false); var el = selected.querySelector('.sel-item[data-id="'+id+'"]'); if(el && el.parentNode) el.parentNode.removeChild(el); applyHide(); counters(); }
 
@@ -49,6 +68,5 @@
     if(btnClr) btnClr.addEventListener('click', function(){ selectAll(false); });
 
     counters(); applyHide();
-    try { console.debug('[roster] init ok', {selected: $all('.sel-item').length}); } catch(_) {}
   });
 })();

@@ -50,3 +50,6 @@ coach/dev.db
 # Logs
 *.log
 logs/
+
+# Unrelated sibling project that lives inside the repo tree — never commit
+/TrailQuest/

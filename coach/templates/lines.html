@@ -4,201 +4,219 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
 <script nonce="{{ csp_nonce }}">try{document.body.classList.add('lines-page');}catch(e){}</script>
 <div class="lines-head">
-  <h1>Rozdělení hráčů do formací</h1>
+  <h1>Formace</h1>
   <button type="button" class="help-btn" data-help="lines" data-help-src="help-lines"><span class="ico">i</span> Nápověda</button>
 </div>
 <div id="help-lines">
   <h3>Jak používat Formace</h3>
   <ul>
-    <li>Přetáhni hráče z poolu do slotu (LW/C/RW, LD/RD), nebo ťukni na pilulku a pak na slot.</li>
-    <li>Barvy karty nastav “Podklad”/“Text”; ukládají se automaticky (per karta).</li>
-    <li>Na mobilu swipuj mezi kartami; pager tečky ukazují pozici.</li>
-    <li>Tlačítko “Vymazat všechny výběry” vyprázdní všechny sloty.</li>
+    <li>Přetáhni hráče z poolu do dresu (LW/C/RW, LD/RD), nebo ťukni na hráče a pak na slot.</li>
+    <li>Přepínej mezi <strong>5v5</strong> a <strong>Speciální formace</strong> nahoře.</li>
+    <li>Náhradníci mají vlastní sekci. Hráč může být v lajně i v přesilovce zároveň.</li>
+    <li>Barvy dresů nastav „Podklad“/„Text“; ukládají se automaticky (per formace).</li>
+    <li>Panel kontroly upozorní na chybějící nebo duplicitní hráče.</li>
   </ul>
 </div>
 
 <div class="lines-container">
-    <!-- LEVÝ sloupec – drag & drop sestava -->
-    <div class="lines-form">
-        {# Macros to render slots #}
-        {% macro slot_row(slot_name, accept, label) -%}
-          <div class="slot accept-{{ accept }}" data-slot="{{ slot_name }}" data-accept="{{ accept }}" data-label="{{ label }}" aria-label="Slot {{ label }} {{ slot_name }}">
-            <input type="hidden" name="{{ slot_name }}" value="{{ assignments.get(slot_name,'') }}">
-            {% set pid = assignments.get(slot_name) %}
-            {% if pid %}
-              <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
-            {% else %}
-              <span class="ph">Přetáhni {{ 'útočníka' if accept=='F' else ('obránce' if accept=='D' else 'brankáře') }}…</span>
-            {% endif %}
+  <div class="lines-form">
+    {# ---------- macros ---------- #}
+    {% macro slot_row(slot_name, accept, label) -%}
+      <div class="slot accept-{{ accept }}" data-slot="{{ slot_name }}" data-accept="{{ accept }}" data-label="{{ label }}" aria-label="Slot {{ label }} {{ slot_name }}">
+        <input type="hidden" name="{{ slot_name }}" value="{{ assignments.get(slot_name,'') }}">
+        {% set pid = assignments.get(slot_name) %}
+        {% if pid %}
+          <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
+        {% else %}
+          <span class="ph">Přetáhni {{ 'útočníka' if accept=='F' else ('obránce' if accept=='D' else 'brankáře') }}…</span>
+        {% endif %}
+      </div>
+    {%- endmacro %}
+
+    {% macro formation_card(line) -%}
+      <div class="formation" data-line="{{ line }}">
+        <h3>{{ line }}. Formace</h3>
+        <div class="lines-colorpick">
+          <label>Podklad <input type="color" value="{{ brand.secondary or '#000000' }}" data-bg class="lines-color"></label>
+          <label>Text <input type="color" value="{{ brand.primary or '#d4c76f' }}" data-fg class="lines-color"></label>
+        </div>
+        <div class="slots">
+          {{ slot_row('L' ~ line ~ 'LW', 'F', 'LW') }}
+          {{ slot_row('L' ~ line ~ 'C',  'F', 'C') }}
+          {{ slot_row('L' ~ line ~ 'RW', 'F', 'RW') }}
+        </div>
+        <div class="slots slots--def">
+          {{ slot_row('D' ~ line ~ 'LD', 'D', 'LD') }}
+          {{ slot_row('D' ~ line ~ 'RD', 'D', 'RD') }}
+        </div>
+      </div>
+    {%- endmacro %}
+
+    {% macro st_slot(sname, kind, label) -%}
+      <div class="slot accept-{{ kind }}" data-slot="{{ sname }}" data-accept="{{ kind }}" data-group="st" data-label="{{ label }}" aria-label="Slot {{ label }}">
+        <input type="hidden" name="{{ sname }}" value="{{ assignments.get(sname,'') }}">
+        {% set pid = assignments.get(sname) %}
+        {% if pid %}
+          <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
+        {% else %}
+          <span class="ph">{{ 'Brankář…' if kind=='G' else 'Hráč…' }}</span>
+        {% endif %}
+      </div>
+    {%- endmacro %}
+
+    {% macro st_unit(title, prefix, count) -%}
+      <div class="st-unit">
+        <h4>{{ title }}</h4>
+        <div class="st-slots">
+          {% for i in range(1, count + 1) %}{{ st_slot(prefix ~ i, 'S', i) }}{% endfor %}
+        </div>
+      </div>
+    {%- endmacro %}
+
+    <form method="POST" id="linesForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="lines-grid">
+      <aside class="lines-pool-col">
+      {# ---------- player pool with search + filters ---------- #}
+      <div class="lines-controls">
+        <input type="search" id="poolSearch" class="pool-search" placeholder="🔍 Hledat hráče…" autocomplete="off" aria-label="Hledat hráče">
+        <div class="pool-filters" role="group" aria-label="Filtr pozic">
+          <button type="button" class="pool-chip is-active" data-filter="all">Vše</button>
+          <button type="button" class="pool-chip" data-filter="F">Útočníci</button>
+          <button type="button" class="pool-chip" data-filter="D">Obránci</button>
+          <button type="button" class="pool-chip" data-filter="G">Brankáři</button>
+        </div>
+        <label class="lines-ctrl-label"><input type="checkbox" id="hideAssigned" checked> Skrýt obsazené</label>
+        <button type="button" id="btnResetColors" class="btn-reset-colors">Vynulovat barvy</button>
+      </div>
+
+      <div class="pool-wrap" data-pos="F"><div class="pool-title">Útočníci</div>
+        <div class="pool" id="poolF">
+          {% for r in roster if r.player.position == 'F' %}
+            {% set ass_slot = '' %}{% for k,v in assignments.items() %}{% if v == r.player.id %}{% set ass_slot = k %}{% endif %}{% endfor %}
+            <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="F" data-name="{{ r.player.name|lower }}" data-ass-slot="{{ ass_slot }}"><span class="pl-badge" data-badge>—</span> {{ r.player.name }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="pool-wrap" data-pos="D"><div class="pool-title">Obránci</div>
+        <div class="pool" id="poolD">
+          {% for r in roster if r.player.position == 'D' %}
+            {% set ass_slot = '' %}{% for k,v in assignments.items() %}{% if v == r.player.id %}{% set ass_slot = k %}{% endif %}{% endfor %}
+            <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="D" data-name="{{ r.player.name|lower }}" data-ass-slot="{{ ass_slot }}"><span class="pl-badge" data-badge>—</span> {{ r.player.name }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="pool-wrap" data-pos="G"><div class="pool-title">Brankáři</div>
+        <div class="pool" id="poolG">
+          {% for r in roster if r.player.position == 'G' %}
+            {% set ass_slot = '' %}{% for k,v in assignments.items() %}{% if v == r.player.id %}{% set ass_slot = k %}{% endif %}{% endfor %}
+            <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="G" data-name="{{ r.player.name|lower }}" data-ass-slot="{{ ass_slot }}"><span class="pl-badge" data-badge>—</span> {{ r.player.name }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      </aside>
+      <div class="lines-main-col">
+      {# ---------- mode toggle + validation ---------- #}
+      <div class="lines-modebar">
+        <div class="mode-toggle" role="tablist" aria-label="Režim formací">
+          <button type="button" class="mode-btn is-active" data-mode-btn="5v5" aria-selected="true">5v5</button>
+          <button type="button" class="mode-btn" data-mode-btn="st" aria-selected="false">Speciální formace</button>
+        </div>
+        <div id="lineup-validation" class="lineup-valid" aria-live="polite"></div>
+      </div>
+
+      {# ================= MODE: 5v5 ================= #}
+      <section class="lines-mode" data-mode="5v5">
+        <div class="rink-surface">
+          <div class="formations-grid desktop-only" id="formations">
+            {% for line in range(1,5) %}{{ formation_card(line) }}{% endfor %}
           </div>
-        {%- endmacro %}
 
-        {# Render one formation card (used for grid and mobile swiper) #}
-        {% macro formation_card(line) -%}
-          <div class="formation" data-line="{{ line }}">
-            <h3>{{ line }}. Formace</h3>
-            <div class="lines-colorpick">
-              <label>Podklad <input type="color" value="{{ brand.secondary or '#000000' }}" data-bg class="lines-color"></label>
-              <label>Text <input type="color" value="{{ brand.primary or '#d4c76f' }}" data-fg class="lines-color"></label>
+          <h2 class="desktop-only rink-heading">Brankáři</h2>
+          <div class="slots desktop-only slots--g">
+            {{ slot_row('G1','G','G1') }}
+            {{ slot_row('G2','G','G2') }}
+          </div>
+
+          {# Mobile swiper (unchanged behaviour) #}
+          <div class="lines-swiper" aria-label="Přejeď pro další formace">
+            <div class="lines-track" id="linesTrack">
+              {% for line in range(1,5) %}<div class="slide">{{ formation_card(line) }}</div>{% endfor %}
+              <div class="slide"><div class="formation" data-line="G"><h3>Brankáři</h3>
+                <div class="slots slots--def">{{ slot_row('G1','G','G1') }}{{ slot_row('G2','G','G2') }}</div></div></div>
             </div>
-            <div class="slots">
-              {{ slot_row('L' ~ line ~ 'LW', 'F', 'LW') }}
-              {{ slot_row('L' ~ line ~ 'C',  'F', 'C') }}
-              {{ slot_row('L' ~ line ~ 'RW', 'F', 'RW') }}
-            </div>
-            <div class="slots slots--def">
-              {{ slot_row('D' ~ line ~ 'LD', 'D', 'LD') }}
-              {{ slot_row('D' ~ line ~ 'RD', 'D', 'RD') }}
+            <div class="lines-pager" id="linesPager"></div>
+          </div>
+        </div>
+
+        <div class="subs-card">
+          <h3 class="rink-heading">Náhradníci</h3>
+          <div class="subs-grid">
+            <div><div class="subs-label">Útočníci</div><div class="slots slots--subs">{{ slot_row('SUBF1','F','N') }}{{ slot_row('SUBF2','F','N') }}{{ slot_row('SUBF3','F','N') }}</div></div>
+            <div><div class="subs-label">Obránci</div><div class="slots slots--subs">{{ slot_row('SUBD1','D','N') }}{{ slot_row('SUBD2','D','N') }}</div></div>
+            <div><div class="subs-label">Brankář</div><div class="slots slots--subs">{{ slot_row('SUBG1','G','N') }}</div></div>
+          </div>
+        </div>
+      </section>
+
+      {# ================= MODE: Special teams / 3v3 ================= #}
+      <section class="lines-mode" data-mode="st" hidden>
+        <div class="st-grid">
+          <div class="st-group"><div class="st-group-title">Přesilovka (PP)</div>
+            {{ st_unit('PP1 · 5 hráčů', 'PP1_', 5) }}
+            {{ st_unit('PP2 · 5 hráčů', 'PP2_', 5) }}
+          </div>
+          <div class="st-group"><div class="st-group-title">Oslabení (PK)</div>
+            {{ st_unit('PK1 · 4 hráči', 'PK1A', 4) }}
+            {{ st_unit('PK2 · 4 hráči', 'PK2A', 4) }}
+            {{ st_unit('PK1 · 3 hráči', 'PK1B', 3) }}
+            {{ st_unit('PK2 · 3 hráči', 'PK2B', 3) }}
+          </div>
+          <div class="st-group"><div class="st-group-title">3v3</div>
+            <div class="st-unit"><h4>3v3</h4>
+              <div class="st-slots">
+                {{ st_slot('TV1','S','1') }}{{ st_slot('TV2','S','2') }}{{ st_slot('TV3','S','3') }}
+                {{ st_slot('TVG','G','G') }}
+              </div>
             </div>
           </div>
-        {%- endmacro %}
-        <form method="POST" id="linesForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </div>
+      </section>
 
-            {# Pools: F, D, G (show all; assigned will be color-badged) #}
-            <div class="lines-controls">
-              <label class="lines-ctrl-label">
-                <input type="checkbox" id="hideAssigned" checked> Skrýt obsazené hráče
-              </label>
-              <button type="button" id="btnResetColors" class="btn-reset-colors">Vynulovat barvy formací</button>
-            </div>
-            {% set assigned_ids = assignments.values()|list %}
-            <div class="pool-title">Útočníci</div>
-            <div class="pool" id="poolF">
-              {% for r in roster if r.player.position == 'F' %}
-                {% set ass_slot = '' %}
-                {% for k,v in assignments.items() %}
-                  {% if v == r.player.id %}{% set ass_slot = k %}{% endif %}
-                {% endfor %}
-                <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="F" data-ass-slot="{{ ass_slot }}">
-                  <span class="pl-badge" data-badge>—</span> {{ r.player.name }}
-                </div>
-              {% endfor %}
-            </div>
-            <div class="pool-title">Obránci</div>
-            <div class="pool" id="poolD">
-              {% for r in roster if r.player.position == 'D' %}
-                {% set ass_slot = '' %}
-                {% for k,v in assignments.items() %}
-                  {% if v == r.player.id %}{% set ass_slot = k %}{% endif %}
-                {% endfor %}
-                <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="D" data-ass-slot="{{ ass_slot }}">
-                  <span class="pl-badge" data-badge>—</span> {{ r.player.name }}
-                </div>
-              {% endfor %}
-            </div>
-            <div class="pool-title">Brankáři</div>
-            <div class="pool" id="poolG">
-              {% for r in roster if r.player.position == 'G' %}
-                {% set ass_slot = '' %}
-                {% for k,v in assignments.items() %}
-                  {% if v == r.player.id %}{% set ass_slot = k %}{% endif %}
-                {% endfor %}
-                <div class="pl-item" draggable="true" data-id="{{ r.player.id }}" data-pos="G" data-ass-slot="{{ ass_slot }}">
-                  <span class="pl-badge" data-badge>—</span> {{ r.player.name }}
-                </div>
-              {% endfor %}
-            </div>
-
-            <div class="formations-grid desktop-only" id="formations">
-            {% for line in range(1,5) %}
-              {{ formation_card(line) }}
-            {% endfor %}
-            </div>
-
-            <h2 class="desktop-only">Brankáři</h2>
-            <div class="slots desktop-only slots--g">
-              <div class="slot accept-G" data-slot="G1" data-accept="G" data-label="G1">
-                <input type="hidden" name="G1" value="{{ assignments.get('G1','') }}">
-                {% set pid = assignments.get('G1') %}
-                {% if pid %}
-                  <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
-                {% else %}
-                  <span class="ph">Přetáhni brankáře…</span>
-                {% endif %}
-              </div>
-              <div class="slot accept-G" data-slot="G2" data-accept="G" data-label="G2">
-                <input type="hidden" name="G2" value="{{ assignments.get('G2','') }}">
-                {% set pid = assignments.get('G2') %}
-                {% if pid %}
-                  <div class="fill" data-id="{{ pid }}"><span>{{ (roster|selectattr('player_id','equalto',pid)|map(attribute='player.name')|first) }}</span><button type="button" class="btn-x" aria-label="Odstranit">×</button></div>
-                {% else %}
-                  <span class="ph">Přetáhni brankáře…</span>
-                {% endif %}
-              </div>
-            </div>
-
-            {# Mobile swiper: horizontal slides (1 card per view) #}
-            <div class="lines-swiper" aria-label="Přejeď pro další formace">
-              <div class="lines-track" id="linesTrack">
-                {% for line in range(1,5) %}
-                  <div class="slide">
-                    {{ formation_card(line) }}
-                  </div>
-                {% endfor %}
-                <div class="slide">
-                  <div class="formation" data-line="G">
-                    <h3>Brankáři</h3>
-                    <div class="slots slots--def">
-                      {{ slot_row('G1','G','G1') }}
-                      {{ slot_row('G2','G','G2') }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="lines-pager" id="linesPager" aria-label="Stránkování formací"></div>
-            </div>
-            <div class="actions">
-              <button type="submit">💾 Uložit Formace</button>
-              <button type="button" class="btn-lines-clear">🧹 Vymazat všechny výběry</button>
-            </div>
-        </form>
-
-        {# script moved to scripts block to load late #}
-    </div>
+      <div class="actions">
+        <button type="submit">💾 Uložit formace</button>
+        <button type="button" class="btn-lines-clear">🧹 Vymazat vše</button>
+        <button type="button" id="btnFillSubs">➕ Doplnit náhradníky</button>
+        <button type="button" id="btnPrint">🖨 Tisk</button>
+      </div>
+      </div>{# /lines-main-col #}
+      </div>{# /lines-grid #}
+    </form>
 
     {% if is_coach %}
     <div class="lines-export">
       <hr>
-      <h2>Export sestavy do PDF</h2>
+      <h2>Sdílení a export</h2>
+      <p style="margin:0 0 14px;"><button type="button" class="btn-secondary" data-wa="lineup">📲 Sdílet sestavu na WhatsApp</button></p>
+      <h3 style="margin:0 0 8px;">Export do PDF</h3>
       <form method="post" action="{{ url_for('export_lines_pdf') }}" class="lines-export-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label>Soupeř<br>
-              <input type="text" name="opponent" placeholder="Soupeř" class="lines-input">
-          </label>
-          <label>Datum<br>
-              <input type="date" name="date" value="{{ (namespace().today if false else '') }}" class="lines-input">
-          </label>
-          <button type="submit">📄 Exportovat PDF a uložit</button>
-          <a href="{{ url_for('lineup_sessions') }}"><button type="button">🗂 Seznam sestav</button></a>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Soupeř<br><input type="text" name="opponent" placeholder="Soupeř" class="lines-input"></label>
+        <label>Datum<br><input type="date" name="date" value="" class="lines-input"></label>
+        <button type="submit">📄 Exportovat PDF a uložit</button>
+        <a class="btn-secondary" href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
       </form>
     </div>
     {% endif %}
+  </div>
 </div>
-
-{# moved to static/app.js #}
 {% endblock %}
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='lines.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
-  <script nonce="{{ csp_nonce }}">
-    // Sentinel: if external JS didn't set __linesBound shortly after load, surface a small hint
-    setTimeout(function(){
-      try {
-        if(!window.__linesBound){
-          console.error('[lines] init sentinel: external JS did not run');
-          var note=document.createElement('div');
-          note.textContent='Lines: skript se nespustil (zkontroluj konzoli/CSP)';
-          note.style.cssText='position:fixed;bottom:10px;left:10px;background:#c44747;color:#fff;padding:6px 10px;border-radius:6px;z-index:9999;font:14px/1.2 system-ui';
-          document.body.appendChild(note);
-          setTimeout(function(){ if(note && note.parentNode) note.parentNode.removeChild(note); }, 4000);
-        } else {
-          console.debug('[lines] init sentinel ok', window.__linesBound);
-        }
-      } catch(e){}
-    }, 100);
-  </script>
+  <script src="{{ url_for('static', filename='lines2.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
 {% endblock %}

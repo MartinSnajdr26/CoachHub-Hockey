@@ -1,0 +1,17 @@
+{% extends "owner_base.html" %}
+{% block title %}Owner Health{% endblock %}
+{% block content %}
+<div class="cards">
+  {% for key, item in health.items() if item is mapping and item.state %}
+  <div class="card" style="text-align:left; border-color:{% if item.state == 'ok' %}var(--success){% elif item.state == 'warning' %}var(--warning){% else %}var(--danger){% endif %};">
+    <h2>{{ item.label }}</h2>
+    <p class="muted">{{ item.state }}</p>
+  </div>
+  {% endfor %}
+</div>
+<div class="card" style="text-align:left;">
+  <h2>Environment</h2>
+  <p>Environment: {{ health.env }}</p>
+  <p>Python: {{ health.python }}</p>
+</div>
+{% endblock %}

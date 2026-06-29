@@ -1,13 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from datetime import datetime
-from coach.extensions import db
+from coach.extensions import db, limiter
 from coach.models import Team, TeamKey, AuditEvent
 from coach.services.keys import hash_team_key, verify_team_key, gen_plain_key
+from coach.services.team_utils import team_name_exists
+from coach.services.logging import log_event
+from coach.services.db_state import is_database_not_ready_error, log_db_not_ready_once
 
 bp = Blueprint('teamauth', __name__)
-limiter = Limiter(key_func=get_remote_address)
 
 
 def _truncate_ip(ip: str) -> str:
@@ -20,7 +20,14 @@ def _truncate_ip(ip: str) -> str:
 
 @bp.route('/team/auth', methods=['GET'])
 def team_auth():
-    teams = Team.query.order_by(Team.name.asc()).all()
+    try:
+        teams = Team.query.order_by(Team.name.asc()).all()
+    except Exception as exc:
+        db.session.rollback()
+        if not is_database_not_ready_error(exc):
+            raise
+        log_db_not_ready_once(current_app, 'team-auth-db-not-ready', exc, 'Team auth database is not ready')
+        teams = []
     return render_template('team_auth.html', teams=teams, terms_version=current_app.config.get('TERMS_VERSION', 'v1.0'))
 
 
@@ -36,8 +43,12 @@ def team_login():
     team = None
     try:
         team = Team.query.get(int(team_id))
-    except Exception:
-        pass
+    except Exception as exc:
+        db.session.rollback()
+        if not is_database_not_ready_error(exc) and not isinstance(exc, (TypeError, ValueError)):
+            raise
+        if is_database_not_ready_error(exc):
+            log_db_not_ready_once(current_app, 'team-login-db-not-ready', exc, 'Team login database is not ready')
     if not team or role not in ('coach','player') or not key:
         return redirect(url_for('teamauth.team_auth'))
     # Lockout check: 10 failed attempts per 30 min per team+IP
@@ -73,6 +84,7 @@ def team_login():
         except Exception:
             db.session.rollback()
         flash('Neplatný klíč.', 'error')
+        log_event('auth.login_failed', team_id=team.id if team else None, role=role, level='warning', message='Invalid team key')
         return redirect(url_for('teamauth.team_auth'))
     # establish session
     session.permanent = True  # keep team session across browser restarts
@@ -116,6 +128,17 @@ def team_create():
     name = (request.form.get('team_name') or '').strip()
     if request.form.get('terms_accept') != 'on' or not name:
         flash('Vyplň název a potvrď podmínky.', 'error')
+        return redirect(url_for('teamauth.team_auth'))
+    try:
+        if team_name_exists(name):
+            flash('Tým s tímto názvem již existuje.', 'error')
+            return redirect(url_for('teamauth.team_auth'))
+    except Exception as exc:
+        db.session.rollback()
+        if not is_database_not_ready_error(exc):
+            raise
+        log_db_not_ready_once(current_app, 'team-create-db-not-ready', exc, 'Team create database is not ready')
+        flash('Databáze ještě není inicializovaná. Spusť migrace a zkus to znovu.', 'error')
         return redirect(url_for('teamauth.team_auth'))
     # create team
     t = Team(name=name)

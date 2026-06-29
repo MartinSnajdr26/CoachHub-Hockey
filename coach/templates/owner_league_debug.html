@@ -1,0 +1,101 @@
+{% extends "owner_base.html" %}
+{% block title %}League Developer Tools{% endblock %}
+{% block content %}
+<h2>League Integration Developer Tools</h2>
+<p class="muted">Owner-only diagnostics for cache, parser output, team matching and dashboard view-model state.</p>
+
+{% if trace %}
+  <div class="card" style="text-align:left;">
+    <h3>Diagnostic Refresh Trace{% if selected_team_id %} · team {{ selected_team_id }}{% endif %}</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>Step</th><th>Status</th><th>Details</th></tr></thead>
+        <tbody>
+          {% for step in trace %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ step.step }}</td>
+              <td>{% if step.ok %}<span style="color:var(--success);">OK</span>{% else %}<span style="color:var(--danger);">Fail</span>{% endif %}</td>
+              <td><pre style="white-space:pre-wrap; margin:0;">{{ step|tojson(indent=2) }}</pre></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card" style="text-align:left;">
+  <h3>Configured League Integrations</h3>
+  {% if rows %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Provider</th>
+            <th>Competition ID</th>
+            <th>Enabled</th>
+            <th>Configured Match</th>
+            <th>Last Success</th>
+            <th>Last Attempt / Fail</th>
+            <th>Cache</th>
+            <th>Rows</th>
+            <th>Matched</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% set li = row.integration %}
+            <tr>
+              <td>{{ row.team.name if row.team else ('Team #' ~ li.team_id) }}</td>
+              <td>{{ row.provider or '—' }}</td>
+              <td>{{ row.competition_id or '—' }}</td>
+              <td>{% if li.enabled %}<span style="color:var(--success);">enabled</span>{% else %}<span class="muted">disabled</span>{% endif %}</td>
+              <td>{{ li.highlight_team or '—' }}</td>
+              <td>{{ li.last_updated.strftime('%Y-%m-%d %H:%M') if li.last_updated else '—' }}</td>
+              <td>{{ li.last_attempt.strftime('%Y-%m-%d %H:%M') if li.last_attempt else '—' }}</td>
+              <td>
+                schema {{ row.cache_schema or '—' }}
+                {% if row.stale_warning %}<br><span style="color:var(--danger);">{{ row.cache_validation }}</span>{% endif %}
+              </td>
+              <td>{{ row.standings_count }} standings<br>{{ row.results_count }} results<br>{{ row.form_count }} form</td>
+              <td>
+                {{ row.matched_team or '—' }}<br>
+                <span class="muted">{{ row.matched_method or 'none' }} · {{ row.matched_confidence or 0 }}</span>
+              </td>
+              <td>
+                <form method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="team_id" value="{{ li.team_id }}">
+                  <button type="submit" class="btn-sm">Run diagnostic refresh</button>
+                </form>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="11">
+                <details>
+                  <summary>Details for {{ row.team.name if row.team else ('team #' ~ li.team_id) }}</summary>
+                  <p><strong>URL:</strong> <code>{{ li.source_url or '—' }}</code></p>
+                  <p><strong>Competition:</strong> {{ row.competition_name or '—' }}{% if row.season %} · {{ row.season }}{% endif %}</p>
+                  <p><strong>Last error:</strong> {{ li.last_error or '—' }}</p>
+                  <p><strong>Detected teams:</strong> {{ row.detected_teams|join(', ') if row.detected_teams else '—' }}</p>
+                  <div style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
+                    <details><summary>Cache summary JSON</summary><pre style="white-space:pre-wrap;">{{ row.summary_json|tojson(indent=2) }}</pre></details>
+                    <details><summary>Normalized standings JSON</summary><pre style="white-space:pre-wrap;">{{ row.standings_json|tojson(indent=2) }}</pre></details>
+                    <details><summary>Normalized results JSON</summary><pre style="white-space:pre-wrap;">{{ row.results_json|tojson(indent=2) }}</pre></details>
+                    <details><summary>Normalized form JSON</summary><pre style="white-space:pre-wrap;">{{ row.form_json|tojson(indent=2) }}</pre></details>
+                  </div>
+                </details>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">No league integrations configured.</div>
+  {% endif %}
+</div>
+{% endblock %}

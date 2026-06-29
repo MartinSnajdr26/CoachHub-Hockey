@@ -1,0 +1,24 @@
+{% extends "owner_base.html" %}
+{% block title %}Owner Integrations{% endblock %}
+{% block content %}
+<h2>Integration Status by Team</h2>
+<div class="table-scroll">
+  <table>
+    <thead><tr><th>Team</th><th>Týmuj</th><th>Týmuj refreshed</th><th>Týmuj failed</th><th>League</th><th>League refreshed</th><th>League failed/attempted</th><th>Last errors</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.team.name }}</td>
+        <td>{% if r.tymuj.last_error %}<span style="color:var(--danger);">failing</span>{% elif r.tymuj.has_cache %}<span style="color:var(--success);">ok</span>{% else %}<span style="color:var(--warning);">empty</span>{% endif %}</td>
+        <td>{{ r.tymuj.updated_at or '—' }}</td>
+        <td>{{ r.tymuj.last_failed_at or '—' }}</td>
+        <td>{% if r.league and r.league.last_error %}<span style="color:var(--danger);">failing</span>{% elif r.league and r.league.enabled %}<span style="color:var(--success);">enabled</span>{% else %}<span class="muted">off</span>{% endif %}</td>
+        <td>{{ r.league.last_updated.strftime('%Y-%m-%d %H:%M') if r.league and r.league.last_updated else '—' }}</td>
+        <td>{{ r.league.last_attempt.strftime('%Y-%m-%d %H:%M') if r.league and r.league.last_attempt else '—' }}</td>
+        <td>{{ r.tymuj.last_error or '' }}{% if r.league and r.league.last_error %} {{ r.league.last_error }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

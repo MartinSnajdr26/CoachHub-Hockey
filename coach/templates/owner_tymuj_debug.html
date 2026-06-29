@@ -1,0 +1,94 @@
+{% extends "owner_base.html" %}
+{% block title %}Týmuj Developer Tools{% endblock %}
+{% block content %}
+<h2>Týmuj Integration Developer Tools</h2>
+<p class="muted">Owner-only diagnostics for ICS download, parser output, cache, attendance mapping and import model. Reads cache; the diagnostic refresh is the only action that fetches.</p>
+
+{% if trace %}
+  <div class="card" style="text-align:left;">
+    <h3>Diagnostic Refresh Trace{% if selected_team_id %} · team {{ selected_team_id }}{% endif %}</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>Step</th><th>Status</th><th>Details</th></tr></thead>
+        <tbody>
+          {% for step in trace %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ step.step }}</td>
+              <td>{% if step.ok %}<span style="color:var(--success);">OK</span>{% else %}<span style="color:var(--danger);">Fail</span>{% endif %}</td>
+              <td><pre style="white-space:pre-wrap; margin:0;">{{ step|tojson(indent=2) }}</pre></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card" style="text-align:left;">
+  <h3>Configured Týmuj Integrations</h3>
+  {% if rows %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Enabled</th>
+            <th>Last Success</th>
+            <th>Last Fail</th>
+            <th>Cache</th>
+            <th>ICS</th>
+            <th>Import</th>
+            <th>Attendance</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.team.name if row.team else ('Team #' ~ row.team_id) }}</td>
+              <td>{% if row.general.enabled %}<span style="color:var(--success);">enabled</span>{% else %}<span class="muted">no URL</span>{% endif %}</td>
+              <td>{{ row.general.last_refresh or '—' }}{% if row.cache.stale %}<br><span style="color:var(--warning);">stale</span>{% endif %}</td>
+              <td>{{ row.general.last_failure or '—' }}{% if row.general.last_error %}<br><span style="color:var(--danger);">{{ row.general.last_error }}</span>{% endif %}</td>
+              <td>schema {{ row.cache.schema or '—' }}<br>{% if row.cache.valid %}<span style="color:var(--success);">valid</span>{% else %}<span style="color:var(--danger);">{{ row.cache.validation }}</span>{% endif %}</td>
+              <td>{{ row.ics.event_count }} events<br>{{ row.ics.practices }} practices · {{ row.ics.games }} games<br>{{ row.ics.cancelled }} cancelled · {{ row.ics.recurring }} recurring</td>
+              <td>{{ row.import.detected_players }} detected<br>{{ row.import.duplicates }} duplicates</td>
+              <td>{{ row.attendance.mapped }}/{{ row.attendance.total }} mapped<br>{{ row.attendance.missing }} missing</td>
+              <td>
+                <form method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="team_id" value="{{ row.team_id }}">
+                  <button type="submit" class="btn-sm">Run diagnostic refresh</button>
+                </form>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="9">
+                <details>
+                  <summary>Details for {{ row.team.name if row.team else ('team #' ~ row.team_id) }}</summary>
+                  <p><strong>URL:</strong> <code>{{ row.general.url_masked or '—' }}</code> <span class="muted">(token masked)</span></p>
+                  <p><strong>Parser version:</strong> {{ row.general.parser_version or '—' }} · <strong>Cache age (s):</strong> {{ row.general.cache_age_seconds if row.general.cache_age_seconds is not none else '—' }}</p>
+                  <p><strong>Timeout:</strong> {{ row.diagnostics.timeout_configured }}s (retry {{ row.diagnostics.retry_timeout }}s){% if row.general.failure_kind %} · <strong style="color:var(--danger);">Last failure:</strong> {{ row.general.failure_kind }}{% endif %}</p>
+                  <p><strong>HTTP (last success):</strong> status {{ row.http.status or '—' }} · {{ row.http.content_type or '—' }} · {{ row.http.bytes or 0 }} B · enc {{ row.http.encoding or '—' }} · redirected {{ row.http.redirected }} · retry {{ row.http.retry_attempted }}</p>
+                  {% if row.diagnostics.last_error_code and row.diagnostics.last_http %}
+                  <p><strong>HTTP (last failure):</strong> status {{ row.diagnostics.last_http.status or '—' }} · bytes read {{ row.diagnostics.last_http.bytes_read if row.diagnostics.last_http.bytes_read is not none else '—' }} · retry {{ row.diagnostics.last_http.retry_attempted }}</p>
+                  <details><summary>Last failure response headers</summary><pre style="white-space:pre-wrap;">{{ (row.diagnostics.last_http.headers or {})|tojson(indent=2) }}</pre></details>
+                  {% endif %}
+                  <p><strong>Next practice:</strong> {{ row.ics.next_practice or '—' }} · <strong>Next game:</strong> {{ row.ics.next_game or '—' }}</p>
+                  <div style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
+                    <details><summary>Status JSON</summary><pre style="white-space:pre-wrap;">{{ row.status|tojson(indent=2) }}</pre></details>
+                    <details><summary>Normalized events JSON</summary><pre style="white-space:pre-wrap;">{{ row.events_json|tojson(indent=2) }}</pre></details>
+                    <details><summary>Detected players (normalized)</summary><pre style="white-space:pre-wrap;">{{ row.import.normalized|tojson(indent=2) }}</pre></details>
+                  </div>
+                </details>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">No Týmuj integrations configured.</div>
+  {% endif %}
+</div>
+{% endblock %}

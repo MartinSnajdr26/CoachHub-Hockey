@@ -9,16 +9,16 @@
 </p>
 
 <p style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-  <a href="{{ file_url }}" download><button>⬇️ Stáhnout PDF</button></a>
-  <a href="{{ file_url }}" target="_blank"><button>👁 Otevřít</button></a>
-  <a href="https://api.whatsapp.com/send?text={{ ('Tréninky PDF: ' + abs_url) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz (WhatsApp)</button></a>
+  <a class="btn" href="{{ file_url }}" download>⬇️ Stáhnout PDF</a>
+  <a class="btn" href="{{ file_url }}" target="_blank" rel="noopener">👁 Otevřít</a>
+  <a class="btn" href="https://api.whatsapp.com/send?text={{ ('Tréninky PDF: ' + abs_url) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet odkaz (WhatsApp)</a>
   <button type="button" class="btn-share-pdf" data-url="{{ abs_url }}" data-filename="{{ filename }}">📎 Sdílet soubor (pokud lze)</button>
-  <a href="{{ url_for('drills_select') }}"><button>↩️ Zpět na výběr</button></a>
+  <a class="btn" href="{{ url_for('drills_select') }}">↩️ Zpět na výběr</a>
   <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
   <span style="font-size:12px; opacity:0.8;">Pozn.: Sdílení funguje, pokud je aplikace dostupná externě.</span>
 </p>
 
-<iframe src="{{ file_url }}" style="width:100%; max-width:1000px; height:70vh; border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; background:#fff;"></iframe>
+<iframe src="{{ file_url }}" style="width:100%; max-width:1000px; height:70vh; border:2px solid var(--primary, #d4c76f); border-radius:8px; background:#fff;"></iframe>
 
 {# moved to static/app.js #}
 

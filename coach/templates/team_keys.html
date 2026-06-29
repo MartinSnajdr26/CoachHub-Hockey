@@ -12,7 +12,7 @@
       <button type="submit" name="which" value="player">Rotate Player key</button>
     </form>
     {% if rotated_role and rotated_plain %}
-      <div style="margin-top:10px; padding:10px; border:2px solid #c44747; border-radius:8px; background:#fff;">
+      <div style="margin-top:10px; padding:10px; border:2px solid var(--tertiary); border-radius:8px; background:var(--field-bg); color:var(--field-text);">
         Nový klíč ({{ rotated_role }}): <code>{{ rotated_plain }}</code>
       </div>
     {% endif %}
@@ -23,13 +23,13 @@
     <div class="table-scroll">
     <table>
       <thead>
-        <tr style="text-align:left; border-bottom:1px solid #666;">
+        <tr style="text-align:left; border-bottom:1px solid var(--border);">
           <th>Role</th><th>Vytvořen</th><th>Aktivní</th><th>Rotován</th>
         </tr>
       </thead>
       <tbody>
         {% for k in keys %}
-          <tr style="border-bottom:1px solid #ddd;">
+          <tr style="border-bottom:1px solid var(--border);">
             <td>{{ k.role }}</td>
             <td>{{ k.created_at }}</td>
             <td>{{ 'Ano' if k.active else 'Ne' }}</td>

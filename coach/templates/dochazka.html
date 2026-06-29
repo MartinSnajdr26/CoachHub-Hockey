@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Docházka{% endblock %}
+{% block content %}
+{% set team = view.team %}
+<div class="am-wrap">
+  <div class="am-head">
+    <div>
+      <h1 style="margin:0;">Docházka — týmová tabulka</h1>
+      <p style="margin:4px 0 0; color:var(--text-muted);">Klikni na buňku pro okamžitou změnu · klikni na hlavičku události nebo jméno hráče pro statistiky.</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn-ghost btn-sm" href="{{ url_for('attendance.attendance') }}">Pohled hráče</a>
+      {% if is_coach %}
+      <a class="btn-ghost btn-sm" href="{{ url_for('attendance.attendance_export', format='long', range=filters.range, etype=filters.etype) }}">⬇️ Export CSV</a>
+      <a class="btn-ghost btn-sm" href="{{ url_for('attendance.attendance_export', format='matrix', range=filters.range, etype=filters.etype) }}">⬇️ Export tabulky</a>
+      <a class="btn-secondary btn-sm" href="{{ url_for('attendance.import_attendance') }}">Import (CSV/Excel)</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if tymuj_status and tymuj_status.has_cache and tymuj_status.stale %}
+  <div class="am-stale">⚠️ Týmuj kalendář se delší dobu neaktualizoval. Zobrazená data mohou být zastaralá.</div>
+  {% endif %}
+
+  <!-- KPI cards -->
+  <div class="am-kpis">
+    <div class="am-kpi am-kpi--{{ team.avg_color }}"><span class="am-kpi-v">{{ team.avg_pct }}%</span><span class="am-kpi-l">Průměrná účast</span></div>
+    <div class="am-kpi"><span class="am-kpi-v">{{ team.upcoming_pct }}%</span><span class="am-kpi-l">Nadcházející účast</span></div>
+    <div class="am-kpi {{ 'am-kpi--red' if team.no_response_count else '' }}"><span class="am-kpi-v">{{ team.no_response_count }}</span><span class="am-kpi-l">Bez odpovědi (nadch.)</span></div>
+    <div class="am-kpi"><span class="am-kpi-v">{{ team.best_player.pct if team.best_player else 0 }}%</span><span class="am-kpi-l">Nejlepší: {{ team.best_player.name if team.best_player else '—' }}</span></div>
+    <div class="am-kpi"><span class="am-kpi-v">{{ team.worst_player.pct if team.worst_player else 0 }}%</span><span class="am-kpi-l">Nejnižší: {{ team.worst_player.name if team.worst_player else '—' }}</span></div>
+    <div class="am-kpi"><span class="am-kpi-v">{{ team.total_events }}</span><span class="am-kpi-l">{{ team.total_trainings }} tréninků · {{ team.total_games }} zápasů</span></div>
+  </div>
+
+  <!-- Filter bar -->
+  <form class="am-filters" method="get" action="{{ url_for('dochazka') }}" id="am-filters">
+    <input type="hidden" name="range" id="am-range" value="{{ filters.range }}">
+    <div class="am-quick" role="group" aria-label="Filtr období">
+      {% for key, label in [('future','Budoucí'),('past','Minulé'),('next30','Příštích 30 dní'),('all','Vše')] %}
+        <button type="button" class="am-chip {{ 'is-active' if filters.range==key }}" data-range="{{ key }}"
+                aria-pressed="{{ 'true' if filters.range==key else 'false' }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+    <label>Typ
+      <select name="etype" onchange="this.form.submit()">
+        <option value="all" {{ 'selected' if filters.etype=='all' }}>Vše</option>
+        <option value="training" {{ 'selected' if filters.etype=='training' }}>Trénink</option>
+        <option value="match" {{ 'selected' if filters.etype=='match' }}>Zápas</option>
+        <option value="camp" {{ 'selected' if filters.etype=='camp' }}>Soustředění</option>
+        <option value="other" {{ 'selected' if filters.etype=='other' }}>Ostatní</option>
+      </select>
+    </label>
+    <input type="search" id="am-player-search" placeholder="🔍 Hledat hráče…" autocomplete="off">
+  </form>
+
+  {% if view.events and view.players %}
+  {# Freeze-panes via 4 synchronized panes (position:sticky on table cells is
+     unreliable in this scroll structure — verified broken in real Chromium).
+     The MAIN pane owns scrolling; JS syncs header.scrollLeft / left.scrollTop. #}
+  <div class="am-grid" id="am-grid">
+    <div class="am-pane am-corner-pane">Hráč</div>
+
+    <div class="am-pane am-header-pane" id="am-header">
+      <div class="am-hrow">
+        {% for e in view.events %}
+        <div class="am-hcell am-col--{{ e.summary.color }} {{ 'is-upcoming' if e.is_upcoming }}"
+             data-event-key="{{ e.key }}" role="button" tabindex="0"
+             title="✓ {{ e.summary.going }} · ✕ {{ e.summary.not_going }} · ? {{ e.summary.maybe }} · • {{ e.summary.unknown }}">
+          <span class="am-ev-kind">{{ '🏒' if e.kind=='match' else '🧊' }} {{ e.day_label }}{% if e.time %} {{ e.time }}{% endif %}</span>
+          <span class="am-ev-title">{{ e.title }}</span>
+          <span class="am-ev-sum" data-ev-sum="{{ e.key }}">{{ e.summary.going }} / {{ e.summary.total }}</span>
+          <span class="am-ev-bar"><i data-ev-bar="{{ e.key }}" style="width:{{ e.summary.pct }}%"></i></span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="am-pane am-left-pane" id="am-left">
+      {% for p in view.players %}
+      <div class="am-lcell" data-player-id="{{ p.id }}" data-name="{{ p.name|lower }}" role="button" tabindex="0">
+        <span class="am-avatar am-pos-{{ p.position }}">{{ p.initials }}</span>
+        <span class="am-namebox">
+          <span class="am-name">{{ p.name }}</span>
+          <span class="am-sub"><b data-p-pct="{{ p.id }}" class="am-pct--{{ p.summary.color }}">{{ p.summary.pct }}%</b> · {{ p.position }}{% if p.streak %} · 🔥<span data-p-streak="{{ p.id }}">{{ p.streak }}</span>{% endif %}</span>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="am-pane am-main-pane" id="am-main">
+      <div class="am-body">
+        {% for p in view.players %}
+        <div class="am-mrow" data-player-id="{{ p.id }}" data-name="{{ p.name|lower }}">
+          {% for e in view.events %}
+            {% set st = view.status_map.get(p.id, {}).get(e.key, 'unknown') %}
+            <button type="button" class="am-cell am-{{ st }}" data-pid="{{ p.id }}" data-key="{{ e.key }}"
+                    data-status="{{ st }}" {{ 'disabled' if not is_coach }} aria-label="{{ p.name }} – {{ e.title }}">
+              <span class="am-mark">{{ {'going':'✓','not_going':'✕','maybe':'?','unknown':'·'}[st] }}</span>
+            </button>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty" style="margin-top:14px;">
+    Žádné události pro zvolený filtr.<br>
+    <a class="btn-outline btn-sm" href="{{ url_for('home') }}" style="margin-top:8px;">Naplánovat v kalendáři</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Detail panels (filled client-side) -->
+<div class="am-panel-overlay" id="am-overlay" hidden></div>
+<aside class="am-panel" id="am-panel" hidden aria-live="polite">
+  <button type="button" class="am-panel-close" id="am-panel-close" aria-label="Zavřít">✕</button>
+  <div id="am-panel-body"></div>
+</aside>
+
+<script type="application/json" id="am-data">{{ view|tojson }}</script>
+<script nonce="{{ csp_nonce }}">
+  window.AM_CFG = {
+    isCoach: {{ 'true' if is_coach else 'false' }},
+    cellUrl: "{{ url_for('attendance.attendance_cell') }}",
+    csrf: "{{ csrf_token() }}"
+  };
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='attendance_matrix.js', v=csp_nonce) }}"></script>
+{% endblock %}

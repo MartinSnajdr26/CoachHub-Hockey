@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import current_user
-from coach.auth_utils import team_login_required, get_team_id, coach_required
+from coach.auth_utils import team_login_required, get_team_id, coach_required, get_team_role
 from coach.extensions import db
 from datetime import date, datetime, timedelta
 import calendar as calmod
-from coach.models import TrainingEvent, AuditEvent
+from coach.models import TrainingEvent, AuditEvent, Player, AttendanceEntry, LineupSession, Drill
+from coach.services import tymuj as tymuj_svc
 
 bp = Blueprint('calendar', __name__)
 
@@ -37,6 +37,9 @@ def home():
         for e in evs:
             key = e.day.isoformat()
             events_by_day.setdefault(key, []).append(e)
+        for item in tymuj_svc.get_cached_events(tid, first_day, last_day):
+            key = item['day'].isoformat()
+            events_by_day.setdefault(key, []).append(item)
     if m == 1:
         prev_y, prev_m = y-1, 12
     else:
@@ -80,15 +83,225 @@ def home():
     # Determine role explicitly for template (robust against any transient context issues)
     from coach.auth_utils import get_team_role
     is_coach_home = (get_team_role() == 'coach')
+    # sort events in each day by time and source
+    for key, items in events_by_day.items():
+        items.sort(key=lambda ev: ((ev.get('time') or '') if isinstance(ev, dict) else (ev.time or ''), ev.get('source') if isinstance(ev, dict) else getattr(ev, 'kind', '')))
+
+    # ---- Dashboard widgets: read-only derived data (never break the page) ----
+    cs_wd = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne']
+
+    def _fmt_day(d):
+        try:
+            return f"{cs_wd[d.weekday()]} {d.day}. {cs_months[d.month]}"
+        except Exception:
+            return d.isoformat() if d else ''
+
+    dash = {
+        'players_total': 0,
+        'next_practice': None,
+        'next_game': None,
+        'upcoming': [],
+        'attendance': None,
+        'recent_messages_7d': 0,
+        'latest_lineup': None,
+        'recent_drills': [],
+        'recent_activity': [],
+        'first_name': None,
+    }
+    try:
+        if tid:
+            horizon = today + timedelta(days=120)
+            upcoming = _collect_events_for_team(tid, today, horizon)
+            for e in upcoming:
+                e['label'] = _fmt_day(e['day'])
+                e['is_game'] = (e.get('kind') == 'match')
+                e['is_today'] = (e['day'] == today)
+            dash['upcoming'] = upcoming[:8]
+            dash['next_game'] = next((e for e in upcoming if e['is_game']), None)
+            dash['next_practice'] = next((e for e in upcoming if not e['is_game']), None)
+
+            players = Player.query.filter_by(team_id=tid).order_by(Player.name.asc()).all()
+            dash['players_total'] = len(players)
+
+            next_event = upcoming[0] if upcoming else None
+            if next_event and players:
+                statuses = {a.player_id: a.status for a in AttendanceEntry.query
+                            .filter_by(team_id=tid, event_key=next_event['key']).all()}
+                going = [p for p in players if statuses.get(p.id) == 'going']
+                not_going = [p for p in players if statuses.get(p.id) == 'not_going']
+                pending = [p for p in players if statuses.get(p.id, 'unknown') == 'unknown']
+                total = len(players)
+                dash['attendance'] = {
+                    'event': next_event,
+                    'going': len(going),
+                    'not_going': len(not_going),
+                    'pending': len(pending),
+                    'total': total,
+                    'pct': round(len(going) * 100 / total) if total else 0,
+                    'missing_names': [p.name for p in not_going][:8],
+                    'pending_names': [p.name for p in pending][:8],
+                }
+
+            wk_ago = datetime.utcnow() - timedelta(days=7)
+            dash['recent_messages_7d'] = sum(1 for mm in view_messages
+                                             if mm.get('created_at') and mm['created_at'] >= wk_ago)
+            dash['latest_lineup'] = (LineupSession.query.filter_by(team_id=tid)
+                                     .order_by(LineupSession.created_at.desc()).first())
+            dash['recent_drills'] = (Drill.query.filter_by(team_id=tid)
+                                     .order_by(Drill.id.desc()).limit(5).all())
+            dash['recent_activity'] = (AuditEvent.query.filter_by(team_id=tid)
+                                       .order_by(AuditEvent.created_at.desc()).limit(7).all())
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.warning('dashboard widgets failed: %s', e)
+        except Exception:
+            pass
+
+    today_weekday = cs_wd[today.weekday()]
+
+    # League widgets — cached data only (NEVER fetches external pages on load)
+    league = None
+    try:
+        from coach.services.league import service as league_svc
+        league = league_svc.get_view(tid)
+    except Exception:
+        league = None
+
     return render_template('home.html',
+                           league=league,
                            cal_year=y, cal_month=month_num, month_title=month_title, weeks=weeks,
                            events_by_day=events_by_day,
                            prev_year=prev_y, prev_month=prev_m,
                            next_year=next_y, next_month=next_m,
                            today_label=today_label,
+                           today_weekday=today_weekday,
                            today_iso=today.isoformat(),
                            team_messages=view_messages,
+                           dash=dash,
                            is_coach_home=is_coach_home)
+
+
+def _collect_events_for_team(tid: int, start_date: date, end_date: date) -> list[dict]:
+    events = []
+    if not tid:
+        return events
+    local_events = (TrainingEvent.query
+                    .filter(TrainingEvent.team_id == tid,
+                            TrainingEvent.day >= start_date,
+                            TrainingEvent.day <= end_date)
+                    .order_by(TrainingEvent.day.asc(), TrainingEvent.time.asc())
+                    .all())
+    for ev in local_events:
+        events.append({
+            'id': ev.id,
+            'key': f"local:{ev.id}",
+            'day': ev.day,
+            'time': ev.time or '',
+            'title': ev.title or 'Trénink',
+            'kind': ev.kind or 'training',
+            'source': 'local',
+        })
+    for item in tymuj_svc.get_cached_events(tid, start_date, end_date):
+        key = tymuj_svc.make_event_key(item['title'], item['day'], item.get('time') or '', item.get('kind') or 'tymuj', 'tymuj')
+        events.append({
+            'id': None,
+            'key': key,
+            'day': item['day'],
+            'time': item.get('time') or '',
+            'title': item['title'],
+            'kind': item.get('kind') or 'training',
+            'source': 'tymuj',
+        })
+    events.sort(key=lambda ev: (ev['day'], ev['time'], ev['title']))
+    return events
+
+
+@bp.route('/dochazka', methods=['GET', 'POST'], endpoint='dochazka')
+@team_login_required
+def dochazka():
+    tid = get_team_id()
+    if not tid:
+        return redirect(url_for('team_auth'))
+    if request.method == 'POST':
+        resp = coach_required(lambda: None)()
+        if resp is not None:
+            return resp
+        start_date = date.today() - timedelta(days=45)
+        end_date = date.today() + timedelta(days=180)
+        event_lookup = {event['key']: event for event in _collect_events_for_team(tid, start_date, end_date)}
+        valid_player_ids = {p.id for p in Player.query.filter_by(team_id=tid).all()}
+        for key, value in request.form.items():
+            if not key.startswith('status_'):
+                continue
+            _, event_key, player_id_s = key.split('_', 2)
+            try:
+                player_id = int(player_id_s)
+            except Exception:
+                continue
+            if player_id not in valid_player_ids:
+                continue
+            status = (value or 'unknown').strip().lower()
+            if status not in {'going', 'not_going', 'maybe', 'unknown'}:
+                status = 'unknown'
+            event_meta = event_lookup.get(event_key, {})
+            entry = AttendanceEntry.query.filter_by(team_id=tid, player_id=player_id, event_key=event_key).first()
+            if entry:
+                entry.status = status
+                entry.source = 'coachhub_coach'
+                entry.updated_by_role = 'coach'
+                entry.event_title = (event_meta.get('title') or entry.event_title or '').strip()[:200]
+                entry.event_day = event_meta.get('day') or entry.event_day
+                entry.event_time = (event_meta.get('time') or entry.event_time or '')[:10]
+                entry.event_kind = (event_meta.get('kind') or entry.event_kind or 'training')[:20]
+                entry.event_source = (event_meta.get('source') or entry.event_source or 'local')[:20]
+            else:
+                entry = AttendanceEntry(
+                    team_id=tid,
+                    player_id=player_id,
+                    event_key=event_key,
+                    status=status,
+                    source='coachhub_coach',
+                    updated_by_role='coach',
+                    event_title=(event_meta.get('title') or '')[:200],
+                    event_day=event_meta.get('day') or date.today(),
+                    event_time=(event_meta.get('time') or '')[:10],
+                    event_kind=(event_meta.get('kind') or 'training')[:20],
+                    event_source=(event_meta.get('source') or 'local')[:20],
+                )
+                db.session.add(entry)
+            db.session.flush()
+        db.session.commit()
+        flash('Docházka byla aktualizována.', 'success')
+        return redirect(url_for('dochazka'))
+
+    # ---- filters: SAME date-range model as the player page (future/past/
+    #      next30/all, default future). Range is remembered client-side in
+    #      localStorage 'att_range' (mirrors the player page); etype is a
+    #      matrix-only filter kept in session. Old range values are mapped. ----
+    from flask import session as _session
+    from coach.services import attendance_stats as stats
+    saved = _session.get('att_filters') or {}
+    rng = stats.normalize_range(request.args.get('range'))   # default future, maps legacy values
+    etype = (request.args.get('etype') or saved.get('etype') or 'all').strip()
+    if etype not in ('all', 'training', 'match', 'camp', 'other'):
+        etype = 'all'
+    _session['att_filters'] = {'etype': etype}
+
+    today = date.today()
+    start_date, end_date = stats.range_window(rng, today)
+    events = _collect_events_for_team(tid, start_date, end_date)
+    if etype != 'all':
+        events = [e for e in events if (e.get('kind') or 'training') == etype]
+
+    players = Player.query.filter_by(team_id=tid).order_by(Player.name.asc()).all()
+    entries = AttendanceEntry.query.filter_by(team_id=tid).all()
+    view = stats.build_matrix_view(events, players, entries, today=today)
+
+    tymuj_status = tymuj_svc.get_status(tid)
+    return render_template('dochazka.html', view=view,
+                           filters={'range': rng, 'etype': etype},
+                           is_coach=(get_team_role() == 'coach'), tymuj_status=tymuj_status)
 
 
 @bp.route('/calendar/add', methods=['POST'], endpoint='calendar_add')
@@ -111,7 +324,67 @@ def calendar_add():
     except Exception:
         flash('Neplatné datum.', 'error')
         return redirect(request.referrer or url_for('home'))
-    ev = TrainingEvent(team_id=get_team_id(), day=d, time=time_s[:10], title=title[:200], kind=(request.form.get('kind') or 'training')[:20])
+    kind = (request.form.get('kind') or 'training')[:20]
+    tid = get_team_id()
+    repeat = (request.form.get('repeat') or 'none').strip()
+
+    from coach.services import recurrence as rec
+    if repeat in rec.FREQUENCIES:
+        weekdays = [w for w in request.form.getlist('weekday') if w in rec.WEEKDAYS]
+        until = None
+        until_s = (request.form.get('until') or '').strip()
+        if until_s:
+            try:
+                until = date.fromisoformat(until_s)
+            except Exception:
+                until = None
+        try:
+            count = int(request.form.get('count') or 0)
+        except Exception:
+            count = 0
+        if count < 0:
+            count = 0
+        if not until and not count:
+            flash('U opakování zadej datum „do“ nebo počet opakování.', 'error')
+            return redirect(request.referrer or url_for('home'))
+        # One end condition. If a count is given it is authoritative — a stray/near
+        # "until" must never silently truncate the requested number of occurrences.
+        if count:
+            until = None
+        dates, capped = rec.generate_dates(d, repeat, weekdays=weekdays, until=until,
+                                           count=(count or None))
+        if not dates:
+            flash('Opakování nevygenerovalo žádné události. Zkontroluj nastavení.', 'error')
+            return redirect(request.referrer or url_for('home'))
+        import uuid
+        series_id = uuid.uuid4().hex
+        rule = rec.build_rule(repeat, weekdays)
+        for od in dates:
+            db.session.add(TrainingEvent(team_id=tid, day=od, time=time_s[:10], title=title[:200],
+                                         kind=kind, series_id=series_id, recurrence_rule=rule,
+                                         source='coachhub_recurring'))
+        db.session.commit()
+        # Týmuj overlap warning (does not block; never overwrites external events)
+        try:
+            cached_days = {date.fromisoformat(it.get('day')) for it in
+                           (tymuj_svc._cache_payload(tid).get('events') or []) if it.get('day')}
+            if cached_days & set(dates):
+                flash('Pozor: některé termíny se kryjí s událostmi z Týmuj kalendáře.', 'info')
+        except Exception:
+            pass
+        n = len(dates)
+        if n == 1:
+            flash('Vytvořena pouze 1 událost — zkontroluj počet opakování, vybrané dny '
+                  'a koncové datum.', 'info')
+        else:
+            msg = 'Vytvořeno %d opakovaných událostí.' % n
+            if capped:
+                msg += ' Dosažen limit %d; zkrať období nebo počet.' % rec.MAX_OCCURRENCES
+            flash(msg, 'success' if not capped else 'info')
+        return redirect(url_for('home', year=d.year, month=d.month))
+
+    ev = TrainingEvent(team_id=tid, day=d, time=time_s[:10], title=title[:200], kind=kind,
+                       source='coachhub_manual')
     db.session.add(ev)
     db.session.commit()
     flash('Trénink byl přidán do kalendáře.', 'success')
@@ -139,11 +412,23 @@ def calendar_update():
     else:
         time_s = (request.form.get('time') or (ev.time or '')).strip()
     kind = (request.form.get('kind') or (ev.kind or 'training')).strip()
-    ev.title = title[:200] or ev.title
-    ev.time = time_s[:10]
-    ev.kind = kind if kind in ('training','match') else (ev.kind or 'training')
+    kind = kind if kind in ('training', 'match') else (ev.kind or 'training')
+    new_title = title[:200] or ev.title
+    new_time = time_s[:10]
+    # Scope for recurring series: one (default) | future | series
+    scope = (request.form.get('scope') or 'one').strip()
+    targets = [ev]
+    if ev.series_id and scope in ('future', 'series'):
+        q = TrainingEvent.query.filter_by(team_id=ev.team_id, series_id=ev.series_id)
+        if scope == 'future':
+            q = q.filter(TrainingEvent.day >= ev.day)
+        targets = q.all()
+    for t in targets:
+        t.title = new_title
+        t.time = new_time
+        t.kind = kind
     db.session.commit()
-    flash('Událost byla upravena.', 'success')
+    flash('Upraveno %d událostí.' % len(targets) if len(targets) > 1 else 'Událost byla upravena.', 'success')
     return redirect(url_for('home', year=ev.day.year, month=ev.day.month))
 
 
@@ -161,9 +446,27 @@ def calendar_delete():
         flash('Událost nebyla nalezena.', 'error')
         return redirect(request.referrer or url_for('home'))
     y, m = ev.day.year, ev.day.month
-    db.session.delete(ev)
+    scope = (request.form.get('scope') or 'one').strip()
+    targets = [ev]
+    if ev.series_id and scope in ('future', 'series'):
+        q = TrainingEvent.query.filter_by(team_id=ev.team_id, series_id=ev.series_id)
+        if scope == 'future':
+            q = q.filter(TrainingEvent.day >= ev.day)
+        targets = q.all()
+    n = len(targets)
+    # Delete each occurrence's attendance too, otherwise the rows are orphaned and
+    # SQLite reuses the freed TrainingEvent id -> a future event inherits the old
+    # attendance via the colliding 'local:<id>' key. Clean up keeps keys unique.
+    keys = ['local:%d' % t.id for t in targets]
+    if keys:
+        AttendanceEntry.query.filter(
+            AttendanceEntry.team_id == ev.team_id,
+            AttendanceEntry.event_key.in_(keys)
+        ).delete(synchronize_session=False)
+    for t in targets:
+        db.session.delete(t)
     db.session.commit()
-    flash('Událost byla smazána.', 'success')
+    flash('Smazáno %d událostí.' % n if n > 1 else 'Událost byla smazána.', 'success')
     return redirect(url_for('home', year=y, month=m))
 
 
@@ -174,7 +477,6 @@ MAX_MESSAGE_LEN = 500
 @team_login_required
 def message_post():
     """Post a team message to the message board (coach or player)."""
-    from flask import session
     text = (request.form.get('text') or '').strip()
     if not text:
         return redirect(request.referrer or url_for('home'))

@@ -5,7 +5,7 @@
 <h1>Seznam sestav</h1>
 
 <p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-  <a href="{{ url_for('lines') }}"><button>⚙️ Otevřít formace</button></a>
+  <a class="btn" href="{{ url_for('lines') }}">⚙️ Otevřít formace</a>
   <span style="font-size:12px; opacity:0.8;">Smazání záznamu odstraní i PDF.</span>
   </p>
 
@@ -16,15 +16,15 @@
       <p><b>Vytvořeno:</b> {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
       {% set abs = url_for('download_export', filename=s.filename, _external=True) %}
       <p>
-        <a href="{{ url_for('download_export', filename=s.filename) }}" download><button>⬇️ Stáhnout PDF</button></a>
-        <a href="{{ url_for('download_export', filename=s.filename) }}" target="_blank"><button>👁 Otevřít</button></a>
-        <a href="https://api.whatsapp.com/send?text={{ ('Sestava: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank"><button>📲 Sdílet odkaz</button></a>
+        <a class="btn" href="{{ url_for('download_export', filename=s.filename) }}" download>⬇️ Stáhnout PDF</a>
+        <a class="btn" href="{{ url_for('download_export', filename=s.filename) }}" target="_blank" rel="noopener">👁 Otevřít</a>
+        <a class="btn" href="https://api.whatsapp.com/send?text={{ ('Sestava: ' ~ s.title ~ ' ' ~ abs) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet odkaz</a>
         <button type="button" class="btn-share-pdf" data-url="{{ abs }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
       </p>
       {% if is_coach %}
-      <form method="post" action="{{ url_for('delete_lineup_session', sess_id=s.id) }}" onsubmit="return confirm('Smazat sestavu? PDF bude odstraněno.');">
+      <form method="post" action="{{ url_for('delete_lineup_session', sess_id=s.id) }}" class="form-confirm" data-message="Smazat sestavu? PDF bude odstraněno.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat</button>
+        <button type="submit" style="background:var(--danger); color:var(--on-danger);">🗑 Smazat</button>
       </form>
       {% endif %}
     </div>

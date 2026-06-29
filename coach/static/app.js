@@ -20,13 +20,75 @@
   function setGlobalOnColors(){
     try{
       var el = document.body || document.documentElement;
-      var prim = cssVar(el, '--brand-primary', '#d4c76f');
-      var sec  = cssVar(el, '--brand-secondary', '#000000');
+      var prim = cssVar(el, '--primary', '#d4c76f');
+      var sec  = cssVar(el, '--secondary', '#000000');
       // Text colors designed for primary/secondary backgrounds
       var onPrim = ensureContrast(prim, sec, 4.5);
       var onSec  = ensureContrast(sec, prim, 4.5);
       el.style.setProperty('--on-primary', onPrim);
       el.style.setProperty('--on-secondary', onSec);
+    }catch(_){ }
+  }
+
+  function initDropdowns(){
+    try{
+      // NOTE: ':scope >' is required — 'querySelector("> a")' throws SyntaxError.
+      // The toggle may be a link (Tým/Tréninky/Nastavení) or a button (bell).
+      function trig(dd){ return dd.querySelector(':scope > a, :scope > button'); }
+      function setOpen(dd, open){
+        dd.classList.toggle('open', open);
+        var t = trig(dd);
+        if(t){ t.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+      }
+      function closeAllDropdowns(except){
+        document.querySelectorAll('.dropdown.open').forEach(function(dd){
+          if(dd !== except){ setOpen(dd, false); }
+        });
+      }
+      var ddSeq = 0;
+      document.querySelectorAll('.dropdown').forEach(function(dropdown){
+        var trigger = trig(dropdown);
+        var menu = dropdown.querySelector('.dropdown-menu');
+        if(trigger){
+          trigger.setAttribute('aria-haspopup', 'true');
+          if(!trigger.hasAttribute('aria-expanded')){ trigger.setAttribute('aria-expanded', 'false'); }
+          if(menu){
+            if(!menu.id){ menu.id = 'ddmenu-' + (++ddSeq); }
+            trigger.setAttribute('aria-controls', menu.id);
+          }
+          // Click-based toggle: open stays open until explicitly closed.
+          trigger.addEventListener('click', function(ev){
+            ev.preventDefault();
+            ev.stopPropagation();
+            var willOpen = !dropdown.classList.contains('open');
+            closeAllDropdowns(dropdown);   // clicking another dropdown closes the previous one
+            setOpen(dropdown, willOpen);
+          });
+          // Space activates link toggles too (Enter already fires click on a/button).
+          trigger.addEventListener('keydown', function(ev){
+            if(ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); trigger.click(); }
+            else if(ev.key === 'Escape'){ setOpen(dropdown, false); }
+          });
+        }
+        if(menu){
+          // Selecting an item closes the dropdown (navigation still proceeds).
+          menu.querySelectorAll('a').forEach(function(item){
+            item.addEventListener('click', function(){ setOpen(dropdown, false); });
+          });
+        }
+      });
+      // Click outside closes any open dropdown.
+      document.addEventListener('click', function(ev){
+        if(!ev.target.closest('.dropdown')){ closeAllDropdowns(); }
+      });
+      // Escape closes and returns focus to the toggle of the open dropdown.
+      document.addEventListener('keydown', function(ev){
+        if(ev.key === 'Escape'){
+          var openDd = document.querySelector('.dropdown.open');
+          closeAllDropdowns();
+          if(openDd){ var t = trig(openDd); if(t && t.focus){ try{ t.focus(); }catch(_){ } } }
+        }
+      });
     }catch(_){ }
   }
 
@@ -50,243 +112,136 @@
   onReady(function(){
     // Compute global readable text colors against brand backgrounds
     setGlobalOnColors();
-    // Calendar: mobile tap-to-toast detail
-    try {
-      var mqMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    initDropdowns();
+    // ===== Calendar event popover (add / edit / view) — premium, never clipped =====
+    (function initCalendarPopover(){
       var calWrap = document.querySelector('.calendar-wrap');
-      if (mqMobile && calWrap) {
-        // Helper: move-not-clone handling (mobile)
-        var movedNode = { node: null, placeholder: null };
-        function restoreMovedNode(){
-          try {
-            if(movedNode && movedNode.node && movedNode.placeholder && movedNode.placeholder.parentNode){
-              try { if(movedNode.node.tagName && movedNode.node.tagName.toLowerCase()==='details'){ movedNode.node.open = false; } } catch(_){}
-              movedNode.placeholder.parentNode.insertBefore(movedNode.node, movedNode.placeholder);
-              movedNode.placeholder.parentNode.removeChild(movedNode.placeholder);
-            }
-          } catch(_){}
-          movedNode = { node:null, placeholder:null };
-        }
-        var toast = document.createElement('div');
-        toast.className = 'cal-toast';
-        toast.innerHTML = '<div class="text"></div><div class="actions"><button class="btn btn-edit" style="display:none;">Upravit</button><button class="btn btn-open">Otevřít</button><button class="btn btn-close">Zavřít</button></div>';
-        document.body.appendChild(toast);
-        var hideTimer;
-        function openDetailsInSheet(det){
-          var sheet = document.getElementById('calFormSheet');
-          var content = sheet && sheet.querySelector('.cal-form-sheet__content');
-          var btnClose = sheet && sheet.querySelector('.cal-form-sheet__close');
-          if(!(det && sheet && content)) return;
-          restoreMovedNode();
-          var ph = document.createComment('details-placeholder');
-          det.parentNode.insertBefore(ph, det);
-          movedNode = { node: det, placeholder: ph };
-          content.innerHTML = '';
-          content.appendChild(det);
-          sheet.classList.add('open');
-          sheet.setAttribute('aria-hidden','false');
-          if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
-          // Fallback reload after any submit
-          content.querySelectorAll('form').forEach(function(f){
-            f.addEventListener('submit', function(){
-              setTimeout(function(){ try{ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
-            });
-          });
-          try { var firstInput = det.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
-        }
-        function showToast(msg, cell){
-          toast.querySelector('.text').textContent = msg;
-          function closeToast(){
-            try{ toast.classList.remove('open'); }catch(_){ }
-            try{ document.removeEventListener('click', outsideHandler, true); }catch(_){ }
-            clearTimeout(hideTimer);
-          }
-          function outsideHandler(ev){
-            try {
-              if(!toast.classList.contains('open')) return;
-              if(!toast.contains(ev.target)) { closeToast(); }
-            } catch(_){ }
-          }
-          // open with slide-up
-          toast.classList.add('open');
-          // enable outside-to-close a tick later to avoid closing from the triggering tap
-          setTimeout(function(){ document.addEventListener('click', outsideHandler, true); }, 50);
-          clearTimeout(hideTimer);
-          hideTimer = setTimeout(closeToast, 4000);
-          toast.querySelector('.btn-close').onclick = closeToast;
-          // Show explicit "Upravit" for coaches when an event exists
-          var isCoach = (calWrap.getAttribute('data-is-coach') === '1');
-          var evDet = cell && cell.querySelector('.cal-event details');
-          var btnEdit = toast.querySelector('.btn-edit');
-          if(isCoach && evDet){ btnEdit.style.display='inline-block'; btnEdit.onclick = function(){ openDetailsInSheet(evDet); try{ toast.classList.remove('open'); }catch(_){ } }; }
-          else { btnEdit.style.display='none'; btnEdit.onclick = null; }
-          toast.querySelector('.btn-open').onclick = function(){
-            try {
-              if(!cell) return;
-              // Prefer editing existing event if any; else open add form
-              var evDet2 = cell.querySelector('.cal-event details');
-              var addDet = cell.querySelector('.cal-cell-head details');
-              var targetDet = evDet2 || addDet;
-              if(targetDet){ openDetailsInSheet(targetDet); }
-            } catch(_){ }
-            closeToast();
-          };
-        }
-        calWrap.addEventListener('click', function(ev){
-          var td = ev.target.closest('td[data-kind]');
-          if(!td) return;
-          // Intercept click on the calendar add/edit summary: open bottom sheet overlay (no cell resize)
-          var sum = ev.target.closest('summary');
-          if(sum){
-            ev.preventDefault(); ev.stopPropagation();
-            var det = sum.closest('details');
-            if(det){
-              var sheet = document.getElementById('calFormSheet');
-              var content = sheet && sheet.querySelector('.cal-form-sheet__content');
-              var btnClose = sheet && sheet.querySelector('.cal-form-sheet__close');
-              if(det && sheet && content){
-                // Restore any previous moved node first
-                restoreMovedNode();
-                // Move entire details block (contains update+delete forms)
-                var ph = document.createComment('details-placeholder');
-                det.parentNode.insertBefore(ph, det);
-                movedNode = { node: det, placeholder: ph };
-                content.innerHTML = '';
-                content.appendChild(det);
-                sheet.classList.add('open');
-                sheet.setAttribute('aria-hidden','false');
-          if(btnClose){ btnClose.onclick = function(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
-                // Post fallback for any form inside moved details
-                content.querySelectorAll('form').forEach(function(f){
-                  f.addEventListener('submit', function(){
-                    setTimeout(function(){ try{ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
-                  });
-                });
-                try { var firstInput = det.querySelector('input,select,textarea'); if(firstInput){ firstInput.focus(); } } catch(_){ }
-                return; // handled
-              }
-            }
-          }
-          // Tap on existing event opens its form as overlay too
-          var evBox = ev.target.closest('.cal-event');
-          if(evBox){
-            ev.preventDefault(); ev.stopPropagation();
-            var det2 = evBox.querySelector('details');
-            var sheet2 = document.getElementById('calFormSheet');
-            var content2 = sheet2 && sheet2.querySelector('.cal-form-sheet__content');
-            var btnClose2 = sheet2 && sheet2.querySelector('.cal-form-sheet__close');
-            if(det2 && sheet2 && content2){
-              // Restore any previous moved node first
-              restoreMovedNode();
-              var ph2 = document.createComment('details-placeholder');
-              det2.parentNode.insertBefore(ph2, det2);
-              movedNode = { node: det2, placeholder: ph2 };
-              content2.innerHTML = '';
-              content2.appendChild(det2);
-              sheet2.classList.add('open');
-              sheet2.setAttribute('aria-hidden','false');
-              if(btnClose2){ btnClose2.onclick = function(){ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); restoreMovedNode(); }; }
-              // Fallback reload after submit (any form inside details)
-              content2.querySelectorAll('form').forEach(function(f){
-                f.addEventListener('submit', function(){
-                  setTimeout(function(){ try{ sheet2.classList.remove('open'); sheet2.setAttribute('aria-hidden','true'); }catch(_){}; window.location.reload(); }, 200);
-                });
-              });
-              try { var firstInput2 = det2.querySelector('input,select,textarea'); if(firstInput2){ firstInput2.focus(); } } catch(_){ }
-              return; // handled
-            }
-          }
-          var kind = td.getAttribute('data-kind');
-          if(!kind) return;
-          var title = td.getAttribute('data-title') || '';
-          var time = td.getAttribute('data-time') || '';
-          var kindLabel = kind === 'match' ? 'Zápas' : 'Trénink';
-          var msg = (time ? (time + ' – ') : '') + (title || kindLabel);
-          showToast(msg, td);
-        }, {passive:false});
-      }
-    } catch(e) {}
+      if(!calWrap) return;
 
-    // Desktop calendar overlay form on "+"
-    try {
-      var mqDesktop = !(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
-      var calWrapDesk = document.querySelector('.calendar-wrap');
-      if(mqDesktop && calWrapDesk){
-        var movedDesk = { node:null, placeholder:null };
-        function restoreDesk(){
-          try{
-            if(movedDesk.node && movedDesk.placeholder && movedDesk.placeholder.parentNode){
-              try { if(movedDesk.node.tagName && movedDesk.node.tagName.toLowerCase()==='details'){ movedDesk.node.open = false; } } catch(_){}
-              movedDesk.placeholder.parentNode.insertBefore(movedDesk.node, movedDesk.placeholder);
-              movedDesk.placeholder.parentNode.removeChild(movedDesk.placeholder);
-            }
-          }catch(_){}
-          movedDesk={node:null, placeholder:null};
+      // One popover, appended to <body> so it can never be clipped by the table/overflow.
+      var pop = document.createElement('div');
+      pop.className = 'cal-pop';
+      pop.setAttribute('role','dialog');
+      pop.setAttribute('aria-modal','false');
+      pop.innerHTML = '<div class="cal-pop-card">'
+        + '<div class="cal-pop-head"><span class="cal-pop-title"></span>'
+        + '<button type="button" class="cal-pop-close" aria-label="Zavřít">✕</button></div>'
+        + '<div class="cal-pop-body"></div></div>';
+      var backdrop = document.createElement('div');
+      backdrop.className = 'cal-pop-backdrop';
+      document.body.appendChild(backdrop);
+      document.body.appendChild(pop);
+      var card = pop.querySelector('.cal-pop-card');
+      var body = pop.querySelector('.cal-pop-body');
+      var titleEl = pop.querySelector('.cal-pop-title');
+
+      var moved = { node:null, placeholder:null };
+      var anchorCell = null, lastFocus = null;
+
+      function isMobile(){ return window.matchMedia && window.matchMedia('(max-width: 768px)').matches; }
+      function restoreMoved(){
+        if(moved.node && moved.placeholder && moved.placeholder.parentNode){
+          try { if((moved.node.tagName||'').toLowerCase()==='details'){ moved.node.open=false; } } catch(_){}
+          moved.placeholder.parentNode.insertBefore(moved.node, moved.placeholder);
+          moved.placeholder.parentNode.removeChild(moved.placeholder);
         }
-        calWrapDesk.addEventListener('click', function(ev){
-          var sum = ev.target.closest('summary');
-          var det, td;
-          if(sum){
-            det = sum.closest('details');
-            td = sum.closest('td');
-          } else {
-            // Allow opening overlay by clicking anywhere in empty in-month cell (coach only)
-            td = ev.target.closest('td');
-            if(!td || td.classList.contains('out-month')) return;
-            // Ignore clicks on existing events
-            if(ev.target.closest('.cal-event')) return;
-            var cell = td.querySelector('.cal-cell');
-            det = cell && cell.querySelector('details');
-            if(!det) return;
-          }
-          if(!det || !td){ return; }
-          ev.preventDefault(); ev.stopPropagation();
-          // We'll move the entire <details> block so both update and delete are available
-          // Remove existing overlay if any
-          var exist = calWrapDesk.querySelector('.cal-overlay');
-          if(exist && exist.parentElement){ exist.parentElement.removeChild(exist); }
-          // Measure target cell and next cell to span ~2 days
-          var rectCell = td.getBoundingClientRect();
-          var rectWrap = calWrapDesk.getBoundingClientRect();
-          var nextTd = td.nextElementSibling;
-          var width = rectCell.width * 2 - 8; // minus small gap
-          if(nextTd){
-            var rectNext = nextTd.getBoundingClientRect();
-            width = (rectNext.right - rectCell.left) - 8;
-          }
-          var left = rectCell.left - rectWrap.left + calWrapDesk.scrollLeft;
-          var top = rectCell.top - rectWrap.top + calWrapDesk.scrollTop + 4;
-          // Build overlay
-          var overlay = document.createElement('div');
-          overlay.className = 'cal-overlay';
-          var wrapWidth = calWrapDesk.clientWidth;
-          var overlayWidth = Math.max(200, width);
-          if(left + overlayWidth > wrapWidth){ left = Math.max(0, wrapWidth - overlayWidth - 8); }
-          overlay.style.left = Math.max(0,left) + 'px';
-          overlay.style.top = Math.max(0,top) + 'px';
-          overlay.style.width = overlayWidth + 'px';
-          var inner = document.createElement('div'); inner.className = 'cal-overlay-inner';
-          var close = document.createElement('button'); close.type='button'; close.className='cal-overlay-close'; close.textContent='✖ Zavřít';
-          var content = document.createElement('div'); content.className='cal-overlay-content';
-          // Move original details (not clone) to overlay
-          restoreDesk();
-          var ph = document.createComment('desk-details-placeholder');
-          det.parentNode.insertBefore(ph, det);
-          movedDesk = { node: det, placeholder: ph };
-          try { det.open = true; } catch(_){ }
-          content.appendChild(det);
-          inner.appendChild(close);
-          inner.appendChild(content);
-          overlay.appendChild(inner);
-          calWrapDesk.appendChild(overlay);
-          // Close handlers
-          function closeOverlay(){ if(overlay && overlay.parentElement){ overlay.parentElement.removeChild(overlay); } restoreDesk(); }
-          close.onclick = closeOverlay;
-          // Close overlay after any submit inside details (redirect will refresh)
-          content.querySelectorAll('form').forEach(function(f){ f.addEventListener('submit', function(){ setTimeout(closeOverlay, 200); }); });
-        });
+        moved = { node:null, placeholder:null };
       }
-    } catch(e) {}
+      function position(){
+        if(isMobile()){ pop.style.left=''; pop.style.top=''; return; } // CSS bottom-sheet
+        if(!anchorCell) return;
+        var r = anchorCell.getBoundingClientRect();
+        var pw = card.offsetWidth, ph = card.offsetHeight;
+        var m = 10, vw = window.innerWidth, vh = window.innerHeight;
+        var left = r.right + m;                       // prefer to the right of the day
+        if(left + pw > vw - m){ left = r.left - m - pw; }   // flip to the left
+        if(left < m){ left = Math.max(m, Math.min(vw - pw - m, r.left)); } // clamp
+        var top = r.top;
+        if(top + ph > vh - m){ top = vh - ph - m; }   // shift up if overflowing bottom
+        if(top < m){ top = m; }
+        pop.style.left = Math.round(left) + 'px';
+        pop.style.top = Math.round(top) + 'px';
+      }
+      function onDocClick(e){
+        if(!pop.classList.contains('open')) return;
+        if(pop.contains(e.target)) return;            // clicks inside the popover stay
+        if(e.target.closest && e.target.closest('.cal-nav-btn')) { close(); return; }
+        close();
+      }
+      function onKey(e){ if(e.key==='Escape' && pop.classList.contains('open')){ close(); } }
+
+      function open(detailsNode, title, cell, readonlyText){
+        restoreMoved();
+        if(anchorCell){ anchorCell.classList.remove('cal-cell--active'); }
+        anchorCell = cell || null;
+        titleEl.textContent = title || '';
+        body.innerHTML = '';
+        if(detailsNode){
+          var ph = document.createComment('cal-pop-ph');
+          detailsNode.parentNode.insertBefore(ph, detailsNode);
+          moved = { node: detailsNode, placeholder: ph };
+          try { detailsNode.open = true; } catch(_){}
+          body.appendChild(detailsNode);
+        } else if(readonlyText){
+          var infoEl = document.createElement('div');
+          infoEl.className = 'cal-pop-info';
+          infoEl.textContent = readonlyText;
+          body.appendChild(infoEl);
+        }
+        if(anchorCell){ anchorCell.classList.add('cal-cell--active'); }
+        lastFocus = document.activeElement;
+        pop.classList.add('open'); backdrop.classList.add('open');
+        position();
+        setTimeout(function(){
+          var f = body.querySelector('input:not([type=hidden]),select,textarea,button');
+          if(f){ try{ f.focus(); }catch(_){ } }
+          document.addEventListener('click', onDocClick, true);
+        }, 0);
+      }
+      function close(){
+        if(anchorCell){ anchorCell.classList.remove('cal-cell--active'); }
+        pop.classList.remove('open'); backdrop.classList.remove('open');
+        document.removeEventListener('click', onDocClick, true);
+        restoreMoved();
+        var f = lastFocus; anchorCell = null;
+        if(f){ try{ f.focus(); }catch(_){ } }
+      }
+
+      pop.querySelector('.cal-pop-close').addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+      window.addEventListener('resize', position);
+      window.addEventListener('scroll', function(){ if(pop.classList.contains('open')) position(); }, true);
+
+      calWrap.addEventListener('click', function(ev){
+        var td = ev.target.closest('td.cal-cell');
+        if(!td) return;
+        var isCoach = (calWrap.getAttribute('data-is-coach') === '1');
+        var summary = ev.target.closest('summary');
+        if(summary){
+          ev.preventDefault(); ev.stopPropagation();
+          var det = summary.closest('details');
+          var isEdit = !!summary.closest('.cal-event');
+          if(det){ open(det, isEdit ? 'Upravit událost' : 'Přidat událost', td); }
+          return;
+        }
+        var evBox = ev.target.closest('.cal-event');
+        if(evBox){
+          ev.preventDefault(); ev.stopPropagation();
+          var det2 = evBox.querySelector('details');
+          if(det2){ open(det2, 'Upravit událost', td); }
+          else {
+            var info = evBox.textContent.replace(/\s+/g,' ').replace('Upravit','').trim();
+            open(null, 'Detail události', td, info || 'Událost');
+          }
+          return;
+        }
+        if(isCoach && !td.classList.contains('out-month')){
+          var addDet = td.querySelector('.cal-cell-head details');
+          if(addDet){ ev.preventDefault(); ev.stopPropagation(); open(addDet, 'Přidat událost', td); }
+        }
+      });
+    })();
+
 
     // Mobile nav: hamburger toggle
     var menuBtn = document.getElementById('mobileMenuBtn');
@@ -298,17 +253,6 @@
         menuBtn.setAttribute('aria-expanded', (!expanded).toString());
       });
     }
-
-    // Mobile dropdown open on tap
-    function isMobile(){ return window.matchMedia && window.matchMedia('(max-width: 768px)').matches; }
-    document.querySelectorAll('.dropdown > a').forEach(function(anchor){
-      anchor.addEventListener('click', function(ev){
-        if(!isMobile()) return;
-        ev.preventDefault();
-        var li = anchor.parentElement;
-        if(li){ li.classList.toggle('open'); }
-      });
-    });
 
     // Auth tabs: toggle between login and register
     var tabs = document.querySelectorAll('.auth-tab');
@@ -631,8 +575,13 @@
     }
   });
 })();
-    // Toggle password visibility (auth)
-  document.querySelectorAll('.btn-toggle-pw').forEach(function(btn){
+(function(){
+  function onReady(fn){
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+  onReady(function(){
+    document.querySelectorAll('.btn-toggle-pw').forEach(function(btn){
       btn.addEventListener('click', function(){
         var id = btn.getAttribute('data-target');
         var inp = id && document.getElementById(id);
@@ -644,28 +593,7 @@
           inp.type = 'password';
           btn.textContent = '👁';
         }
-  });
-  // Roster select all / deselect all
-  var rosterSelectAll = document.querySelector('.btn-roster-select-all');
-  var rosterDeselectAll = document.querySelector('.btn-roster-deselect-all');
-  var rosterGrid = document.querySelector('.players-grid');
-  function setRosterChecked(val){
-    if(!rosterGrid) return;
-    Array.prototype.slice.call(rosterGrid.querySelectorAll('input[type="checkbox"][name="players"]')).forEach(function(cb){ cb.checked = !!val; });
-  }
-  if(rosterSelectAll){ rosterSelectAll.addEventListener('click', function(){ setRosterChecked(true); }); }
-  if(rosterDeselectAll){ rosterDeselectAll.addEventListener('click', function(){ setRosterChecked(false); }); }
+      });
     });
-
-// --- Fallback binding for Roster page (in case previous block didn't run) ---
-(function(){
-  function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
-  ready(function(){
-    var selectAll = document.querySelector('.btn-roster-select-all');
-    var deselectAll = document.querySelector('.btn-roster-deselect-all');
-    var grid = document.querySelector('.players-grid');
-    function setAll(val){ if(!grid) return; Array.prototype.slice.call(grid.querySelectorAll('input[type="checkbox"][name="players"]')).forEach(function(cb){ cb.checked = !!val; }); }
-    if(selectAll && !selectAll.__bound){ selectAll.__bound=true; selectAll.addEventListener('click', function(){ setAll(true); }); }
-    if(deselectAll && !deselectAll.__bound){ deselectAll.__bound=true; deselectAll.addEventListener('click', function(){ setAll(false); }); }
   });
 })();

@@ -22,16 +22,45 @@
       <label>Logo týmu (PNG/JPG)<br>
         <input type="file" name="team_logo" accept="image/*">
       </label>
+      <label>ICS export z tymuj.cz<br>
+        <input type="url" name="tymuj_ics_url" placeholder="https://.../event/calendar/xxxxx.ics" value="{{ team.tymuj_ics_url or '' }}" style="width:100%; padding:8px; border:1px solid #bbb; border-radius:8px;">
+        <small style="display:block; margin-top:4px; opacity:0.8;">Vlož URL exportu kalendáře .ics z tymuj.cz. Události se pak načtou přímo do kalendáře.</small>
+      </label>
       <button type="submit">💾 Uložit změny</button>
     </form>
+    {% if team and team.tymuj_ics_url %}
+      <form method="POST" style="margin-top:12px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="tymuj_refresh">
+        <button type="submit" class="btn-secondary btn-sm">🔄 Refresh Týmuj data</button>
+      </form>
+      <p class="muted" style="margin-top:8px;">
+        Poslední úspěšné načtení: {{ tymuj_status.updated_at or '—' }} · Události: {{ tymuj_status.events_count or 0 }} · Účastníci: {{ tymuj_status.participants_count or 0 }}
+      </p>
+      {% if tymuj_status.last_error %}
+        <div style="color:var(--danger); margin-top:6px;">Týmuj data could not be refreshed. Showing last saved data.</div>
+      {% endif %}
+    {% endif %}
+
+    <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--field-border);">
+      <h3 style="margin:0 0 8px;">Integrace &amp; migrace</h3>
+      <ul style="margin:0 0 8px; padding-left:18px; line-height:1.7;">
+        <li>Týmuj kalendář (ICS): {% if team and team.tymuj_ics_url %}<strong style="color:var(--success);">✓ Připojeno</strong>{% else %}<span class="muted">nenastaveno</span>{% endif %}</li>
+        <li>Import docházky (CSV/Excel): <strong style="color:var(--success);">✓ K dispozici</strong> — <a href="{{ url_for('attendance.import_attendance') }}">spustit import</a></li>
+        <li>CoachHub docházka: <strong style="color:var(--success);">✓ Aktivní</strong></li>
+      </ul>
+      <p class="muted" style="margin:0;">Doporučení: pro všechny budoucí události používej docházku v CoachHubu. Import z Týmuj použij jen pro migraci historických dat.</p>
+    </div>
   </div>
 
   <div class="card">
     <h2>Aktuální logo</h2>
     {% if brand.logo_url %}
-      <img src="{{ brand.logo_url }}" alt="Team Logo" style="max-width:300px; background:#fff; border-radius:8px; border:2px solid var(--brand-primary, #d4c76f);">
+      <img src="{{ brand.logo_url }}" alt="Team Logo" class="team-logo-preview">
     {% else %}
-      <p><i>Zatím žádné logo</i></p>
+      <div class="team-logo-preview" style="min-height: 160px; display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
+        <span><i>Zatím žádné logo</i></span>
+      </div>
     {% endif %}
   </div>
 
@@ -51,12 +80,58 @@
   </div>
 
   <div class="card" style="text-align:left;">
+    <h2>🏆 Liga / výsledky</h2>
+    <p style="font-size:14px; opacity:0.85;">Vlož odkaz na soutěž (např. z vysledky.com) a zobraz tabulku a poslední výsledky na přehledu. Jde o <b>veřejná data z externího webu</b>, která ti zde jen zobrazujeme.</p>
+    <form method="POST" style="display:flex; flex-direction:column; gap:12px; max-width:560px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="league_save">
+      <label class="row" style="align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" name="league_enabled" style="width:auto;" {% if league_cfg and league_cfg.enabled %}checked{% endif %}>
+        <span>Zapnout ligovou integraci</span>
+      </label>
+      <label>URL soutěže<br>
+        <input type="url" name="competition_url" placeholder="https://vysledky.com/soutez2.php?id_soutez=19716" value="{{ league_cfg.source_url if league_cfg and league_cfg.source_url else '' }}">
+      </label>
+      <label>Název našeho týmu (pro zvýraznění v tabulce)<br>
+        <input type="text" name="highlight_team" placeholder="HC Smíchov" value="{{ league_cfg.highlight_team if league_cfg and league_cfg.highlight_team else (brand.team_name or '') }}">
+      </label>
+      <button type="submit">💾 Uložit nastavení ligy</button>
+    </form>
+
+    {% if league_cfg and league_cfg.source_url %}
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+        <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_test"><button type="submit" class="btn-secondary btn-sm">🔌 Test připojení</button></form>
+        <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_refresh"><button type="submit" class="btn-secondary btn-sm">🔄 Obnovit data</button></form>
+      </div>
+      <div style="margin-top:12px; font-size:0.85rem;">
+        <div>Poslední úspěšná aktualizace: <strong>{% if league_cfg.last_updated %}{{ league_cfg.last_updated.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}—{% endif %}</strong></div>
+        {% if league and league.info and league.info.competition_name %}
+          <div style="opacity:0.8;">Soutěž: {{ league.info.competition_name }}{% if league.info.season %} · {{ league.info.season }}{% endif %} · {{ league.standings|length }} týmů · {{ league.results|length }} výsledků</div>
+        {% endif %}
+        {% if league_cfg.last_error %}<div style="color:var(--danger); margin-top:6px;">⚠ Poslední chyba: {{ league_cfg.last_error }}</div>{% endif %}
+      </div>
+      {% if league and league.needs_confirm and league.suggestions %}
+        <div style="margin-top:12px; padding:10px 14px; border-radius:8px; background:color-mix(in srgb, var(--warning) 14%, transparent); border:1px solid color-mix(in srgb, var(--warning) 36%, transparent);">
+          Tým „{{ league_cfg.highlight_team }}" nebyl v tabulce nalezen přesně. Vyber správný:
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            {% for s in league.suggestions %}
+              <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_confirm"><input type="hidden" name="team_name" value="{{ s }}"><button type="submit" class="btn-outline btn-sm">{{ s }}</button></form>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="card" style="text-align:left; border-color: color-mix(in srgb, var(--danger) 32%, var(--border));">
     <h2>🗑 Smazat tým</h2>
-    <p>Tato akce <b>trvale odstraní</b> celý tým včetně hráčů, soupisek, lajn, cvičení a uložených exportů. Nelze vrátit zpět.</p>
-    <form method="POST" class="form-confirm" data-message="Opravdu smazat celý tým? Tuto akci nelze vrátit.">
+    <p>Tato akce <b>trvale odstraní</b> celý tým včetně hráčů, soupisek, lajn, cvičení a uložených exportů. <b>Nelze vrátit zpět.</b></p>
+    <form method="POST" id="deleteTeamForm">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="delete_team">
-      <button type="submit" style="background:#b33; color:#fff;">🗑 Smazat tým</button>
+      <label style="display:block; margin-bottom:8px;">Pro potvrzení napiš přesný název týmu: <code>{{ team.name if team else '' }}</code></label>
+      <input type="text" id="deleteConfirmInput" name="confirm_team_name" data-team-name="{{ team.name if team else '' }}" autocomplete="off" spellcheck="false" placeholder="{{ team.name if team else 'Název týmu' }}" style="max-width:320px; margin-bottom:12px;">
+      <div><button type="submit" class="btn-danger" id="deleteTeamBtn" disabled>🗑 Trvale smazat tým</button></div>
     </form>
   </div>
 
@@ -65,4 +140,19 @@
 
 {% endblock %}
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var input = document.getElementById('deleteConfirmInput');
+  var btn = document.getElementById('deleteTeamBtn');
+  if(!input || !btn) return;
+  var target = (input.getAttribute('data-team-name') || '').trim().toLowerCase();
+  function check(){ btn.disabled = !(target && input.value.trim().toLowerCase() === target); }
+  input.addEventListener('input', check);
+  document.getElementById('deleteTeamForm').addEventListener('submit', function(e){
+    if(btn.disabled){ e.preventDefault(); }
+  });
+  check();
+})();
+</script>
+{% endblock %}

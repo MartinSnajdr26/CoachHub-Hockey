@@ -43,23 +43,23 @@
         </div>
         <div class="toolbar toolbar--compact" id="toolbar">
             <style>
-              .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; background: var(--brand-primary, #d4c76f); padding:8px; border-radius:12px; }
+              .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; background: var(--primary, #d4c76f); padding:8px; border-radius:12px; }
               .toolbar .tool-group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:transparent; padding:6px 8px; border-radius:10px; }
               .toolbar .group-title{ font-weight:700; font-size:12px; opacity:.7; margin-right:6px; }
-              .toolbar .btn-tool{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
+              .toolbar .btn-tool{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--secondary, #000); background:var(--field-bg); color: var(--secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
               .toolbar .btn-tool .ic{ font-size:20px; line-height:1; }
               .toolbar .btn-tool .lbl{ font-size:12px; }
-              .toolbar .btn-tool:hover{ background: color-mix(in srgb, #fff 70%, var(--brand-primary, #d4c76f) 30%); }
-              .toolbar .btn-tool.is-active{ background: color-mix(in srgb, var(--brand-primary, #d4c76f) 25%, #ffffff); box-shadow: inset 0 0 0 2px var(--brand-secondary, #000); }
+              .toolbar .btn-tool:hover{ background: color-mix(in srgb, #fff 70%, var(--primary, #d4c76f) 30%); }
+              .toolbar .btn-tool.is-active{ background: color-mix(in srgb, var(--primary, #d4c76f) 25%, #ffffff); box-shadow: inset 0 0 0 2px var(--secondary, #000); }
               .toolbar--compact .group-title{ display:none; }
               .toolbar--compact .btn-tool{ width:36px; min-width:36px; padding:0; }
               .toolbar--compact .btn-tool .lbl{ display:none; }
-              .toolbar .toggle-label{ padding:6px 8px; border-radius:6px; background: color-mix(in srgb, var(--brand-primary, #d4c76f) 25%, white); color: var(--brand-secondary, #000); cursor:pointer; font-size:14px; }
-              .toolbar .toggle-label.active { background: #3bb273; color:#fff; }
-              .toolbar .toggle-label.off { background: #c44747; color:#fff; }
+              .toolbar .toggle-label{ padding:6px 8px; border-radius:6px; background: color-mix(in srgb, var(--primary, #d4c76f) 25%, white); color: var(--secondary, #000); cursor:pointer; font-size:14px; }
+              .toolbar .toggle-label.active { background: var(--success); color:var(--on-danger); }
+              .toolbar .toggle-label.off { background: var(--danger); color:var(--on-danger); }
               .toolbar .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:13px; margin-top:6px; }
-              .toolbar .pill.on { background: #3bb273; color:#fff; }
-              .toolbar .pill.off { background: #c44747; color:#fff; }
+              .toolbar .pill.on { background: var(--success); color:var(--on-danger); }
+              .toolbar .pill.off { background: var(--danger); color:var(--on-danger); }
             </style>
             <div class="tool-group">
               <span class="group-title">Zobrazení</span>
@@ -89,7 +89,7 @@
               <button type="button" class="btn-tool" data-tool="pucks" title="Zásoba puků"><span class="ic">●●</span><span class="lbl">Puky</span></button>
               <button type="button" class="btn-tool" data-tool="cone" title="Kužel"><span class="ic">▲</span><span class="lbl">Kužel</span></button>
               <button type="button" class="btn-tool" data-tool="goal" id="btnToolGoal" title="Branka" draggable="true"><span class="ic">🗂</span><span class="lbl">Branka</span></button>
-              <div id="goalRotationPicker" style="display:none; gap:6px; align-items:center; padding:6px; border:1px solid var(--brand-secondary, #000); border-radius:8px; background:#fff;">
+              <div id="goalRotationPicker" style="display:none; gap:6px; align-items:center; padding:6px; border:1px solid var(--secondary, #000); border-radius:8px; background:#fff;">
                 <span class="group-title" style="margin-right:0;">Orientace:</span>
                 <button type="button" class="btn-tool" data-rot="0" title="0°" style="width:36px; min-width:36px; padding:0; overflow:hidden;">
                   <img src="/static/branka.png" alt="branka 0" draggable="true" style="width:100%; height:100%; object-fit:contain; transform: rotate(0deg); transform-origin:center;">
@@ -125,7 +125,7 @@
                      </label>
                      <span id="syncStatus" class="pill off">Současně: vypnuto</span>
                  </div>
-                 <div class="hint-invert" style="width:100%; font-size:16px; opacity:0.95; color: var(--brand-secondary, #000);">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
+                 <div class="hint-invert" style="width:100%; font-size:16px; opacity:0.95; color: var(--secondary, #000);">Po „Začít“ budou všechny následující hráčské tahy (včetně jízdy s pukem) spuštěny současně. „Ukončit“ uzavře skupinu; další tahy už pojedou opět sekvenčně, dokud znovu nedáte „Začít“.</div>
               </div>
             </div>
         </div>

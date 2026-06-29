@@ -1,3 +1,19 @@
+{%- macro nav_icon(name) -%}
+{%- set paths = {
+  'home': '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/>',
+  'attendance': '<path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-7"/><path d="M3.5 20h17"/>',
+  'players': '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c0-3 2.6-5 5.5-5s5.5 2 5.5 5"/><path d="M16 5.6a3 3 0 0 1 0 5.6"/><path d="M20.5 19.5c0-2-1-3.4-2.8-4.3"/>',
+  'roster': '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9.5 4h5v2.5h-5z"/><path d="M9 11h6M9 14.5h6"/>',
+  'lines': '<path d="M3 7h4l9 10h5"/><path d="M17 4l3 3-3 3"/><path d="M3 17h4l2.2-2.4"/>',
+  'drills': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+  'settings': '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H4a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.1-2.7l-.1-.1A2 2 0 1 1 8 4.5l.1.1a1.6 1.6 0 0 0 2.7-1.1V3.3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.7 1z"/>',
+  'audit': '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h4"/>',
+  'logout': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 16l4-4-4-4"/><path d="M20 12H9"/>',
+  'login': '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+} -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ paths.get(name, '')|safe }}</svg>
+{%- endmacro -%}
+{%- set ep = (request.endpoint or '').split('.')[-1] -%}
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -5,42 +21,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ brand.team_name or 'CoachHub' }} {% endblock %}</title>
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <meta name="theme-color" content="#0e1116">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CoachHub">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=csp_nonce) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='help.css', v=csp_nonce) }}">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#f5f5f5' }};">
+<body data-team-name="{{ brand.team_name or 'CoachHub' }}" style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#c44747' }}; --primary: var(--brand-primary); --secondary: var(--brand-secondary); --tertiary: var(--brand-tertiary);">
 
-    <!-- Černý vršek s logem -->
+    <!-- Brand bar -->
     <header class="header-top">
-        <div class="logo">
-            <img src="{{ brand.logo_url or url_for('static', filename='logo.png') }}" alt="Logo klubu">
-            <h1>{{ brand.team_name or 'CoachHub' }} </h1>
-        </div>
-        {# Vítej/uživatel odstraněn – přihlášení je týmovým klíčem #}
-        <a href="{{ url_for('home') }}" class="app-top-right-logo-link" aria-label="Domů">
-            <img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo" class="app-top-right-logo">
+        <a class="brand" href="{{ url_for('home') }}">
+            {% if brand.logo_url %}
+              <img src="{{ brand.logo_url }}" alt="Logo týmu">
+            {% else %}
+              <span class="team-logo-placeholder" aria-label="Logo týmu"><span>Team</span></span>
+            {% endif %}
+            <span class="brand-text">
+              <span class="brand-name">{{ brand.team_name or 'CoachHub' }}</span>
+              <span class="brand-sub">{% if current_user.is_authenticated or team_session_login %}{{ 'Trenérský portál' if is_coach else 'Hráčský portál' }}{% else %}Hokejový manažer{% endif %}</span>
+            </span>
+        </a>
+        <a class="app-mark" href="{{ url_for('home') }}" aria-label="CoachHub Hockey – domů">
+            <img src="{{ url_for('static', filename='App_Logo.png') }}" alt="CoachHub Hockey">
+            <span class="app-brand">
+              <span class="app-brand-name">CoachHub Hockey</span>
+              <span class="app-brand-sub">Team Management Platform</span>
+            </span>
         </a>
     </header>
 
-    <!-- Bílý pruh s navigací -->
+    <!-- Navigation -->
     <div class="header-bottom">
-  <nav>
+  <nav class="modern-nav">
     <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu" aria-expanded="false">☰ Menu</button>
     <ul class="nav-left">
       {% if current_user.is_authenticated or team_session_login %}
-        <li><a href="{{ url_for('home') }}">🏠 Domů</a></li>
-        <li><a href="{{ url_for('players') }}">👥 Hráči</a></li>
-        <li><a href="{{ url_for('roster') }}">📋 Soupiska</a></li>
+        <li><a class="nav-link {{ 'is-active' if ep == 'home' }}" {% if ep == 'home' %}aria-current="page"{% endif %} href="{{ url_for('home') }}"><span class="nav-icon">{{ nav_icon('home') }}</span><span class="nav-label">Domů</span></a></li>
         <li class="dropdown">
-          <a href="{{ url_for('lines') }}">🔀 Formace</a>
+          <a class="nav-link {{ 'is-active' if ep in ['attendance.attendance','attendance.import_attendance','attendance.import_history','dochazka','players','edit_player','roster','lines','lineup_sessions','pokladna.pokladna','pokladna.pokladna_month'] }}" href="{{ url_for('dochazka') if is_coach else url_for('attendance.attendance') }}" aria-haspopup="true" aria-expanded="false"><span class="nav-icon">{{ nav_icon('players') }}</span><span class="nav-label">Tým</span></a>
           <div class="dropdown-menu">
-            <a href="{{ url_for('lines') }}">⚙️ Sestavit Formace</a>
+            <a href="{{ url_for('dochazka') if is_coach else url_for('attendance.attendance') }}">📋 Docházka</a>
+            <a href="{{ url_for('players') }}">👤 Hráči</a>
+            <a href="{{ url_for('roster') }}">📝 Soupiska</a>
+            <a href="{{ url_for('lines') }}">⚙️ Formace</a>
             <a href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
+            {% if is_coach %}<a href="{{ url_for('pokladna.pokladna') }}">💰 Pokladna</a>{% endif %}
           </div>
         </li>
         <li class="dropdown">
-          <a href="{{ url_for('drills') }}">🏒 Tréninky</a>
+          <a class="nav-link {{ 'is-active' if 'drill' in ep }}" href="{{ url_for('drills') }}" aria-haspopup="true" aria-expanded="false"><span class="nav-icon">{{ nav_icon('drills') }}</span><span class="nav-label">Tréninky</span></a>
           <div class="dropdown-menu">
             <a href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>
             <a href="{{ url_for('drills') }}">📂 Kategorie</a>
@@ -54,45 +92,62 @@
             {% endif %}
           </div>
         </li>
+        <li><a class="nav-link {{ 'is-active' if ep == 'communication.feed' }}" {% if ep == 'communication.feed' %}aria-current="page"{% endif %} href="{{ url_for('communication.feed') }}"><span class="nav-icon">💬</span><span class="nav-label">Nástěnka</span></a></li>
       {% else %}
-        <li><span class="nav-disabled">🏠 Domů</span></li>
-        <li><span class="nav-disabled">👥 Hráči</span></li>
-        <li><span class="nav-disabled">📋 Soupiska</span></li>
-        <li><span class="nav-disabled">🔀 Formace</span></li>
-        <li><span class="nav-disabled">🏒 Tréninky</span></li>
+        <li><span class="nav-disabled"><span class="nav-icon">{{ nav_icon('home') }}</span><span class="nav-label">Domů</span></span></li>
+        <li><span class="nav-disabled"><span class="nav-icon">{{ nav_icon('players') }}</span><span class="nav-label">Hráči</span></span></li>
+        <li><span class="nav-disabled"><span class="nav-icon">{{ nav_icon('roster') }}</span><span class="nav-label">Soupiska</span></span></li>
+        <li><span class="nav-disabled"><span class="nav-icon">{{ nav_icon('lines') }}</span><span class="nav-label">Formace</span></span></li>
+        <li><span class="nav-disabled"><span class="nav-icon">{{ nav_icon('drills') }}</span><span class="nav-label">Tréninky</span></span></li>
       {% endif %}
     </ul>
 
     <ul class="nav-right">
       {% if current_user.is_authenticated or team_session_login %}
-        <li><a href="{{ url_for('settings') }}">⚙️ Nastavení</a></li>
-        {% if is_coach %}
-          <li><a href="{{ url_for('audit_log') }}">🧾 Audit log</a></li>
-        {% endif %}
+        <li class="dropdown nav-bell">
+          <button type="button" class="nav-link nav-bell-btn" aria-haspopup="true" aria-expanded="false" aria-label="Notifikace">
+            <span class="nav-icon">🔔</span>{% if notifications_count %}<span class="nav-bell-badge">{{ notifications_count }}</span>{% endif %}
+          </button>
+          <div class="dropdown-menu nav-bell-menu">
+            <div class="nav-bell-head">Notifikace</div>
+            {% for n in notifications %}
+              <a class="nav-bell-item" href="{{ n.url }}"><span class="nav-bell-ic">{{ n.icon }}</span><span class="nav-bell-tx">{{ n.text }}</span></a>
+            {% else %}
+              <div class="nav-bell-empty">Žádné nové notifikace.</div>
+            {% endfor %}
+          </div>
+        </li>
+        <li class="dropdown">
+          <a class="nav-link {{ 'is-active' if ep in ['settings','audit_log'] }}" href="{{ url_for('settings') }}" aria-haspopup="true" aria-expanded="false"><span class="nav-icon">{{ nav_icon('settings') }}</span><span class="nav-label">Nastavení</span></a>
+          <div class="dropdown-menu">
+            <a href="{{ url_for('settings') }}">⚙️ Nastavení</a>
+            {% if is_coach %}<a href="{{ url_for('audit_log') }}">📋 Audit log</a>{% endif %}
+            {% if is_coach %}<a href="{{ url_for('players.import_tymuj') }}">⬇️ Import z Týmuj</a>{% endif %}
+            {% if owner_admin_authenticated %}<a href="{{ url_for('owner.dashboard') }}">⚙ Owner</a>{% endif %}
+          </div>
+        </li>
       {% endif %}
-      {% if current_user.is_authenticated %}
-        <li><a href="{{ url_for('logout') }}">🚪 Odhlásit</a></li>
-      {% elif team_session_login %}
-        <li><a href="{{ url_for('team_logout') }}">🚪 Odhlásit</a></li>
+      {% if team_session_login or current_user.is_authenticated %}
+        <li><a class="nav-link" href="{{ url_for('team_logout') }}"><span class="nav-icon">{{ nav_icon('logout') }}</span><span class="nav-label">Odhlásit</span></a></li>
       {% else %}
-        <li><a href="{{ url_for('team_auth') }}">🔐 Přihlásit (týmový klíč)</a></li>
+        <li><a class="nav-link" href="{{ url_for('team_auth') }}"><span class="nav-icon">{{ nav_icon('login') }}</span><span class="nav-label">Přihlásit</span></a></li>
       {% endif %}
     </ul>
   </nav>
 </div>
 
-    <!-- Zlatý obsah -->
+    <!-- Main content -->
     <main>
         {% with msgs = get_flashed_messages(with_categories=true) %}
           {% if msgs %}
-            <div style="margin:10px 0;">
+            <div class="flash-stack" style="margin:0 0 var(--space-5);">
               {% for cat, m in msgs %}
                 {% set is_err = (cat == 'error') %}
-                <div style="padding:10px 14px; border-radius:8px; margin-bottom:6px; background: {{
-                  'color-mix(in srgb, var(--tertiary, #c44747) 20%, transparent)'
+                <div role="status" style="padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:8px; background: {{
+                  'color-mix(in srgb, var(--danger) 16%, transparent)'
                   if is_err else
-                  'color-mix(in srgb, var(--brand-secondary, #000) 20%, transparent)'
-                }}; border:2px solid {{ 'var(--tertiary, #c44747)' if is_err else 'var(--brand-secondary, #000)' }}; color: var(--brand-secondary, #000);">
+                  'color-mix(in srgb, var(--primary) 14%, transparent)'
+                }}; border:1px solid {{ 'color-mix(in srgb, var(--danger) 45%, transparent)' if is_err else 'color-mix(in srgb, var(--primary) 40%, transparent)' }}; color: var(--text);">
                   {{ m }}
                 </div>
               {% endfor %}
@@ -104,12 +159,14 @@
 </main>
 
     {% block scripts %}{% endblock %}
-    <script src="{{ url_for('static', filename='app.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ url_for('static', filename='app.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ url_for('static', filename='wa.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
     <script src="{{ url_for('static', filename='help.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
+    <script src="{{ url_for('static', filename='pwa.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
 
-    <footer style="margin-top:40px; padding:16px; text-align:center; color:#fff; border-top: 2px solid #000; background:#000;">
-      <a href="{{ url_for('terms') }}" style="margin-right:12px;">Podmínky použití</a>
-      <a href="{{ url_for('privacy') }}" style="margin-right:12px;">Zásady ochrany osobních údajů</a>
+    <footer class="app-footer">
+      <a href="{{ url_for('terms') }}">Podmínky použití</a>
+      <a href="{{ url_for('privacy') }}">Zásady ochrany osobních údajů</a>
       <a href="{{ url_for('about') }}">O mně</a>
     </footer>
 

@@ -1,5 +1,4 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, make_response
-from flask_login import current_user
 from coach.extensions import db
 from coach.auth_utils import team_login_required, coach_required, get_team_id
 from coach.models import Drill, TrainingSession
@@ -12,6 +11,30 @@ import uuid
 from sqlalchemy import or_
 
 bp = Blueprint('drills', __name__)
+
+
+def _parse_optional_int(value, min_value=None, max_value=None):
+    try:
+        if value in (None, ''):
+            return None
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    if min_value is not None and parsed < min_value:
+        return None
+    if max_value is not None and parsed > max_value:
+        return None
+    return parsed
+
+
+def _parse_id_list(values):
+    ids = []
+    for raw in values:
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return ids
 
 
 @bp.route('/drill/new', endpoint='new_drill')
@@ -48,7 +71,7 @@ def save_drill():
     drill = Drill(
         name=name,
         description=description,
-        duration=int(duration) if duration else None,
+        duration=_parse_optional_int(duration, 0, 600),
         category=category,
         image_data=image_data,
         path_data=path_data,
@@ -73,7 +96,7 @@ def update_drill(drill_id):
     drill.name = request.form.get('name')
     drill.description = request.form.get('description')
     duration = request.form.get('duration')
-    drill.duration = int(duration) if duration else None
+    drill.duration = _parse_optional_int(duration, 0, 600)
     drill.category = request.form.get('category')
     drill.image_data = request.form.get('image_data')
     drill.path_data = request.form.get('path_data') or '[]'
@@ -86,12 +109,16 @@ def update_drill(drill_id):
 @team_login_required
 def drills():
     # using imported Drill
-    q = db.session.query(Drill.category)
+    from sqlalchemy import func
     tid = get_team_id()
+    q = db.session.query(Drill.category, func.count(Drill.id))
     if tid:
         q = q.filter(Drill.team_id == tid)
-    categories = [c[0] for c in q.distinct().all() if c[0]]
-    return render_template('drills_categories.html', categories=categories)
+    rows = q.group_by(Drill.category).all()
+    categories = [{'name': c, 'count': n} for c, n in rows if c]
+    categories.sort(key=lambda x: x['name'].lower())
+    total = sum(c['count'] for c in categories)
+    return render_template('drills_categories.html', categories=categories, total=total)
 
 
 @bp.route('/drills/<category>', endpoint='drills_by_category')
@@ -272,7 +299,9 @@ def export_drills_pdf():
                 selection_positions[int(tok)] = idx
             except ValueError:
                 continue
-    sel_ids = [int(i) for i in ids]
+    sel_ids = _parse_id_list(ids)
+    if not sel_ids:
+        return redirect(url_for('drills_select'))
     sel_position_map = {sid: idx for idx, sid in enumerate(sel_ids)}
     q = Drill.query.filter(Drill.id.in_(sel_ids))
     tid = get_team_id()
@@ -364,7 +393,9 @@ def save_session():
                 selection_positions[int(tok)] = idx
             except ValueError:
                 continue
-    sel_ids = [int(i) for i in ids]
+    sel_ids = _parse_id_list(ids)
+    if not sel_ids:
+        return redirect(url_for('drills_select'))
     q = Drill.query.filter(Drill.id.in_(sel_ids))
     tid = get_team_id()
     if tid:

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Owner Admin{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=csp_nonce) }}">
+</head>
+<body>
+<main>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+    <h1>Owner Admin</h1>
+    <nav style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.dashboard') }}">Dashboard</a>
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.errors') }}">Errors</a>
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.integrations') }}">Integrations</a>
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.health') }}">Health</a>
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.league_debug') }}">Developer Tools</a>
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.tymuj_debug') }}">Týmuj Debug</a>
+      <a class="btn-outline btn-sm" href="{{ url_for('owner.attendance') }}">Attendance</a>
+      <a class="btn-ghost btn-sm" href="{{ url_for('owner.logout') }}">Logout</a>
+    </nav>
+  </div>
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

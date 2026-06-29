@@ -2,7 +2,6 @@
 (function(){
   function onReady(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
   onReady(function(){
-    try { console.debug('[help] loaded'); } catch(_){}
     var MODAL_ID = 'globalHelpModal';
     function ensureModal(){
       var m = document.getElementById(MODAL_ID); if(m) return m;
@@ -49,4 +48,3 @@
     document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
   });
 })();
-

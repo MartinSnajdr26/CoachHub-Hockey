@@ -1,0 +1,21 @@
+{% if events %}
+<div class="table-scroll">
+  <table>
+    <thead><tr><th>Time</th><th>Event</th><th>Team</th><th>Role</th><th>IP</th><th>Meta</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td>{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') if e.created_at else '' }}</td>
+        <td>{{ e.event }}</td>
+        <td>{{ e.team_id or '' }}</td>
+        <td>{{ e.role or '' }}</td>
+        <td>{{ e.ip_truncated or '' }}</td>
+        <td><code>{{ e.meta or '' }}</code></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No events.</div>
+{% endif %}

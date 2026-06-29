@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Historie importů docházky{% endblock %}
+{% block content %}
+<div style="max-width:1000px; margin:0 auto;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">Historie importů docházky</h1>
+    <a class="btn-secondary btn-sm" href="{{ url_for('attendance.import_attendance') }}">+ Nový import</a>
+  </div>
+
+  <div class="card" style="text-align:left; margin-top:12px;">
+    <h3>Docházka podle zdroje</h3>
+    <p>{% for src, n in breakdown.items() %}<strong>{{ source_labels.get(src, src) }}:</strong> {{ n }} &nbsp; {% endfor %}</p>
+  </div>
+
+  {% if batches %}
+  <div class="table-scroll"><table style="width:100%;">
+    <thead><tr><th>Datum</th><th>Soubor</th><th>Vytvořeno</th><th>Importováno</th><th>Přeskočeno</th><th>Přepsáno</th><th>Stav</th><th></th></tr></thead>
+    <tbody>
+    {% for b in batches %}
+      <tr>
+        <td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '—' }}</td>
+        <td>{{ b.filename or '—' }} <span class="muted">({{ b.file_type or '?' }})</span></td>
+        <td>{{ b.players_created }} hráčů · {{ b.events_created }} událostí</td>
+        <td>{{ b.attendance_imported }}</td>
+        <td>{{ b.skipped }}</td>
+        <td>{{ b.overwritten }}</td>
+        <td>{% if b.status=='rolled_back' %}<span class="muted">vráceno</span>{% else %}<span style="color:var(--success);">dokončeno</span>{% endif %}</td>
+        <td>
+          {% if b.status != 'rolled_back' %}
+          <form method="post" action="{{ url_for('attendance.import_rollback', batch_id=b.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-confirm btn-sm" data-message="Vrátit zpět importovanou docházku z této dávky?">Vrátit zpět</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% if b.warnings_list %}<tr><td colspan="8" class="muted" style="font-size:0.85rem;">⚠ {{ b.warnings_list|join('; ') }}</td></tr>{% endif %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+    <div class="empty" style="margin-top:12px;">Zatím žádné importy. Docházku zadávej přímo v CoachHubu; import použij jen pro migraci historických dat z Týmuj.</div>
+  {% endif %}
+</div>
+{% endblock %}

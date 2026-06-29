@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Pokladna{% endblock %}
+{% set STATUS = [('paid','Zaplaceno'),('partial','Částečně zaplaceno'),('unpaid','Nezaplaceno')] %}
+{% set STATUS_LABEL = {'paid':'Zaplaceno','partial':'Částečně','unpaid':'Nezaplaceno'} %}
+{% block content %}
+<div class="pk-wrap">
+  <div class="pk-head">
+    <div>
+      <h1 style="margin:0;">Pokladna</h1>
+      <p style="margin:4px 0 0; color:var(--text-muted);">Jednoduché sledování měsíčních příspěvků.</p>
+    </div>
+  </div>
+
+  <!-- Monthly contribution -->
+  <div class="pk-contrib">
+    <div>
+      <div class="pk-contrib-label">Měsíční příspěvek · {{ month_label }}{% if not is_current %} <span class="pk-tag">archiv</span>{% endif %}</div>
+      <div class="pk-amount">{{ "{:,}".format(period.amount)|replace(",", " ") }} Kč</div>
+    </div>
+    <div class="pk-contrib-actions">
+      <details class="pk-edit">
+        <summary class="btn-secondary btn-sm">✏️ Upravit částku</summary>
+        <form method="post" action="{{ url_for('pokladna.pokladna_amount') }}" class="pk-edit-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="period_id" value="{{ period.id }}">
+          <input type="number" name="amount" min="0" step="50" value="{{ period.amount }}" aria-label="Částka v Kč">
+          <button type="submit" class="btn-sm">Uložit</button>
+        </form>
+      </details>
+      <button type="button" class="btn-secondary btn-sm" data-wa="payment"
+              data-wa-month="{{ month_label }}"
+              data-wa-amount="{{ '{:,}'.format(period.amount)|replace(',', ' ') }}">📲 Připomenout ve WhatsApp</button>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="pk-kpis">
+    <div class="pk-kpi pk-kpi--paid"><span class="pk-kpi-v" data-sum="paid">{{ summary.paid }}</span><span class="pk-kpi-l">Zaplaceno</span></div>
+    <div class="pk-kpi pk-kpi--partial"><span class="pk-kpi-v" data-sum="partial">{{ summary.partial }}</span><span class="pk-kpi-l">Částečně</span></div>
+    <div class="pk-kpi pk-kpi--unpaid"><span class="pk-kpi-v" data-sum="unpaid">{{ summary.unpaid }}</span><span class="pk-kpi-l">Nezaplaceno</span></div>
+    <div class="pk-kpi"><span class="pk-kpi-v"><span data-sum="paid2">{{ summary.paid }}</span>/{{ summary.total }}</span><span class="pk-kpi-l">Zaplatilo</span></div>
+  </div>
+
+  <!-- Players -->
+  {% if rows %}
+  <div class="pk-list" id="pk-list" data-period="{{ period.id }}">
+    {% for r in rows %}
+    <div class="pk-row pk-row--{{ r.status }}" data-player-id="{{ r.player.id }}" data-status="{{ r.status }}" data-name="{{ r.player.name }}">
+      <span class="pk-name">{{ r.player.name }}</span>
+      <span class="pk-badge pk-badge--{{ r.status }}">{{ STATUS_LABEL[r.status] }}</span>
+      <div class="pk-actions" role="group" aria-label="Stav platby">
+        {% for code, label in STATUS %}
+          <button type="button" class="pk-btn pk-btn--{{ code }} {{ 'is-active' if r.status==code }}"
+                  data-status="{{ code }}" aria-pressed="{{ 'true' if r.status==code else 'false' }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Žádní hráči. Přidej hráče v sekci Hráči.</div>
+  {% endif %}
+
+  <!-- History -->
+  <h2 class="pk-h2">Historie</h2>
+  <div class="pk-history">
+    {% for h in history %}
+    <a class="pk-hist {{ 'is-viewed' if h.is_viewed }}" href="{{ url_for('pokladna.pokladna_month', year=h.period.year, month=h.period.month) }}">
+      <span class="pk-hist-month">{{ h.label }}</span>
+      <span class="pk-hist-amount">{{ "{:,}".format(h.period.amount)|replace(",", " ") }} Kč</span>
+      <span class="pk-hist-count">{{ h.paid }} / {{ h.total }} zaplatilo</span>
+      <span class="pk-hist-state {{ 'is-open' if h.open else 'is-closed' }}">{{ 'Otevřeno' if h.open else 'Uzavřeno' }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+  window.PK_CFG = { url: "{{ url_for('pokladna.pokladna_status') }}", csrf: "{{ csrf_token() }}", period: {{ period.id }} };
+</script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='pokladna.js', v=csp_nonce) }}"></script>
+{% endblock %}

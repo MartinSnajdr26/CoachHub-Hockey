@@ -1,5 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
-from flask_login import current_user
+from flask import Blueprint, render_template
 from coach.auth_utils import team_login_required, get_team_id, coach_required
 from coach.models import AuditEvent
 

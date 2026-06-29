@@ -1,45 +1,101 @@
 {% extends "base.html" %}
-{% block title %}{{ category }} – Tréninky{% endblock %}
+{% block title %}{{ category }} – Cvičení{% endblock %}
 
 {% block content %}
-<h1>Kategorie: {{ category }}</h1>
-
-<!-- 🔎 Search bar -->
-<form method="get" style="margin-bottom:20px;">
-    <input type="text" name="q" value="{{ query }}" placeholder="Hledat cvičení..." 
-           style="padding:5px 10px; width:300px; border-radius:6px; border:1px solid #ccc;">
-    <button type="submit">🔍 Hledat</button>
-</form>
-
-<div class="cards">
-    {% for drill in drills %}
-        <div class="card">
-            <h2>{{ drill.name }}</h2>
-            <p><b>Doba:</b> {{ drill.duration or 0 }} min</p>
-
-            {% if drill.image_data %}
-                <img src="{{ drill.image_data }}" style="max-width:100%; border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; margin:10px 0;">
-            {% endif %}
-
-            <p>
-                <a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><button>👁 Otevřít detail</button></a>
-                {% if is_coach %}
-                    <a href="{{ url_for('edit_drill', drill_id=drill.id) }}"><button>✏️ Upravit</button></a>
-                {% endif %}
-            </p>
-            {% if is_coach %}
-            <form action="{{ url_for('delete_drill', drill_id=drill.id) }}" method="POST" style="margin-top:10px;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" onclick="return confirm('Opravdu smazat {{ drill.name }}?')">🗑 Smazat</button>
-            </form>
-            {% endif %}
-        </div>
-    {% else %}
-        <p><i>Zatím žádná cvičení v této kategorii</i></p>
-    {% endfor %}
+<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+  <a class="btn-ghost btn-sm" href="{{ url_for('drills') }}">← Kategorie</a>
+  <h1 style="margin:0;">{{ category }}</h1>
 </div>
 
-<p style="margin-top:20px;">
-    <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
-</p>
+{% if drills %}
+<div class="attn-toolbar">
+  <input type="search" id="drillSearch" value="{{ query }}" placeholder="Hledat cvičení…" aria-label="Hledat cvičení" style="max-width:320px;">
+  <label class="toggle" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-muted); font-size:0.9rem;"><input type="checkbox" id="drillFavOnly"> ★ Jen oblíbené</label>
+  <span class="muted" id="drillCount" style="font-size:0.85rem;"></span>
+</div>
+
+<div class="cards" id="drillGrid">
+  {% for drill in drills %}
+  <div class="card drill-card" data-drill-id="{{ drill.id }}" data-name="{{ drill.name|lower }}">
+    <button type="button" class="drill-fav" data-fav="{{ drill.id }}" aria-label="Přidat do oblíbených" title="Oblíbené">☆</button>
+    <h2 style="margin:0 28px 4px 0;">{{ drill.name }}</h2>
+    <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 10px;">{{ drill.duration or 0 }} min</p>
+    {% if drill.image_data %}
+      <a href="{{ url_for('drill_detail', drill_id=drill.id) }}"><img src="{{ drill.image_data }}" loading="lazy" alt="{{ drill.name }}" style="max-width:100%; border:1px solid var(--border); border-radius:8px; margin:0 0 10px;"></a>
+    {% endif %}
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn btn-sm" href="{{ url_for('drill_detail', drill_id=drill.id) }}">👁 Detail</a>
+      {% if is_coach %}<a class="btn-secondary btn-sm" href="{{ url_for('edit_drill', drill_id=drill.id) }}">✏️ Upravit</a>{% endif %}
+    </div>
+    {% if is_coach %}
+    <form action="{{ url_for('delete_drill', drill_id=drill.id) }}" method="POST" class="form-confirm" data-message="Opravdu smazat {{ drill.name }}?" style="margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-ghost btn-sm" style="color:var(--danger);">🗑 Smazat</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+<div class="empty" id="drillEmpty" style="display:none; margin-top:16px;">Nenašli jsme žádné cvičení odpovídající filtru.</div>
+{% else %}
+<div class="empty" style="margin-top:8px;">Zatím žádná cvičení v této kategorii.</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if drills %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var KEY = 'coachhub_fav_drills';
+  function load(){ try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e){ return []; } }
+  function persist(a){ try { localStorage.setItem(KEY, JSON.stringify(a)); } catch(e){} }
+  var favs = load();
+  var grid = document.getElementById('drillGrid');
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.drill-card'));
+  var search = document.getElementById('drillSearch');
+  var favOnly = document.getElementById('drillFavOnly');
+  var countEl = document.getElementById('drillCount');
+  var emptyEl = document.getElementById('drillEmpty');
+
+  function isFav(id){ return favs.indexOf(id) !== -1; }
+  function markStars(){
+    cards.forEach(function(c){
+      var on = isFav(c.getAttribute('data-drill-id'));
+      var btn = c.querySelector('.drill-fav');
+      btn.textContent = on ? '★' : '☆';
+      btn.classList.toggle('is-fav', on);
+    });
+  }
+  function reorder(){
+    cards.slice().sort(function(a, b){
+      return (isFav(a.getAttribute('data-drill-id')) ? 0 : 1) - (isFav(b.getAttribute('data-drill-id')) ? 0 : 1);
+    }).forEach(function(c){ grid.appendChild(c); });
+  }
+  function apply(){
+    var q = (search.value || '').trim().toLowerCase();
+    var only = favOnly.checked, shown = 0;
+    cards.forEach(function(c){
+      var hit = !q || c.getAttribute('data-name').indexOf(q) !== -1;
+      if(only && !isFav(c.getAttribute('data-drill-id'))) hit = false;
+      c.style.display = hit ? '' : 'none';
+      if(hit) shown++;
+    });
+    countEl.textContent = shown + ' z ' + cards.length;
+    emptyEl.style.display = shown ? 'none' : '';
+  }
+  cards.forEach(function(c){
+    c.querySelector('.drill-fav').addEventListener('click', function(e){
+      e.preventDefault();
+      var id = c.getAttribute('data-drill-id');
+      if(isFav(id)) favs = favs.filter(function(x){ return x !== id; });
+      else favs.push(id);
+      persist(favs); markStars(); reorder(); apply();
+    });
+  });
+  search.addEventListener('input', apply);
+  favOnly.addEventListener('change', apply);
+  markStars(); reorder(); apply();
+})();
+</script>
+{% endif %}
 {% endblock %}

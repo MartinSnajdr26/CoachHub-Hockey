@@ -1,29 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Tréninky – Kategorie{% endblock %}
+{% block title %}Cvičení – kategorie{% endblock %}
 
 {% block content %}
-<h1>Seznam kategorií tréninků</h1>
-
-<div class="cards">
-    {% for cat in categories %}
-        <div class="card">
-            <h2>{{ cat }}</h2>
-            <p>
-                <a href="{{ url_for('drills_by_category', category=cat) }}">
-                    <button>📂 Otevřít kategorii</button>
-                </a>
-            </p>
-        </div>
-    {% else %}
-        <p><i>Zatím žádné kategorie</i></p>
-    {% endfor %}
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+  <div>
+    <h1 style="margin:0 0 4px;">Knihovna cvičení</h1>
+    <p style="margin:0; color:var(--text-muted);">{{ total }} cvičení v {{ categories|length }} kategoriích.</p>
+  </div>
+  {% if is_coach %}<a class="btn" href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>{% endif %}
 </div>
 
-<p style="margin-top:20px;">
-    <a href="{{ url_for('new_drill') }}"><button>➕ Vytvořit nový trénink</button></a>
-</p>
+{% if categories %}
+<div class="attn-toolbar">
+  <input type="search" id="catSearch" placeholder="Hledat kategorii…" aria-label="Hledat kategorii" style="max-width:320px;">
+</div>
+<div class="cards" id="catGrid">
+  {% for cat in categories %}
+  <a class="card cat-card" data-name="{{ cat.name|lower }}" href="{{ url_for('drills_by_category', category=cat.name) }}" style="text-decoration:none;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <h2 style="margin:0;">{{ cat.name }}</h2>
+      <span class="badge">{{ cat.count }}</span>
+    </div>
+    <p style="margin:6px 0 0; color:var(--text-muted); font-size:0.85rem;">{{ cat.count }} {% if cat.count == 1 %}cvičení{% elif cat.count < 5 %}cvičení{% else %}cvičení{% endif %} · otevřít →</p>
+  </a>
+  {% endfor %}
+</div>
+<div class="empty" id="catEmpty" style="display:none; margin-top:16px;">Žádná kategorie neodpovídá hledání.</div>
+{% else %}
+<div class="empty" style="margin-top:8px;">Zatím žádná cvičení.{% if is_coach %}<a class="btn-outline btn-sm" href="{{ url_for('new_drill') }}">Vytvořit první cvičení</a>{% endif %}</div>
+{% endif %}
+{% endblock %}
 
-<p style="margin-top:20px;">
-    <a href="/">← Zpět na hlavní stránku</a>
-</p>
+{% block scripts %}
+{% if categories %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var input = document.getElementById('catSearch');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#catGrid .cat-card'));
+  var empty = document.getElementById('catEmpty');
+  function apply(){
+    var q = (input.value || '').trim().toLowerCase(), shown = 0;
+    cards.forEach(function(c){
+      var hit = !q || c.getAttribute('data-name').indexOf(q) !== -1;
+      c.style.display = hit ? '' : 'none';
+      if(hit) shown++;
+    });
+    empty.style.display = shown ? 'none' : '';
+  }
+  input.addEventListener('input', apply);
+})();
+</script>
+{% endif %}
 {% endblock %}

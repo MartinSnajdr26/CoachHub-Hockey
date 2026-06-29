@@ -1,13 +1,11 @@
-from flask import Flask, request, redirect, url_for, flash
+from flask import Flask
 import os
 import io
-from datetime import datetime, timedelta
+from datetime import timedelta
 from PIL import Image
 import hashlib
 from dotenv import load_dotenv
-from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from functools import wraps
  
 
 app = Flask(__name__)
@@ -46,7 +44,11 @@ def create_app():
     _reg('coach.blueprints.drills', 'drills')
     _reg('coach.blueprints.files', 'files')
     _reg('coach.blueprints.admin', 'admin')
+    _reg('coach.blueprints.owner', 'owner')
     _reg('coach.blueprints.settings', 'settings')
+    _reg('coach.blueprints.attendance', 'attendance')
+    _reg('coach.blueprints.pokladna', 'pokladna')
+    _reg('coach.blueprints.communication', 'communication')
 
     # Provide top-level endpoint aliases
     try:
@@ -56,6 +58,7 @@ def create_app():
             ('/team/logout', 'team_logout', 'teamauth.team_logout', None),
             ('/team/create', 'team_create', 'teamauth.team_create', ['POST']),
             ('/team/keys', 'team_keys', 'teamauth.team_keys', ['GET','POST']),
+            ('/dochazka', 'dochazka', 'calendar.dochazka', ['GET','POST']),
             # Legal pages aliases
             ('/terms', 'terms', 'legal.terms', None),
             ('/privacy', 'privacy', 'legal.privacy', None),
@@ -126,6 +129,60 @@ def create_app():
         deleted_teams, deleted_files = prune_inactive_teams(days)
         click.echo(f"Deleted teams: {deleted_teams}, files: {deleted_files}")
 
+    @app.errorhandler(Exception)
+    def _log_unhandled_exception(exc):
+        from flask import render_template
+        from werkzeug.exceptions import HTTPException
+        if isinstance(exc, HTTPException):
+            if getattr(exc, 'code', None) == 429:
+                try:
+                    from coach.auth_utils import get_team_id, get_team_role
+                    from coach.services.logging import log_event
+                    log_event('app.rate_limit', team_id=get_team_id(), role=get_team_role(), level='warning', message=str(exc))
+                except Exception:
+                    pass
+            return exc
+        try:
+            from coach.auth_utils import get_team_id, get_team_role
+            from coach.services.logging import log_event
+            log_event('app.exception', team_id=get_team_id(), role=get_team_role(), level='error', message=str(exc), meta={'type': exc.__class__.__name__})
+        except Exception:
+            pass
+        try:
+            return render_template('500.html'), 500
+        except Exception:
+            return ('Internal Server Error', 500)
+
+    @app.errorhandler(429)
+    def _log_rate_limit(exc):
+        try:
+            from coach.auth_utils import get_team_id, get_team_role
+            from coach.services.logging import log_event
+            log_event('app.rate_limit', team_id=get_team_id(), role=get_team_role(), level='warning', message=str(exc))
+        except Exception:
+            pass
+        return exc
+
+    @app.before_request
+    def _ensure_dev_database_ready():
+        from coach.services.db_state import create_missing_dev_tables
+        create_missing_dev_tables(app)
+
+    @app.before_request
+    def _ensure_owner_admin_bootstrap():
+        from coach.services.owner_admin import ensure_owner_secret
+        ensure_owner_secret(app)
+
+    @app.route('/sw.js')
+    def service_worker():
+        """Serve the service worker from the site root so its scope is '/'
+        (a /static/ SW could only control /static/). Public, no auth gate."""
+        from flask import send_from_directory
+        resp = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+        resp.headers['Service-Worker-Allowed'] = '/'
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
+
     return app
 
 # --- Konfigurace z .env ---
@@ -135,7 +192,10 @@ ENV_PATH = os.path.join(os.path.dirname(BASE_DIR), ".env")
 load_dotenv(ENV_PATH)
 
 # Secret + DB URL z .env (s robustním řešením cesty pro SQLite)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-me')
+DEV_DEFAULT_SECRET_KEY = 'dev-secret-change-me'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', DEV_DEFAULT_SECRET_KEY)
+app.config['ADMIN_SECRET_KEY'] = os.getenv('ADMIN_SECRET_KEY')
+app.config['OWNER_ACCESS_KEY'] = os.getenv('OWNER_ACCESS_KEY')
 db_url = os.getenv('DB_URL') or os.getenv('DATABASE_URL')
 
 def _resolve_sqlite_url(url: str) -> str:
@@ -179,6 +239,37 @@ APP_ENV = (os.getenv('APP_ENV') or os.getenv('FLASK_ENV') or '').lower()
 IS_DEV = APP_ENV in ('dev', 'development', 'local') or os.getenv('DEBUG') == '1' or bool(getattr(app, 'debug', False))
 app.config['IS_DEV'] = IS_DEV
 
+# --- Production secret hardening: fail fast at boot; never log secret values ---
+# Signed session cookies protect owner_admin / team_id / team_role, so a missing
+# or default SECRET_KEY in production would allow cookie forgery (full auth
+# bypass). In development the dev default is still allowed for convenience.
+if not IS_DEV:
+    _raw_secret = os.getenv('SECRET_KEY')
+    if not _raw_secret or _raw_secret == DEV_DEFAULT_SECRET_KEY:
+        raise RuntimeError(
+            'SECRET_KEY is missing or set to the insecure development default. '
+            'Set a strong, unique SECRET_KEY environment variable before running '
+            'in production (APP_ENV is not development).'
+        )
+    if not (os.getenv('ADMIN_SECRET_KEY') or '').strip():
+        raise RuntimeError(
+            'ADMIN_SECRET_KEY is required in production to enable owner admin '
+            'access. OWNER_ACCESS_KEY is not accepted as the production owner key. '
+            'Set the ADMIN_SECRET_KEY environment variable.'
+        )
+
+# In dev, re-read templates on every request so edits take effect WITHOUT a server
+# restart. Without this, Jinja caches compiled templates in memory and a long-running
+# `flask run` process keeps serving the stale page (e.g. a calendar template missing
+# its newer inline JS), which silently breaks client-side enhancements.
+if IS_DEV:
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = True
+    app.jinja_env.cache = {}
+
+from coach.services.owner_admin import ensure_owner_secret
+ensure_owner_secret(app)
+
 # Secure cookies – relax in dev (HTTP)
 app.config['SESSION_COOKIE_SECURE'] = not IS_DEV
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -217,8 +308,6 @@ login_manager.login_message = None  # Disable default Flask-Login flash
 bcrypt.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
-
-from coach.models import Team
 
 # Minimal Flask-Login loaders to satisfy template context (team-only mode)
 @login_manager.user_loader
@@ -300,57 +389,23 @@ def _save_logo_file(logo_f) -> tuple[str | None, str | None]:
 
 
 # --- Role helpers ---
-def coach_required(fn):
-    @wraps(fn)
-    def _wrap(*args, **kwargs):
-        from flask import session
-        # Accept either Flask-Login coach or team-session coach
-        if current_user.is_authenticated:
-            if getattr(current_user, 'role', 'player') != 'coach':
-                flash('Tuto akci může provést pouze trenér.', 'error')
-                return redirect(request.referrer or url_for('home'))
-        else:
-            if not (session.get('team_login') and session.get('team_role') == 'coach'):
-                return redirect(url_for('team_auth'))
-        return fn(*args, **kwargs)
-    return _wrap
+from coach.auth_utils import coach_required as _coach_required, team_login_required as _team_login_required, get_team_id as _get_team_id, get_team_role as _get_team_role
 
-# New: team login required (session-based)
+
+def coach_required(fn):
+    return _coach_required(fn)
+
+
 def team_login_required(fn):
-    @wraps(fn)
-    def _wrap(*args, **kwargs):
-        from flask import session
-        if session.get('team_login') and session.get('team_id'):
-            return fn(*args, **kwargs)
-        # fallback: accept legacy user login
-        if getattr(current_user, 'is_authenticated', False):
-            return fn(*args, **kwargs)
-        return redirect(url_for('team_auth'))
-    return _wrap
+    return _team_login_required(fn)
+
 
 def get_team_id() -> int | None:
-    from flask import session
-    tid = session.get('team_id')
-    if tid:
-        return int(tid)
-    try:
-        if current_user.is_authenticated and getattr(current_user, 'team_id', None):
-            return int(current_user.team_id)
-    except Exception:
-        pass
-    return None
+    return _get_team_id()
+
 
 def get_team_role() -> str:
-    from flask import session
-    r = session.get('team_role')
-    if r:
-        return r
-    try:
-        if current_user.is_authenticated:
-            return getattr(current_user, 'role', 'player') or 'player'
-    except Exception:
-        pass
-    return 'player'
+    return _get_team_role()
 
 
 # --- Spuštění ---

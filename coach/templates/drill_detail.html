@@ -17,16 +17,16 @@
 {% endif %}
 
 <!-- Canvas -->
-<canvas id="board" style="border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; background:white;"></canvas>
+<canvas id="board" style="border:2px solid var(--primary, #d4c76f); border-radius:8px; background:white;"></canvas>
 
 {% if not embed_mode %}
 <style>
-  .viewer-toolbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; background: var(--brand-primary, #d4c76f); padding:8px; border-radius:12px; margin-top:15px; }
-  .viewer-toolbar .btn{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
-  .viewer-toolbar .btn:hover{ background: color-mix(in srgb, #fff 70%, var(--brand-primary, #d4c76f) 30%); }
+  .viewer-toolbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; background: var(--primary, #d4c76f); padding:8px; border-radius:12px; margin-top:15px; }
+  .viewer-toolbar .btn{ min-width:36px; height:36px; padding:4px 8px; border:1px solid var(--secondary, #000); background:#fff; color: var(--secondary, #000); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .viewer-toolbar .btn:hover{ background: color-mix(in srgb, #fff 70%, var(--primary, #d4c76f) 30%); }
   .viewer-toolbar .grp{ display:flex; align-items:center; gap:8px; }
   .viewer-toolbar label{ font-size:12px; display:flex; align-items:center; gap:6px; margin:0; }
-  .viewer-toolbar select{ padding:4px 8px; border-radius:8px; border:1px solid var(--brand-secondary, #000); background:#fff; color: var(--brand-secondary, #000); }
+  .viewer-toolbar select{ padding:4px 8px; border-radius:8px; border:1px solid var(--secondary, #000); background:#fff; color: var(--secondary, #000); }
   .viewer-toolbar input[type="checkbox"]{ width:16px; height:16px; }
   .viewer-toolbar .zoom{ display:flex; align-items:center; gap:6px; }
   .viewer-toolbar .zoom #zoomPct{ min-width:48px; text-align:center; }
@@ -66,7 +66,7 @@
 {% endif %}
 
 {% if is_coach and not embed_mode %}
-<p><a href="{{ url_for('edit_drill', drill_id=drill.id) }}"><button>✏️ Upravit cvičení</button></a></p>
+<p><a class="btn" href="{{ url_for('edit_drill', drill_id=drill.id) }}">✏️ Upravit cvičení</a></p>
 {% endif %}
 
 {% if is_coach %}

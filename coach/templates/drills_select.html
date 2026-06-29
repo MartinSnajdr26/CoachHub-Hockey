@@ -17,7 +17,7 @@
 <form method="get" style="margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
   <input type="text" name="q" value="{{ query }}" placeholder="Hledat podle názvu, popisu, kategorie" style="padding:6px 10px; width:320px; border-radius:6px; border:1px solid #ccc;">
   <button type="submit">🔍 Hledat</button>
-  <a href="{{ url_for('drills_select') }}"><button type="button">✖️ Vyčistit</button></a>
+  <a class="btn-secondary" href="{{ url_for('drills_select') }}">✖️ Vyčistit</a>
   <a href="{{ url_for('drills') }}" class="link-contrast" style="margin-left:auto;">← Zpět na kategorie</a>
   <a href="{{ url_for('new_drill') }}" class="link-contrast">➕ Nové cvičení</a>
   </form>
@@ -61,7 +61,7 @@
         <h2>{{ d.name }}</h2>
         <p><b>Kategorie:</b> {{ d.category or '-' }} | <b>Čas:</b> {{ d.duration or 0 }} min</p>
         {% if d.image_data %}
-          <img src="{{ d.image_data }}" style="max-width:100%; border:2px solid var(--brand-primary, #d4c76f); border-radius:8px; margin:10px 0;">
+          <img src="{{ d.image_data }}" style="max-width:100%; border:2px solid var(--primary, #d4c76f); border-radius:8px; margin:10px 0;">
         {% else %}
           <p><i>Bez náhledu</i></p>
         {% endif %}

@@ -15,6 +15,12 @@
   </ul>
 </div>
 
+{% if is_coach %}
+<p style="margin:0 0 16px;">
+  <a class="btn-secondary btn-sm" href="{{ url_for('attendance.import_attendance') }}">⬇️ Import docházky/hráčů (CSV/Excel)</a>
+</p>
+{% endif %}
+
 <!-- Formulář pro přidání hráče -->
 <form action="{{ url_for('add_player') }}" method="POST" style="margin-bottom:20px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -1,8 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file
-from flask_login import current_user
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from coach.extensions import db
 from coach.auth_utils import team_login_required, get_team_id, coach_required
-from coach.models import Roster, LineAssignment, Player, LineupSession
+from coach.models import Roster, LineAssignment, Player, LineupSession, Team
 from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime
 import uuid
@@ -34,12 +33,19 @@ def _compose_lines_pdf(title: str) -> str:
         font_b = ImageFont.load_default()
     margin = 36
     y = margin
+    team = Team.query.get(get_team_id()) if get_team_id() else None
+    if team:
+        draw.text((margin, y), team.name, fill=(0, 0, 0), font=font_h)
+        y += 20
     draw.text((margin, y), title or 'Sestava', fill=(0, 0, 0), font=font_title)
     y += 28
     assigns = _current_line_assignments()
 
     def nm(p):
         return p.name if p else '-'
+
+    def names(slots):
+        return [assigns[s].name for s in slots if assigns.get(s)]
 
     for line in range(1, 5):
         draw.text((margin, y), f"{line}. lajna", fill=(0, 0, 0), font=font_h)
@@ -61,7 +67,42 @@ def _compose_lines_pdf(title: str) -> str:
     draw.text((margin, y), f"G1: {g1}", fill=(0, 0, 0), font=font_b)
     y += 16
     draw.text((margin, y), f"G2: {g2}", fill=(0, 0, 0), font=font_b)
-    y += 16
+    y += 22
+
+    # Substitutes (only if any are set)
+    subs_f = names(['SUBF1', 'SUBF2', 'SUBF3'])
+    subs_d = names(['SUBD1', 'SUBD2'])
+    subs_g = names(['SUBG1'])
+    if subs_f or subs_d or subs_g:
+        draw.text((margin, y), 'Náhradníci', fill=(0, 0, 0), font=font_h)
+        y += 18
+        if subs_f:
+            draw.text((margin, y), 'Útočníci: ' + ', '.join(subs_f), fill=(0, 0, 0), font=font_b); y += 16
+        if subs_d:
+            draw.text((margin, y), 'Obránci: ' + ', '.join(subs_d), fill=(0, 0, 0), font=font_b); y += 16
+        if subs_g:
+            draw.text((margin, y), 'Brankář: ' + ', '.join(subs_g), fill=(0, 0, 0), font=font_b); y += 16
+        y += 6
+
+    # Special teams (only units that have players)
+    units = [
+        ('PP1', ['PP1_1', 'PP1_2', 'PP1_3', 'PP1_4', 'PP1_5']),
+        ('PP2', ['PP2_1', 'PP2_2', 'PP2_3', 'PP2_4', 'PP2_5']),
+        ('PK1 (4)', ['PK1A1', 'PK1A2', 'PK1A3', 'PK1A4']),
+        ('PK2 (4)', ['PK2A1', 'PK2A2', 'PK2A3', 'PK2A4']),
+        ('PK1 (3)', ['PK1B1', 'PK1B2', 'PK1B3']),
+        ('PK2 (3)', ['PK2B1', 'PK2B2', 'PK2B3']),
+        ('3v3', ['TV1', 'TV2', 'TV3', 'TVG']),
+    ]
+    st_present = [(t, names(sl)) for t, sl in units]
+    st_present = [(t, ns) for t, ns in st_present if ns]
+    if st_present:
+        draw.text((margin, y), 'Speciální formace', fill=(0, 0, 0), font=font_h)
+        y += 18
+        for t, ns in st_present:
+            draw.text((margin, y), f"{t}: " + ', '.join(ns), fill=(0, 0, 0), font=font_b)
+            y += 16
+
     ts = datetime.now().strftime('%Y%m%d-%H%M%S')
     token = uuid.uuid4().hex[:6]
     filename = f"lineup-{ts}-{token}.pdf"
@@ -83,12 +124,18 @@ def lines():
             return redirect(url_for('lines'))
         LineAssignment.query.filter_by(team_id=team_id).delete()
         db.session.commit()
+        roster_player_ids = {
+            r.player_id for r in Roster.query.filter_by(team_id=team_id).all()
+            if r.player_id is not None
+        }
         for slot, pid in request.form.items():
             if slot == 'csrf_token' or not pid:
                 continue
             try:
                 player_id = int(pid)
             except Exception:
+                continue
+            if player_id not in roster_player_ids:
                 continue
             db.session.add(LineAssignment(player_id=player_id, slot=slot, team_id=team_id))
         db.session.commit()

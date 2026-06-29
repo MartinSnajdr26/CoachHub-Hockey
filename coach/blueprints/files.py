@@ -1,5 +1,4 @@
 from flask import Blueprint, redirect, url_for, flash, current_app, send_file
-from flask_login import current_user
 from coach.auth_utils import team_login_required, get_team_id
 import os
 from coach.models import TrainingSession, LineupSession

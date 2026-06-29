@@ -3,108 +3,140 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Přihlášení týmu / Vytvořit tým</title>
-  <style>
-    :root{ --tertiary:#c44747; }
-    body{margin:0; font-family:'Oswald',Arial,sans-serif; background:#fff; color:#000;}
-    .hero{background:#000; display:flex; justify-content:center; padding:8px 12px;}
-    .hero img{height:120px;}
-    .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:16px;}
-    .panel{width:100%; max-width:900px; display:grid; grid-template-columns:1fr 1fr; gap:16px;}
-    .card{border:2px solid var(--tertiary); border-radius:12px; padding:18px; background:#fff;}
-    label{display:block; margin:8px 0 4px;}
-    input, select{width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid #bbb; font-size:16px; background:#fff;}
-    button{background:var(--tertiary); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:700; cursor:pointer;}
-    .row{display:flex; align-items:center; gap:8px;}
-    .below-auth{width:100%; max-width:900px; margin:14px auto 0; text-align:center; font-size:14px;}
-    .below-auth a{color:#000; text-decoration:underline;}
-    @media (max-width: 900px){ .panel{grid-template-columns:1fr;} .hero img{height:90px;} }
-  </style>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>CoachHub — Přihlášení / Vytvořit tým</title>
+  <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=csp_nonce) }}">
 </head>
-<body>
-  <div class="hero"><img src="{{ url_for('static', filename='App_Logo.png') }}" alt="App Logo"></div>
-  <div class="wrap">
-    <div class="panel">
-      <div class="card">
-        <h2>🔐 Přihlásit tým</h2>
-        <form method="POST" action="{{ url_for('team_login') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label>Vyhledat tým<br>
-            <input type="text" id="teamSearch" placeholder="Začni psát název týmu…" autocomplete="off">
-          </label>
-          <label>Tým<br>
-            <select name="team_id" id="existingTeam" required>
-              <option value="" selected disabled hidden>Vyber tým…</option>
-              {% for t in teams %}
-                <option value="{{ t.id }}">{{ t.name }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>Role<br>
-            <select name="role">
-              <option value="coach">Coach</option>
-              <option value="player">Player</option>
-            </select>
-          </label>
-          <label>Heslo klíče<br>
-            <input type="password" name="key" autocomplete="current-password" required>
-          </label>
-          <label class="row" style="font-size:14px; align-items:flex-start;">
-            <input type="checkbox" name="terms_accept" required style="margin-top:4px;">
-            <span>Souhlasím s <a href="{{ url_for('terms') }}" target="_blank">Podmínkami používání</a></span>
-          </label>
-          <button type="submit">Přihlásit</button>
-        </form>
+<body class="auth-page">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <div class="auth-flash">
+        {% for cat, m in msgs %}
+          <div class="auth-flash-item {{ 'is-error' if cat == 'error' else '' }}" role="status">{{ m }}</div>
+        {% endfor %}
       </div>
-      <div class="card" id="register">
-        <h2>🆕 Vytvořit tým</h2>
-        <form method="POST" action="{{ url_for('team_create') }}" enctype="multipart/form-data" id="createTeamForm">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label>Název týmu<br>
-            <input type="text" name="team_name" placeholder="HC ....." required>
-          </label>
-          <div class="row" style="margin:8px 0; align-items:center; gap:16px; flex-wrap:wrap;">
-            <label>Primární barva<br>
-              <input type="color" id="primColReg" name="primary_color" value="#d4c76f" style="width:60px; height:36px; padding:0; border:none;">
-            </label>
-            <label>Sekundární barva<br>
-              <input type="color" id="secColReg" name="secondary_color" value="#000000" style="width:60px; height:36px; padding:0; border:none;">
-            </label>
-            <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-              <div id="brandPreview" class="color-preview" title="Náhled barev" style="width:32px; height:32px; border-radius:6px; border:1px solid #aaa;"></div>
-              <div class="hint" id="brandHex">#d4c76f / #000000</div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="auth-split">
+    <!-- LEFT — auth card -->
+    <div class="auth-col auth-col--form">
+      <a class="auth-logo-link" href="{{ url_for('public.welcome') }}" aria-label="CoachHub">
+        <img src="{{ url_for('static', filename='App_Logo.png') }}" alt="CoachHub" class="auth-logo">
+      </a>
+
+      <div class="auth-card">
+        <div class="auth-tabs" role="tablist" aria-label="Přihlášení nebo vytvoření týmu">
+          <button type="button" class="auth-tab active" data-auth-tab="login" role="tab">Přihlásit se</button>
+          <button type="button" class="auth-tab" data-auth-tab="create" role="tab">Vytvořit tým</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div class="auth-panel" data-auth-panel="login">
+          <h1 class="auth-title">Vítej zpět</h1>
+          <p class="auth-subtitle">Přihlas se do svého týmu pomocí klíče.</p>
+          <form method="POST" action="{{ url_for('team_login') }}" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="field">
+              <label for="teamSearch">Najdi svůj tým</label>
+              <input type="text" id="teamSearch" placeholder="Začni psát název týmu…" autocomplete="off">
             </div>
-          </div>
-          <div style="margin:8px 0;">
-            <label>Logo týmu (PNG/JPG) – max 2 MB</label>
-            <div class="dropzone" id="logoDrop" style="border:2px dashed #999; border-radius:10px; padding:16px; text-align:center; background:#fafafa; cursor:pointer;">
-              <div>Přetáhni logo sem nebo klikni pro výběr</div>
-              <img id="logoThumb" class="thumb" alt="Náhled loga" style="display:none; margin-top:8px; width:80px; height:80px; object-fit:contain; border:1px solid #ddd; border-radius:6px; background:#fff;" />
-              <input type="file" name="team_logo" id="teamLogoInput" accept="image/png,image/jpeg" style="display:none;">
+            <div class="field">
+              <label for="existingTeam">Tým</label>
+              <select name="team_id" id="existingTeam" required>
+                <option value="" selected disabled hidden>Vyber tým…</option>
+                {% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+              </select>
             </div>
-            <div class="hint error-msg" data-error-for="team_logo"></div>
-          </div>
-          <label class="row" style="font-size:14px; align-items:flex-start;">
-            <input type="checkbox" name="terms_accept" required style="margin-top:4px;">
-            <span>Souhlasím s <a href="{{ url_for('terms') }}" target="_blank">Podmínkami používání</a></span>
-          </label>
-          <button type="submit">Vytvořit tým</button>
-        </form>
-        <div style="font-size:13px; margin-top:8px; color:#555;">
-          Klíče pro Coach/Player se zobrazí pouze jednou – bezpečně si je uložte.
+            <div class="field-row">
+              <div class="field">
+                <label for="loginRole">Role</label>
+                <select name="role" id="loginRole">
+                  <option value="coach">Trenér</option>
+                  <option value="player">Hráč</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="loginKey">Klíč</label>
+                <input type="password" id="loginKey" name="key" autocomplete="current-password" placeholder="••••••••" required>
+              </div>
+            </div>
+            <label class="auth-check">
+              <input type="checkbox" name="terms_accept" required>
+              <span>Souhlasím s <a href="{{ url_for('terms') }}" target="_blank" rel="noopener">podmínkami používání</a></span>
+            </label>
+            <button type="submit" class="btn-block btn-lg">Přihlásit se</button>
+          </form>
+          <p class="auth-help">Nemáš klíč? Vyžádej si ho od trenéra týmu. Pokud ho nikdo nezná, napiš na
+            <a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a>.</p>
+        </div>
+
+        <!-- CREATE -->
+        <div class="auth-panel" data-auth-panel="create" style="display:none;">
+          <h1 class="auth-title">Vytvoř svůj tým</h1>
+          <p class="auth-subtitle">Za pár vteřin a zdarma. Žádné osobní údaje.</p>
+          <form method="POST" action="{{ url_for('team_create') }}" enctype="multipart/form-data" id="createTeamForm" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="field">
+              <label for="teamName">Název týmu</label>
+              <input type="text" id="teamName" name="team_name" placeholder="HC Smíchov" required>
+            </div>
+            <div class="field">
+              <label>Barvy týmu</label>
+              <div class="color-picker">
+                <label class="color-swatch"><input type="color" id="primColReg" name="primary_color" value="#d4c76f"><span>Primární</span></label>
+                <label class="color-swatch"><input type="color" id="secColReg" name="secondary_color" value="#000000"><span>Sekundární</span></label>
+                <div class="color-preview-wrap">
+                  <div id="brandPreview" class="color-preview" title="Náhled barev"></div>
+                  <div class="hint" id="brandHex">#d4c76f / #000000</div>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Logo týmu <span class="muted">· PNG/JPG, max 2 MB</span></label>
+              <div class="dropzone" id="logoDrop">
+                <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                <div class="dz-text">Přetáhni logo sem nebo <span>vyber soubor</span></div>
+                <img id="logoThumb" class="thumb" alt="Náhled loga">
+                <input type="file" name="team_logo" id="teamLogoInput" accept="image/png,image/jpeg" hidden>
+              </div>
+              <div class="hint error-msg" data-error-for="team_logo"></div>
+            </div>
+            <label class="auth-check">
+              <input type="checkbox" name="terms_accept" required>
+              <span>Souhlasím s <a href="{{ url_for('terms') }}" target="_blank" rel="noopener">podmínkami používání</a></span>
+            </label>
+            <button type="submit" class="btn-block btn-lg">Vytvořit tým</button>
+          </form>
+          <p class="auth-help">Klíče pro trenéra i hráče se zobrazí jen jednou — bezpečně si je ulož.</p>
         </div>
       </div>
+
+      <p class="auth-foot">
+        <a href="{{ url_for('public.welcome') }}">← Úvod</a> ·
+        <a href="{{ url_for('about') }}">O mně</a> ·
+        <a href="{{ url_for('privacy') }}">Soukromí</a>
+      </p>
     </div>
-    <div class="below-auth">
-      <div style="margin-bottom:6px; font-size:14px;">
-        Nemáš klíč? <b>Nejprve</b> si ho vyžádej od ostatních členů tvého týmu (trenérů/ hráčů).
-        Pokud klíč nikdo nezná, napiš na
-        <a href="mailto:martinsnajdr@coachhubhockey.com" class="link-contrast">martinsnajdr@coachhubhockey.com</a>.
+
+    <!-- RIGHT — brand panel -->
+    <aside class="auth-col auth-col--brand">
+      <div class="auth-brand-inner">
+        <span class="auth-eyebrow">CoachHub Hockey</span>
+        <h2>Organizuj svůj hokejový tým<br><span>chytře a jednoduše.</span></h2>
+        <p>Vše, co trenér potřebuje — na jednom místě, v mobilu i na webu.</p>
+        <ul class="auth-features">
+          <li><span class="af-ico">🏒</span><div><b>Tréninky &amp; cvičení</b><span>Maluj cvičení a převeď je do animací.</span></div></li>
+          <li><span class="af-ico">📊</span><div><b>Docházka</b><span>Hned vidíš, kdo dorazí a kdo chybí.</span></div></li>
+          <li><span class="af-ico">📋</span><div><b>Soupiska &amp; formace</b><span>Sestav lajny tažením hráčů.</span></div></li>
+          <li><span class="af-ico">💬</span><div><b>Týmová nástěnka</b><span>Komunikace celého týmu na jednom místě.</span></div></li>
+        </ul>
       </div>
-      <a href="{{ url_for('about') }}">O mně</a>
-    </div>
+    </aside>
   </div>
+  <script src="{{ url_for('static', filename='app.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}"></script>
 </body>
 </html>
-<script src="{{ url_for('static', filename='app.js') }}" nonce="{{ csp_nonce }}"></script>

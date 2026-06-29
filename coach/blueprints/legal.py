@@ -1,7 +1,4 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, session
-from coach.extensions import db
-from coach.models import AuditEvent
-from datetime import datetime
 
 bp = Blueprint('legal', __name__)
 

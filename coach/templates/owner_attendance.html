@@ -1,0 +1,60 @@
+{% extends "owner_base.html" %}
+{% block title %}Attendance Diagnostics{% endblock %}
+{% block content %}
+<h2>Attendance Diagnostics &amp; Adoption</h2>
+<p class="muted">CoachHub-first attendance. Source = where each entry originated.</p>
+
+{% if recurrence %}
+<div class="card" style="text-align:left;">
+  <h3>Recurring events (Calendar 2.0)</h3>
+  <p><strong>Series:</strong> {{ recurrence.series }} &nbsp; <strong>Generated occurrences:</strong> {{ recurrence.occurrences }} &nbsp; <strong>Future occurrences:</strong> {{ recurrence.future }}</p>
+</div>
+{% endif %}
+
+<div class="card" style="text-align:left;">
+  <h3>Adoption — attendance by source (all teams)</h3>
+  <p>
+    {% for src, n in global_breakdown.items() %}
+      <strong>{{ source_labels.get(src, src) }}:</strong> {{ n }} &nbsp;&nbsp;
+    {% endfor %}
+  </p>
+  <p class="muted">CoachHub native = Player + Coach entries; Týmuj Import = migrated history.</p>
+</div>
+
+<div class="card" style="text-align:left;">
+  <h3>Per-team attendance source</h3>
+  {% if per_team %}
+  <div class="table-scroll"><table style="width:100%;">
+    <thead><tr><th>Team</th>{% for src in source_labels %}<th>{{ source_labels[src] }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in per_team %}
+      <tr><td>{{ r.team.name }}</td>{% for src in source_labels %}<td>{{ r.breakdown.get(src, 0) }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty">No attendance recorded yet.</div>{% endif %}
+</div>
+
+<div class="card" style="text-align:left;">
+  <h3>Recent imports</h3>
+  {% if imports %}
+  <div class="table-scroll"><table style="width:100%;">
+    <thead><tr><th>Date</th><th>Team</th><th>File</th><th>Imported</th><th>Skipped</th><th>Overwritten</th><th>Status</th><th>Warnings</th></tr></thead>
+    <tbody>
+      {% for r in imports %}
+      <tr>
+        <td>{{ r.b.created_at.strftime('%Y-%m-%d %H:%M') if r.b.created_at else '—' }}</td>
+        <td>{{ r.team_name }}</td>
+        <td>{{ r.b.filename or '—' }} ({{ r.b.file_type or '?' }})</td>
+        <td>{{ r.b.attendance_imported }} ({{ r.b.players_created }}p / {{ r.b.events_created }}e)</td>
+        <td>{{ r.b.skipped }}</td>
+        <td>{{ r.b.overwritten }}</td>
+        <td>{{ r.b.status }}</td>
+        <td class="muted" style="font-size:0.85rem;">{{ r.warnings|join('; ') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty">No imports yet.</div>{% endif %}
+</div>
+{% endblock %}

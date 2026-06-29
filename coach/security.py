@@ -1,4 +1,4 @@
-from flask import g, redirect, url_for
+from flask import g, redirect
 import secrets
 
 def register_security(app):
@@ -37,6 +37,13 @@ def register_security(app):
             f"script-src {' '.join(script_src)}"
         )
         resp.headers.setdefault('Content-Security-Policy', csp)
+        # Never let the browser serve a stale HTML document. Static assets are
+        # cache-busted separately (?v=) and stay cacheable; only dynamic pages get
+        # no-store, so an old page (e.g. missing newer inline JS) can't be replayed
+        # from cache.
+        ctype = resp.headers.get('Content-Type', '')
+        if 'text/html' in ctype:
+            resp.headers['Cache-Control'] = 'no-store, must-revalidate'
         return resp
 
     @app.before_request
@@ -50,7 +57,9 @@ def register_security(app):
         p = request.path or '/'
         if p.startswith('/static/'):
             return
-        if p in ('/', '/favicon.ico', '/team/auth', '/team/login', '/team/create', '/terms', '/privacy', '/about'):
+        if p.startswith('/owner'):
+            return
+        if p in ('/', '/favicon.ico', '/sw.js', '/team/auth', '/team/login', '/team/create', '/terms', '/privacy', '/about'):
             return
         # Everything else goes to team auth
         return redirect('/team/auth')

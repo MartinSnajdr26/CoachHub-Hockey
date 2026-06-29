@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Import z Týmuj{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+  <div>
+    <h1 style="margin:0 0 4px;">Import z Týmuj</h1>
+    <p style="margin:0; color:var(--text-muted);">Hráči načtení z Týmuj. Vyber, koho přidat do soupisky, a urči pozici.</p>
+  </div>
+  <a class="btn-ghost btn-sm" href="{{ url_for('players') }}">← Zpět na hráče</a>
+</div>
+<form method="POST" action="{{ url_for('players.import_tymuj') }}" style="margin:0 0 12px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="refresh_tymuj">
+  <button type="submit" class="btn-secondary btn-sm">🔄 Obnovit data z Týmuj</button>
+</form>
+<p class="muted" style="margin-top:-4px;">
+  Poslední úspěšné načtení: {{ tymuj_status.updated_at or '—' }}{% if tymuj_status.last_error %} · Týmuj data could not be refreshed. Showing last saved data.{% endif %}
+</p>
+
+{% if total == 0 %}
+  <div class="empty" style="margin-top:8px;">
+    Z Týmuj se nepodařilo načíst žádné hráče.<br>
+    <span class="muted">Zkontroluj, že ICS odkaz v Nastavení obsahuje účastníky událostí (pole ATTENDEE).</span>
+    <a class="btn-outline btn-sm" href="{{ url_for('settings') }}" style="margin-top:8px;">Nastavení</a>
+  </div>
+{% else %}
+  <div class="attn-toolbar">
+    <span class="badge">{{ counts.new }} nových</span>
+    {% if counts.similar %}<span class="muted" style="font-size:0.85rem;">{{ counts.similar }} podobných</span>{% endif %}
+    <span class="muted" style="font-size:0.85rem;">{{ counts.exists }} už v soupisce</span>
+  </div>
+  <form method="POST" action="{{ url_for('players.import_tymuj') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="table-scroll" style="border:1px solid var(--field-border); border-radius:12px; background:var(--field-bg); color:var(--field-text);">
+      <table style="width:100%; border-collapse:collapse; min-width:560px;">
+        <thead>
+          <tr style="background:var(--field-bg-soft); text-align:left;">
+            <th style="padding:12px; width:44px;"><input type="checkbox" id="selAllNew" title="Vybrat nové"></th>
+            <th style="padding:12px;">Hráč (Týmuj)</th>
+            <th style="padding:12px;">Stav</th>
+            <th style="padding:12px; width:170px;">Pozice</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td style="padding:10px 12px; text-align:center; border-top:1px solid var(--field-border);">
+              {% if r.status != 'exists' %}
+                <input type="checkbox" class="imp-check" name="import_idx" value="{{ r.idx }}" {% if r.status == 'new' %}checked{% endif %}>
+                <input type="hidden" name="name_{{ r.idx }}" value="{{ r.name }}">
+              {% endif %}
+            </td>
+            <td style="padding:10px 12px; font-weight:600; border-top:1px solid var(--field-border);">{{ r.name }}</td>
+            <td style="padding:10px 12px; border-top:1px solid var(--field-border);">
+              {% if r.status == 'exists' %}
+                <span style="color:var(--field-muted);">Už v soupisce</span>
+              {% elif r.status == 'similar' %}
+                <span style="color:color-mix(in srgb, var(--warning) 70%, #000); font-weight:600;">Podobné: {{ r.suggestion }}</span>
+              {% else %}
+                <span style="color:color-mix(in srgb, var(--success) 72%, #000); font-weight:700;">Nový</span>
+              {% endif %}
+            </td>
+            <td style="padding:10px 12px; border-top:1px solid var(--field-border);">
+              {% if r.status != 'exists' %}
+                <select name="pos_{{ r.idx }}" style="width:100%;">
+                  <option value="F" selected>Útočník</option>
+                  <option value="D">Obránce</option>
+                  <option value="G">Brankář</option>
+                </select>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+      <a class="btn-ghost" href="{{ url_for('players') }}">Zrušit</a>
+      <button type="submit" class="btn-success">Importovat vybrané</button>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var all = document.getElementById('selAllNew');
+  if(!all) return;
+  var checks = Array.prototype.slice.call(document.querySelectorAll('.imp-check'));
+  all.addEventListener('change', function(){ checks.forEach(function(c){ c.checked = all.checked; }); });
+})();
+</script>
+{% endblock %}

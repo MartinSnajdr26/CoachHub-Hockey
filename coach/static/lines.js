@@ -1,9 +1,7 @@
 /* Lines page JS (drag & drop + colors) */
 (function(){
-  try { console.debug('[lines] lines.js loaded'); } catch(_) {}
   function onReady(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
   onReady(function(){
-    try { console.debug('[lines] DOM ready; binding handlers'); } catch(_) {}
     var selectedId=null, selectedEl=null, dragSourceSlot=null;
     function $(s,root){ return (root||document).querySelector(s); }
     function $all(s,root){ return Array.prototype.slice.call((root||document).querySelectorAll(s)); }
@@ -62,10 +60,14 @@
       fill.addEventListener('keydown', function(e){ if(e.key==='Delete' || e.key==='Backspace'){ clearSlot(slotEl); }});
     }
     function placeInto(slotEl, id, name, pos){
-      if(!slotEl) return; var accept=slotEl.getAttribute('data-accept'); if(accept!==pos) return;
+      if(!slotEl) return; var accept=slotEl.getAttribute('data-accept');
+      // 'S' = skater slot (special teams) accepts forwards or defensemen
+      if(accept!==pos && !(accept==='S' && (pos==='F'||pos==='D'))) return;
       clearSlot(slotEl);
-      // odeber stejného hráče z jiných slotů
-      $all('.slot .fill').forEach(function(f){ if(f.getAttribute('data-id')===String(id)){ clearSlot(f.closest('.slot')); }});
+      // remove the same player from other slots IN THE SAME GROUP only, so a
+      // player can be on a 5v5 line AND in a special-teams unit at once.
+      var grp = slotEl.getAttribute('data-group') || '5v5';
+      $all('.slot .fill').forEach(function(f){ var s=f.closest('.slot'); if(s && (s.getAttribute('data-group')||'5v5')===grp && f.getAttribute('data-id')===String(id)){ clearSlot(s); }});
       var hid=slotEl.querySelector('input[type="hidden"]'); if(hid) hid.value=id;
       var ph=slotEl.querySelector('.ph'); if(ph) ph.remove();
       var fill=document.createElement('div'); fill.className='fill'; fill.setAttribute('data-id', id);
@@ -105,7 +107,6 @@
 
     // Bind slots (mouse + keyboard)
     var slots = $all('.slot');
-    try { console.debug('[lines] slots count:', slots.length); } catch(_) {}
     slots.forEach(function(slot){
       slot.addEventListener('dragover', function(e){ e.preventDefault(); slot.classList.add('over'); try{ e.dataTransfer.dropEffect='move'; }catch(_){} });
       slot.addEventListener('dragleave', function(){ slot.classList.remove('over'); });
@@ -129,7 +130,6 @@
 
     // Bind pools
     var poolItems = $all('.pl-item');
-    try { console.debug('[lines] pool items count:', poolItems.length); } catch(_) {}
     poolItems.forEach(function(el){ bindDrag(el); bindSelect(el); });
 
     // Hide assigned toggle
@@ -153,8 +153,8 @@
         return blackC > whiteC ? '#000000' : '#ffffff';
       }catch(_){ return fgHex || '#ffffff'; }
     }
-    var defaultBg = brandVar('--brand-secondary', '#000000');
-    var defaultFg = brandVar('--brand-primary', '#d4c76f');
+    var defaultBg = brandVar('--secondary', '#000000');
+    var defaultFg = brandVar('--primary', '#d4c76f');
     // Persist and restore colors per formation
     $all('.formation').forEach(function(fm){
       var line = fm.getAttribute('data-line') || '1';
@@ -216,7 +216,7 @@
       clearTimeout(__lines_resize_to);
       __lines_resize_to = setTimeout(adjustAllFormations, 80);
     });
-    try { window.__linesBound = { slots: $all('.slot').length, pools: $all('.pl-item').length }; console.debug('[lines] init ok', window.__linesBound); } catch(_) {}
+    try { window.__linesBound = { slots: $all('.slot').length, pools: $all('.pl-item').length }; } catch(_) {}
     // Clear all button handler
     var btnClr = document.querySelector('.btn-lines-clear');
     if(btnClr){ btnClr.addEventListener('click', function(){

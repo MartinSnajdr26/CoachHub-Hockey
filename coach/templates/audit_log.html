@@ -3,35 +3,62 @@
 
 {% block content %}
 <h1>Audit log</h1>
-<p style="opacity:0.8; margin:8px 0 16px;">Posledních 200 záznamů pro váš tým.</p>
+<p style="color:var(--text-muted); margin:8px 0 16px;">Posledních 200 záznamů pro váš tým.</p>
 
 {% if logs %}
+<div class="attn-toolbar" style="margin-bottom:12px;">
+  <input type="search" id="auditSearch" placeholder="Hledat v záznamech (událost, role, IP…)" aria-label="Hledat v audit logu" style="max-width:360px;">
+  <span class="muted" id="auditCount" style="font-size:0.85rem;"></span>
+</div>
 <div class="table-scroll audit-log">
-  <table>
+  <table id="auditTable">
     <thead>
       <tr>
-        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Čas</th>
-        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Událost</th>
-        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Role</th>
-        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">IP</th>
-        <th style="text-align:left; border-bottom:2px solid var(--brand-secondary, #000); padding:6px;">Meta</th>
+        <th>Čas</th>
+        <th>Událost</th>
+        <th>Role</th>
+        <th>IP</th>
+        <th>Meta</th>
       </tr>
     </thead>
     <tbody>
       {% for l in logs %}
         <tr>
-          <td style="border-bottom:1px solid #ccc; padding:6px; white-space:nowrap;">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.event }}</td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.role or '-' }}</td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.ip_truncated or '-' }}</td>
-          <td style="border-bottom:1px solid #ccc; padding:6px;">{{ l.meta or '' }}</td>
+          <td style="white-space:nowrap;">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+          <td><code>{{ l.event }}</code></td>
+          <td>{{ l.role or '-' }}</td>
+          <td>{{ l.ip_truncated or '-' }}</td>
+          <td style="word-break:break-word; max-width:420px;">{{ l.meta or '' }}</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
-  </div>
+</div>
 {% else %}
-  <p><i>Žádné záznamy</i></p>
+  <div class="empty">Žádné záznamy zatím nejsou.</div>
 {% endif %}
+{% endblock %}
 
+{% block scripts %}
+{% if logs %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var input = document.getElementById('auditSearch');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#auditTable tbody tr'));
+  var count = document.getElementById('auditCount');
+  function apply(){
+    var q = (input.value || '').trim().toLowerCase();
+    var shown = 0;
+    rows.forEach(function(tr){
+      var match = !q || tr.textContent.toLowerCase().indexOf(q) !== -1;
+      tr.style.display = match ? '' : 'none';
+      if(match) shown++;
+    });
+    count.textContent = q ? (shown + ' z ' + rows.length + ' záznamů') : (rows.length + ' záznamů');
+  }
+  input.addEventListener('input', apply);
+  apply();
+})();
+</script>
+{% endif %}
 {% endblock %}

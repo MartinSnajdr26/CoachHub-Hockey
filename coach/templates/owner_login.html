@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Owner Login{% endblock %}
+{% block content %}
+<section style="max-width: 520px; margin: 8vh auto; padding: 0 16px;">
+  <div class="card" style="text-align:left;">
+    <h1>Owner Admin</h1>
+    <p class="muted">This area is for the application owner only.</p>
+    <form method="post" style="display:flex; flex-direction:column; gap:12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="ownerKey">Owner password</label>
+      <input id="ownerKey" type="password" name="owner_key" autocomplete="current-password" required>
+      <button type="submit" class="btn-block">Login</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

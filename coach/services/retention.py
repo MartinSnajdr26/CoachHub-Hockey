@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from typing import Tuple
-from flask import current_app
 from coach.extensions import db
 from coach.models import Team
 
