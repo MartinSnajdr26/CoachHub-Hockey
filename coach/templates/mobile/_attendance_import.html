@@ -1,0 +1,8 @@
+{# MOBILE-ONLY app bar for Attendance Import. The desktop upload form / preview
+   tables are REFLOWED into cards via mobile.css (same single form, same indexed
+   fields pdec_/edec_, same CSRF — no duplication). Namespaced .aim-*. #}
+<header class="aim-bar">
+  <a class="aim-back" href="{{ url_for('dochazka') }}" aria-label="Zpět">‹</a>
+  <div class="aim-bar-title">Import docházky</div>
+  <a class="aim-hist" href="{{ url_for('attendance.import_history') }}" aria-label="Historie importů">🕘</a>
+</header>

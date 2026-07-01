@@ -1,0 +1,223 @@
+{# ============================================================================
+   MOBILE-ONLY Practice Library / Knihovna cvičení. Renders ALONGSIDE the
+   untouched desktop category grid (drills_categories.html); shown only <=768px
+   via body[data-page="drills"] in mobile.css. Reuses the SAME route (/drills),
+   the additive read-only `drills` context, and the existing routes
+   (drill_detail / new_drill / edit_drill / delete_drill). No new backend, no new
+   data model. Namespaced .dlm-*.
+
+   Information hierarchy: app header -> search -> category chips -> result
+   summary -> drill list -> floating create action. Search + category filtering
+   are client-side over the already-rendered, server-provided `drills` list (no
+   extra requests). Coach-only secondary actions (edit/delete) live behind a
+   per-card kebab -> shared bottom sheet; the primary card action opens the drill.
+   ============================================================================ #}
+<div class="dlm-root" style="display:none">
+  <header class="dlm-bar">
+    <div class="dlm-bar-title">Knihovna cvičení</div>
+    <div class="dlm-bar-sub">Najdi nebo vytvoř cvičení pro trénink.</div>
+  </header>
+
+  {# Drill sub-navigation (mirrors the desktop "Tréninky" menu: saved sessions +
+     export selection). Reaching Session Detail is via "Uložené tréninky". #}
+  <nav class="dlm-subnav" aria-label="Tréninky – další stránky">
+    <a class="dlm-subnav-btn" href="{{ url_for('drill_sessions') }}"><span aria-hidden="true">🗂</span> Uložené tréninky</a>
+    <a class="dlm-subnav-btn" href="{{ url_for('drills_select') }}"><span aria-hidden="true">📄</span> Vybrat &amp; export</a>
+  </nav>
+
+  <div class="dlm-searchwrap">
+    <span class="dlm-search-ic" aria-hidden="true">🔍</span>
+    <input type="search" class="dlm-search" id="dlm-search" placeholder="Hledat cvičení…" autocomplete="off" enterkeyhint="search" aria-label="Hledat cvičení">
+    <button type="button" class="dlm-search-clear" id="dlm-search-clear" aria-label="Vymazat hledání" hidden>✕</button>
+  </div>
+
+  {% if categories %}
+  <div class="dlm-chips" role="tablist" aria-label="Filtr kategorií">
+    <button type="button" class="dlm-chip is-active" data-dlm-cat="all" role="tab" aria-selected="true">Vše</button>
+    {% for cat in categories %}
+    <button type="button" class="dlm-chip" data-dlm-cat="{{ cat.name|lower }}" role="tab" aria-selected="false">{{ cat.name }} <span class="dlm-chip-n">{{ cat.count }}</span></button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="dlm-summary" id="dlm-summary" data-total="{{ drills|length }}" aria-live="polite"></div>
+
+  {% if drills %}
+  <div class="dlm-list" id="dlm-list">
+    {% for d in drills %}
+    <article class="dlm-card" data-name="{{ d.name|lower }}" data-desc="{{ (d.description or '')|lower }}" data-cat="{{ (d.category or '')|lower }}">
+      <a class="dlm-card-main" href="{{ url_for('drill_detail', drill_id=d.id) }}">
+        <span class="dlm-thumb">
+          {% if d.image_data %}<img src="{{ d.image_data }}" loading="lazy" decoding="async" alt="">{% else %}<span class="dlm-thumb-ph" aria-hidden="true">🏒</span>{% endif %}
+        </span>
+        <span class="dlm-card-body">
+          <span class="dlm-title">{{ d.name }}</span>
+          <span class="dlm-meta">
+            {% if d.category %}<span class="dlm-pill">{{ d.category }}</span>{% endif %}
+            {% if d.duration %}<span class="dlm-dur">⏱ {{ d.duration }} min</span>{% endif %}
+          </span>
+          {% if d.description %}<span class="dlm-desc">{{ d.description }}</span>{% endif %}
+        </span>
+        <span class="dlm-go" aria-hidden="true">›</span>
+      </a>
+      {% if is_coach %}
+      <button type="button" class="dlm-kebab" data-dlm-menu
+              data-open="{{ url_for('drill_detail', drill_id=d.id) }}"
+              data-edit="{{ url_for('edit_drill', drill_id=d.id) }}"
+              data-del="dlm-del-{{ d.id }}"
+              data-name="{{ d.name }}"
+              aria-haspopup="dialog" aria-label="Akce pro {{ d.name }}">⋯</button>
+      <form action="{{ url_for('delete_drill', drill_id=d.id) }}" method="POST" id="dlm-del-{{ d.id }}" class="dlm-del-form" hidden>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  <div class="dlm-empty" id="dlm-noresult" hidden>
+    <div class="dlm-empty-emoji">🔍</div>
+    <p>Žádné cvičení neodpovídá zadanému filtru.</p>
+    <button type="button" class="dlm-empty-btn" id="dlm-clear">Zrušit filtry</button>
+  </div>
+  {% else %}
+  <div class="dlm-empty">
+    <div class="dlm-empty-emoji">🏒</div>
+    <h2>Žádná cvičení</h2>
+    <p>Vytvoř první cvičení pro svůj tým.</p>
+    {% if is_coach %}<a class="dlm-empty-btn" href="{{ url_for('new_drill') }}">➕ Nové cvičení</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if is_coach %}
+<a class="dlm-fab" href="{{ url_for('new_drill') }}" aria-label="Nové cvičení">
+  <span class="dlm-fab-plus" aria-hidden="true">＋</span><span class="dlm-fab-text">Nové cvičení</span>
+</a>
+
+{# Shared coach action sheet, populated from the tapped card's kebab data-attrs. #}
+<div class="dlm-sheet" id="dlmActionSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Akce cvičení">
+  <div class="dlm-sheet-scrim" data-dlm-close></div>
+  <div class="dlm-sheet-panel">
+    <div class="dlm-sheet-grip"></div>
+    <div class="dlm-sheet-head"><h3 id="dlm-sheet-title">Cvičení</h3><button type="button" class="dlm-sheet-x" data-dlm-close aria-label="Zavřít">✕</button></div>
+    <a class="dlm-sheet-act" id="dlm-act-open" href="#">👁 Otevřít</a>
+    <a class="dlm-sheet-act" id="dlm-act-edit" href="#">✏️ Upravit</a>
+    <button type="button" class="dlm-sheet-act dlm-sheet-act--danger" id="dlm-act-delete">🗑 Smazat</button>
+  </div>
+</div>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var root = document.querySelector('.dlm-root'); if (!root) return;
+  var search = document.getElementById('dlm-search');
+  var clearBtn = document.getElementById('dlm-search-clear');
+  var list = document.getElementById('dlm-list');
+  var cards = list ? Array.prototype.slice.call(list.querySelectorAll('.dlm-card')) : [];
+  var noResult = document.getElementById('dlm-noresult');
+  var summary = document.getElementById('dlm-summary');
+  var total = summary ? parseInt(summary.getAttribute('data-total'), 10) || 0 : 0;
+  var cat = 'all';
+
+  function plural(n) {
+    if (n === 1) return n + ' výsledek';
+    if (n >= 2 && n <= 4) return n + ' výsledky';
+    return n + ' výsledků';
+  }
+  function activeChipLabel() {
+    var c = root.querySelector('.dlm-chip.is-active');
+    if (!c || c.getAttribute('data-dlm-cat') === 'all') return null;
+    return (c.childNodes[0] && c.childNodes[0].textContent || '').trim();
+  }
+  function setSummary(shown) {
+    if (!summary) return;
+    var q = (search && search.value || '').trim();
+    var label = activeChipLabel();
+    if (q) summary.textContent = plural(shown) + ' pro „' + q + '“';
+    else if (label) summary.textContent = shown + ' cvičení v kategorii ' + label;
+    else summary.textContent = total + ' cvičení';
+  }
+  function apply() {
+    var q = (search && search.value || '').trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function (c) {
+      var okCat = (cat === 'all') || (c.getAttribute('data-cat') === cat);
+      var okText = !q || (c.getAttribute('data-name') || '').indexOf(q) >= 0
+        || (c.getAttribute('data-desc') || '').indexOf(q) >= 0;
+      var ok = okCat && okText;
+      c.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    if (noResult) noResult.hidden = (shown !== 0) || (cards.length === 0);
+    if (clearBtn) clearBtn.hidden = !(search && search.value);
+    setSummary(shown);
+  }
+
+  /* search */
+  if (search) search.addEventListener('input', apply);
+  if (clearBtn) clearBtn.addEventListener('click', function () {
+    if (search) { search.value = ''; search.focus(); }
+    apply();
+  });
+
+  /* category chips */
+  root.querySelectorAll('[data-dlm-cat]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      cat = b.getAttribute('data-dlm-cat');
+      root.querySelectorAll('[data-dlm-cat]').forEach(function (x) {
+        var on = x === b;
+        x.classList.toggle('is-active', on);
+        x.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      apply();
+    });
+  });
+
+  /* clear-filters from the no-result empty state */
+  var clearAll = document.getElementById('dlm-clear');
+  if (clearAll) clearAll.addEventListener('click', function () {
+    if (search) search.value = '';
+    cat = 'all';
+    root.querySelectorAll('[data-dlm-cat]').forEach(function (x) {
+      var on = x.getAttribute('data-dlm-cat') === 'all';
+      x.classList.toggle('is-active', on);
+      x.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    apply();
+  });
+
+  /* coach action sheet (edit / delete), shared and populated per card */
+  var sheet = document.getElementById('dlmActionSheet');
+  if (sheet) {
+    var titleEl = document.getElementById('dlm-sheet-title');
+    var openEl = document.getElementById('dlm-act-open');
+    var editEl = document.getElementById('dlm-act-edit');
+    var delEl = document.getElementById('dlm-act-delete');
+    var curDelId = null, curName = '';
+    function openSheet() { sheet.style.display = 'block'; requestAnimationFrame(function () { sheet.classList.add('open'); }); document.body.style.overflow = 'hidden'; }
+    function closeSheet() { sheet.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function () { sheet.style.display = 'none'; }, 220); }
+    root.querySelectorAll('[data-dlm-menu]').forEach(function (k) {
+      k.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        curName = k.getAttribute('data-name') || 'Cvičení';
+        curDelId = k.getAttribute('data-del');
+        if (titleEl) titleEl.textContent = curName;
+        if (openEl) openEl.href = k.getAttribute('data-open') || '#';
+        if (editEl) editEl.href = k.getAttribute('data-edit') || '#';
+        openSheet();
+      });
+    });
+    sheet.addEventListener('click', function (e) { if (e.target.closest('[data-dlm-close]')) closeSheet(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet(); });
+    if (delEl) delEl.addEventListener('click', function () {
+      if (!curDelId) return;
+      var form = document.getElementById(curDelId);
+      if (form && window.confirm('Opravdu smazat „' + curName + '“?')) {
+        (form.requestSubmit ? form.requestSubmit() : form.submit());
+      }
+    });
+  }
+
+  apply();
+})();
+</script>

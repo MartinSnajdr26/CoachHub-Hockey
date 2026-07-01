@@ -8,7 +8,21 @@ schema change. The legacy dashboard widget keeps working on the same rows.
 import json
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+try:
+    from zoneinfo import ZoneInfo
+    _PRAGUE = ZoneInfo("Europe/Prague")
+except Exception:
+    _PRAGUE = None
+
+
+def _to_prague(dt):
+    """Naive UTC (storage convention) -> Europe/Prague aware (DST-safe)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_PRAGUE) if _PRAGUE else dt
 
 from flask import (Blueprint, render_template, request, redirect, url_for, jsonify)
 
@@ -56,12 +70,14 @@ def _view(ev):
     reactions = m.get('reactions') or {}
     now = datetime.utcnow()
     age = int((now - ev.created_at).total_seconds()) if ev.created_at else 10 ** 9
+    # Display in Europe/Prague (DST-safe); created_at is stored naive UTC.
     when_label = ''
     if ev.created_at:
-        d = ev.created_at
-        if d.date() == now.date():
+        d = _to_prague(ev.created_at)
+        nowp = _to_prague(now)
+        if d.date() == nowp.date():
             when_label = 'Dnes ' + d.strftime('%H:%M')
-        elif (now.date() - d.date()).days == 1:
+        elif (nowp.date() - d.date()).days == 1:
             when_label = 'Včera ' + d.strftime('%H:%M')
         else:
             when_label = d.strftime('%d.%m.%Y %H:%M')

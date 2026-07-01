@@ -1,0 +1,29 @@
+{# ============================================================================
+   MOBILE-ONLY polish for Player Edit. Additive app bar + identity summary; the
+   existing desktop form is REFLOWED via mobile.css (not duplicated) so the real
+   name/position inputs, validation, action and CSRF are reused untouched, and
+   the real submit button is repositioned into a sticky bar. Namespaced .pem-*.
+   ============================================================================ #}
+{% if player %}
+<header class="pem-bar">
+  <button type="button" class="pem-back" data-pem-back data-fallback="{{ url_for('players') }}" aria-label="Zpět">‹</button>
+  <div class="pem-bar-title">Upravit hráče</div>
+  <span class="pem-bar-spacer" aria-hidden="true"></span>
+</header>
+<div class="pem-identity">
+  <span class="pem-av pem-pos-{{ player.position }}">{{ player.name.split()[0][0] }}{{ player.name.split()[-1][0] if player.name.split()|length > 1 else '' }}</span>
+  <div class="pem-identity-main">
+    <div class="pem-identity-name">{{ player.name }}</div>
+    <div class="pem-identity-pos">{{ {'F':'Útočník','D':'Obránce','G':'Brankář'}.get(player.position, player.position) }}</div>
+  </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var b = document.querySelector('.pem-bar [data-pem-back]'); if (!b) return;
+  b.addEventListener('click', function () {
+    if (window.history.length > 1) { window.history.back(); }
+    else { window.location.href = b.getAttribute('data-fallback') || '/players'; }
+  });
+})();
+</script>
+{% endif %}

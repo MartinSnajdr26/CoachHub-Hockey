@@ -1,0 +1,149 @@
+{# ============================================================================
+   MOBILE-ONLY Roster / Soupiska (Phase 7). Renders ALONGSIDE the untouched
+   desktop #rosterForm; shown only <=768px. Its OWN form posts the SAME field
+   (players[]) to the SAME route (/roster) — no new data model. Namespaced .rom-*.
+   ============================================================================ #}
+{% set POS = {'F':'Útočník','D':'Obránce','G':'Brankář'} %}
+<form class="rom-root" method="POST" action="{{ url_for('roster') }}" style="display:none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <header class="rom-bar">
+    <div>
+      <div class="rom-title">Soupiska</div>
+      <div class="rom-sub">Vyber hráče pro zápas nebo událost.</div>
+    </div>
+    <button type="button" class="rom-overflow" data-rom-bulk aria-label="Hromadné akce">⋯</button>
+  </header>
+
+  <input type="search" class="rom-search" id="rom-search" placeholder="Hledat hráče…" autocomplete="off">
+
+  <div class="rom-seg" role="tablist" aria-label="Filtr pozic">
+    {% for key,label in [('all','Všichni'),('F','Útočníci'),('D','Obránci'),('G','Brankáři')] %}
+      <button type="button" class="rom-seg-btn {{ 'is-active' if key=='all' }}" data-rom-filter="{{ key }}" aria-selected="{{ 'true' if key=='all' else 'false' }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+
+  {# selected summary (collapsible chips) #}
+  <button type="button" class="rom-selsum" data-rom-selsum aria-expanded="false">
+    <span>Vybraní hráči (<b id="rom-selcount">0</b>)</span><span class="rom-selsum-caret" aria-hidden="true">▾</span>
+  </button>
+  <div class="rom-chips" id="rom-chips" hidden></div>
+
+  {% if players %}
+  <div class="rom-list" id="rom-list">
+    {% for p in players %}
+    <label class="rom-row" data-pos="{{ p.position }}" data-name="{{ p.name|lower }}" data-pid="{{ p.id }}">
+      <input type="checkbox" name="players" value="{{ p.id }}" class="rom-cb" {% if p.id in roster_ids %}checked{% endif %} hidden>
+      <span class="rom-av rom-pos-{{ p.position }}">{{ p.name.split()[0][0] }}{{ p.name.split()[-1][0] if p.name.split()|length > 1 else '' }}</span>
+      <span class="rom-row-main">
+        <span class="rom-name">{{ p.name }}</span>
+        <span class="rom-poschip rom-pos-{{ p.position }}">{{ POS.get(p.position, p.position) }}</span>
+      </span>
+      <span class="rom-pick" aria-hidden="true"></span>
+    </label>
+    {% endfor %}
+  </div>
+  <div class="rom-empty" id="rom-noresult" hidden><div class="rom-empty-emoji">🔍</div><p>Nikdo neodpovídá filtru.</p></div>
+  {% else %}
+  <div class="rom-empty"><div class="rom-empty-emoji">🧑‍🤝‍🧑</div><h2>Žádní hráči</h2><p>Přidej hráče v sekci Hráči.</p></div>
+  {% endif %}
+
+  {# sticky save bar (inside the form so the button submits it) #}
+  <div class="rom-savebar">
+    <div class="rom-savebar-info">
+      <span class="rom-savebar-count">Nominováno <b id="rom-count">0</b></span>
+      <span class="rom-warn" id="rom-warn" hidden></span>
+    </div>
+    <button type="submit" class="rom-save">💾 Uložit</button>
+  </div>
+</form>
+
+{# bulk actions sheet #}
+<div class="rom-sheet" id="romBulkSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Hromadné akce">
+  <div class="rom-sheet-scrim" data-rom-close></div>
+  <div class="rom-sheet-panel">
+    <div class="rom-sheet-grip"></div>
+    <div class="rom-sheet-head"><h3>Hromadné akce</h3><button type="button" class="rom-sheet-x" data-rom-close aria-label="Zavřít">✕</button></div>
+    <button type="button" class="rom-bulk-btn" data-rom-selectall>✅ Vybrat všechny (dle filtru)</button>
+    <button type="button" class="rom-bulk-btn" data-rom-clear>✖ Zrušit výběr</button>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var form = document.querySelector('.rom-root'); if (!form) return;
+  var list = document.getElementById('rom-list');
+  var nameById = {};
+  document.querySelectorAll('.rom-row').forEach(function (r) {
+    nameById[r.getAttribute('data-pid')] = { name: r.querySelector('.rom-name').textContent, pos: r.getAttribute('data-pos') };
+  });
+
+  function checked() { return Array.prototype.slice.call(form.querySelectorAll('.rom-cb:checked')); }
+  function update() {
+    var sel = checked();
+    var n = sel.length;
+    document.getElementById('rom-count').textContent = n;
+    document.getElementById('rom-selcount').textContent = n;
+    // selected-state class (also covered by :has() where supported)
+    document.querySelectorAll('.rom-row').forEach(function (r) { r.classList.toggle('is-selected', r.querySelector('.rom-cb').checked); });
+    // chips
+    var chips = document.getElementById('rom-chips');
+    chips.innerHTML = sel.map(function (cb) { var id = cb.value; var p = nameById[id] || {}; return '<button type="button" class="rom-chip" data-uncheck="' + id + '">' + esc(p.name || '') + ' ✕</button>'; }).join('');
+    // soft, non-blocking validation hint (backend does not block)
+    var warn = document.getElementById('rom-warn');
+    var hasG = sel.some(function (cb) { return (nameById[cb.value] || {}).pos === 'G'; });
+    if (n === 0) { warn.hidden = true; }
+    else if (!hasG) { warn.hidden = false; warn.textContent = '· chybí brankář'; }
+    else { warn.hidden = true; }
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  form.addEventListener('change', function (e) { if (e.target.classList.contains('rom-cb')) update(); });
+
+  /* chip remove */
+  document.getElementById('rom-chips').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-uncheck]'); if (!b) return;
+    var cb = form.querySelector('.rom-cb[value="' + b.getAttribute('data-uncheck') + '"]'); if (cb) { cb.checked = false; update(); }
+  });
+
+  /* search + segmented filter */
+  var search = document.getElementById('rom-search'); var nores = document.getElementById('rom-noresult'); var filter = 'all';
+  function applyFilter() {
+    var q = (search && search.value || '').trim().toLowerCase(); var shown = 0;
+    document.querySelectorAll('#rom-list .rom-row').forEach(function (r) {
+      var ok = (filter === 'all' || r.getAttribute('data-pos') === filter) && (!q || (r.getAttribute('data-name') || '').indexOf(q) >= 0);
+      r.style.display = ok ? '' : 'none'; if (ok) shown++;
+    });
+    if (nores) nores.hidden = shown !== 0;
+  }
+  if (search) search.addEventListener('input', applyFilter);
+  form.querySelectorAll('[data-rom-filter]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filter = b.getAttribute('data-rom-filter');
+      form.querySelectorAll('[data-rom-filter]').forEach(function (x) { var on = x === b; x.classList.toggle('is-active', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      applyFilter();
+    });
+  });
+
+  /* selected summary toggle */
+  var ss = form.querySelector('[data-rom-selsum]'); var chipsBox = document.getElementById('rom-chips');
+  ss.addEventListener('click', function () { var open = !chipsBox.hasAttribute('hidden'); if (open) { chipsBox.setAttribute('hidden', ''); ss.setAttribute('aria-expanded', 'false'); } else { chipsBox.removeAttribute('hidden'); ss.setAttribute('aria-expanded', 'true'); } });
+
+  /* bulk actions sheet */
+  var sheet = document.getElementById('romBulkSheet');
+  function openSheet() { sheet.style.display = 'block'; requestAnimationFrame(function () { sheet.classList.add('open'); }); document.body.style.overflow = 'hidden'; }
+  function closeSheet() { sheet.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function () { sheet.style.display = 'none'; }, 220); }
+  form.querySelector('[data-rom-bulk]').addEventListener('click', openSheet);
+  sheet.addEventListener('click', function (e) { if (e.target.closest('[data-rom-close]')) closeSheet(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet(); });
+  sheet.querySelector('[data-rom-selectall]').addEventListener('click', function () {
+    document.querySelectorAll('#rom-list .rom-row').forEach(function (r) { if (r.style.display !== 'none') r.querySelector('.rom-cb').checked = true; });
+    update(); closeSheet();
+  });
+  sheet.querySelector('[data-rom-clear]').addEventListener('click', function () {
+    form.querySelectorAll('.rom-cb').forEach(function (cb) { cb.checked = false; }); update(); closeSheet();
+  });
+
+  update();
+})();
+</script>

@@ -3,6 +3,9 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='roster.css', v=csp_nonce) }}">
+{# Mobile-only native roster (Phase 7). Desktop form below is untouched and hidden
+   on mobile via body[data-page="roster"] in mobile.css. #}
+{% include 'mobile/_roster.html' %}
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
   <h1>Nominace na zápas</h1>
   <button type="button" class="help-btn" data-help="roster" data-help-src="help-roster"><span class="ico">i</span> Nápověda</button>

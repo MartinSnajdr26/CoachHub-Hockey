@@ -8,6 +8,9 @@
 ] %}
 {% set STATUS_LABEL = {'going':'Jdu','not_going':'Nejdu','maybe':'Možná','unknown':'Nevyplněno'} %}
 {% block content %}
+{# Mobile-only native screen (Phase 1). Renders alongside the desktop .pa-wrap;
+   shown only <=768px. Desktop DOM/CSS untouched. #}
+{% include 'mobile/_player_attendance.html' %}
 <div class="pa-wrap">
   <div class="pa-head">
     <div>

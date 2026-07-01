@@ -1,0 +1,143 @@
+{# ============================================================================
+   MOBILE-ONLY Practice Detail / Detail cvičení. Renders ALONGSIDE the untouched
+   desktop drill viewer; shown only <=768px via body[data-page="drill_detail"]
+   in mobile.css. A drill PLAYER: app bar -> compact metadata -> the SAME
+   #board canvas (reused, not duplicated) -> playback controls -> collapsible
+   description -> coach overflow sheet.
+
+   IMPORTANT: this partial does NOT create a second canvas. It reuses the single
+   #board element and the existing playback wiring by proxy-clicking the (hidden
+   on mobile) desktop controls (#btnPlay/#btnPause/#btnStop) and calling the
+   already-global window.restartAndPlay / #animMode / #showAnchors. No renderer,
+   coordinate, animation, save, export or permission logic is changed. The
+   desktop toolbar/heading are hidden on mobile; #board is reflowed via flex
+   order. Only included when NOT embed_mode (embed keeps its 100vw/100vh canvas).
+   Namespaced .ddm-*.
+   ============================================================================ #}
+{% if not embed_mode %}
+<header class="ddm-bar">
+  <button type="button" class="ddm-back" data-ddm-back data-fallback="{{ url_for('drills') }}" aria-label="Zpět">‹</button>
+  <div class="ddm-bar-title">Detail cvičení</div>
+  {% if is_coach %}
+  <button type="button" class="ddm-ov-btn" data-ddm-open="ddmSheet" aria-haspopup="dialog" aria-label="Další akce">⋯</button>
+  {% else %}
+  <span class="ddm-bar-spacer" aria-hidden="true"></span>
+  {% endif %}
+</header>
+
+<div class="ddm-meta">
+  <h1 class="ddm-title">{{ drill.name }}</h1>
+  <div class="ddm-meta-row">
+    {% if drill.category %}<span class="ddm-pill">{{ drill.category }}</span>{% endif %}
+    {% if drill.duration %}<span class="ddm-dur">⏱ {{ drill.duration }} min</span>{% endif %}
+  </div>
+</div>
+
+{# Playback controls — reuse existing wiring by proxying the hidden desktop controls. #}
+<div class="ddm-controls" role="group" aria-label="Přehrávání animace">
+  <button type="button" class="ddm-ctrl" id="ddmRestart" aria-label="Přehrát od začátku"><span class="ddm-ctrl-ic" aria-hidden="true">⟲</span><span class="ddm-ctrl-lbl">Znovu</span></button>
+  <button type="button" class="ddm-ctrl ddm-ctrl--play" id="ddmPlay" aria-label="Přehrát"><span class="ddm-ctrl-ic" aria-hidden="true">▶</span><span class="ddm-ctrl-lbl">Přehrát</span></button>
+  <button type="button" class="ddm-ctrl" id="ddmPause" aria-label="Pauza"><span class="ddm-ctrl-ic" aria-hidden="true">⏸</span><span class="ddm-ctrl-lbl">Pauza</span></button>
+  <button type="button" class="ddm-ctrl" id="ddmStop" aria-label="Zastavit"><span class="ddm-ctrl-ic" aria-hidden="true">⏹</span><span class="ddm-ctrl-lbl">Stop</span></button>
+</div>
+
+{# Secondary view options (relevant to all viewers): animation mode + anchors. #}
+<div class="ddm-opts">
+  <label class="ddm-opt">Režim
+    <select id="ddmMode">
+      <option value="sequential" selected>Sekvence</option>
+      <option value="grouped">Skupiny</option>
+    </select>
+  </label>
+  <label class="ddm-opt ddm-opt--check">
+    <input type="checkbox" id="ddmAnchors"> Kotvy
+  </label>
+</div>
+
+{% if drill.description %}
+<section class="ddm-desc">
+  <button type="button" class="ddm-desc-head" id="ddmDescToggle" aria-expanded="false" aria-controls="ddmDescBody">
+    <span>Popis cvičení</span><span class="ddm-desc-caret" aria-hidden="true">▾</span>
+  </button>
+  <div class="ddm-desc-body" id="ddmDescBody" hidden>{{ drill.description }}</div>
+</section>
+{% endif %}
+
+{% if is_coach %}
+<div class="ddm-sheet" id="ddmSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Akce cvičení">
+  <div class="ddm-sheet-scrim" data-ddm-close></div>
+  <div class="ddm-sheet-panel">
+    <div class="ddm-sheet-grip"></div>
+    <div class="ddm-sheet-head"><h3>{{ drill.name }}</h3><button type="button" class="ddm-sheet-x" data-ddm-close aria-label="Zavřít">✕</button></div>
+    <a class="ddm-sheet-act" href="{{ url_for('edit_drill', drill_id=drill.id) }}">✏️ Upravit cvičení</a>
+    <form method="POST" action="{{ url_for('delete_drill', drill_id=drill.id) }}" class="form-confirm" data-message="Opravdu smazat „{{ drill.name }}“? Tuto akci nelze vrátit zpět.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="ddm-sheet-act ddm-sheet-act--danger">🗑 Smazat cvičení</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var bar = document.querySelector('.ddm-bar'); if (!bar) return;
+
+  /* Back */
+  var back = bar.querySelector('[data-ddm-back]');
+  if (back) back.addEventListener('click', function () {
+    if (window.history.length > 1) { window.history.back(); }
+    else { window.location.href = back.getAttribute('data-fallback') || '/drills'; }
+  });
+
+  /* Playback — proxy the existing (hidden on mobile) desktop controls so all
+     animation logic stays in the original renderer. */
+  function proxyClick(id) { var el = document.getElementById(id); if (el) el.click(); }
+  var play = document.getElementById('ddmPlay');
+  var pause = document.getElementById('ddmPause');
+  var stop = document.getElementById('ddmStop');
+  var restart = document.getElementById('ddmRestart');
+  function setState(activeEl) {
+    [play, pause].forEach(function (b) { if (b) b.classList.toggle('is-active', b === activeEl); });
+  }
+  if (play) play.addEventListener('click', function () { proxyClick('btnPlay'); setState(play); });
+  if (pause) pause.addEventListener('click', function () { proxyClick('btnPause'); setState(pause); });
+  if (stop) stop.addEventListener('click', function () { proxyClick('btnStop'); setState(null); });
+  if (restart) restart.addEventListener('click', function () {
+    if (typeof window.restartAndPlay === 'function') { window.restartAndPlay(); } else { proxyClick('btnStop'); proxyClick('btnPlay'); }
+    setState(play);
+  });
+
+  /* View options — proxy to the hidden desktop select/checkbox. */
+  var mode = document.getElementById('ddmMode'), dMode = document.getElementById('animMode');
+  if (mode && dMode) {
+    mode.value = dMode.value;
+    mode.addEventListener('change', function () { dMode.value = mode.value; dMode.dispatchEvent(new Event('change')); });
+  }
+  var anchors = document.getElementById('ddmAnchors'), dAnchors = document.getElementById('showAnchors');
+  if (anchors && dAnchors) {
+    anchors.checked = dAnchors.checked;
+    anchors.addEventListener('change', function () { dAnchors.checked = anchors.checked; dAnchors.dispatchEvent(new Event('change')); });
+  }
+
+  /* Collapsible description */
+  var dt = document.getElementById('ddmDescToggle'), dbody = document.getElementById('ddmDescBody');
+  if (dt && dbody) dt.addEventListener('click', function () {
+    var open = dbody.hasAttribute('hidden');
+    if (open) { dbody.removeAttribute('hidden'); } else { dbody.setAttribute('hidden', ''); }
+    dt.setAttribute('aria-expanded', open ? 'true' : 'false');
+    dt.classList.toggle('is-open', open);
+  });
+
+  /* Overflow sheet */
+  var sheet = document.getElementById('ddmSheet');
+  if (sheet) {
+    var opener = bar.querySelector('[data-ddm-open]');
+    function openSheet() { sheet.style.display = 'block'; requestAnimationFrame(function () { sheet.classList.add('open'); }); document.body.style.overflow = 'hidden'; }
+    function closeSheet() { sheet.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function () { sheet.style.display = 'none'; }, 220); }
+    if (opener) opener.addEventListener('click', openSheet);
+    sheet.addEventListener('click', function (e) { if (e.target.closest('[data-ddm-close]')) closeSheet(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet(); });
+  }
+})();
+</script>
+{% endif %}

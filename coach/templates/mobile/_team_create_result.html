@@ -1,0 +1,23 @@
+{# MOBILE-ONLY: add a touch-friendly copy button under each shown-once key. The
+   key is only ever read from the DOM into the clipboard — never logged, printed,
+   or placed in a URL. Viewport-gated so the desktop page is unchanged.
+   Namespaced .tcrm-*. #}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  if (!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
+  if (!navigator.clipboard) return;
+  document.querySelectorAll('.content-card .key-box').forEach(function (box) {
+    var code = box.querySelector('code');
+    if (!code) return;
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'tcrm-copy';
+    btn.setAttribute('aria-label', 'Kopírovat klíč do schránky');
+    btn.textContent = '📋 Kopírovat klíč';
+    btn.addEventListener('click', function () {
+      navigator.clipboard.writeText((code.textContent || '').trim()).then(
+        function () { btn.textContent = '✓ Zkopírováno'; }, function () {});
+    });
+    box.appendChild(btn);
+  });
+})();
+</script>

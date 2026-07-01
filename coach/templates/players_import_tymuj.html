@@ -2,6 +2,8 @@
 {% block title %}Import z Týmuj{% endblock %}
 
 {% block content %}
+{# Mobile-only app bar; desktop matching table reflows to cards via mobile.css. #}
+{% include 'mobile/_players_import_tymuj.html' %}
 <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
   <div>
     <h1 style="margin:0 0 4px;">Import z Týmuj</h1>

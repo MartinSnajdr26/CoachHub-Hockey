@@ -2,9 +2,11 @@
 {% block title %}Trénink: {{ sess.title }}{% endblock %}
 
 {% block content %}
+{# Mobile-only app bar; summary + ordered drill cards reflow via mobile.css. #}
+{% include 'mobile/_drill_session_detail.html' %}
 <h1>Tréninková jednotka</h1>
 <p><b>Název:</b> {{ sess.title }}</p>
-<p><b>Vytvořeno:</b> {{ sess.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+<p><b>Vytvořeno:</b> {{ sess.created_at | prague('%Y-%m-%d %H:%M') }}</p>
 
 <p style="margin:10px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
   <a href="{{ url_for('drill_sessions') }}">← Zpět na seznam tréninků</a>

@@ -1,0 +1,9 @@
+{# MOBILE-ONLY app bar for Drill Select / Export Selection. The desktop search +
+   selection form (drill_ids / order[<id>] / selection_order) is REFLOWED via
+   mobile.css and its app.js selection logic reused — no duplicated fields.
+   Namespaced .dsm-*. #}
+<header class="dsm-bar">
+  <a class="dsm-back" href="{{ url_for('drills') }}" aria-label="Zpět na kategorie">‹</a>
+  <div class="dsm-bar-title">Vybrat cvičení</div>
+  {% if is_coach %}<a class="dsm-add" href="{{ url_for('new_drill') }}" aria-label="Nové cvičení">＋</a>{% else %}<span class="dsm-bar-spacer" aria-hidden="true"></span>{% endif %}
+</header>

@@ -118,7 +118,17 @@ def drills():
     categories = [{'name': c, 'count': n} for c, n in rows if c]
     categories.sort(key=lambda x: x['name'].lower())
     total = sum(c['count'] for c in categories)
-    return render_template('drills_categories.html', categories=categories, total=total)
+    # Additive, read-only context for the MOBILE Practice Library only: a flat,
+    # team-scoped drill list rendered by templates/mobile/_drills_library.html.
+    # The desktop category grid (this same template) never reads `drills`.
+    # All rendered fields (name, category, description, duration, image_data) are
+    # columns on Drill itself, so no relationships are touched and no eager loading
+    # is needed (no N+1).
+    drill_q = Drill.query
+    if tid:
+        drill_q = drill_q.filter(Drill.team_id == tid)
+    drill_list = drill_q.order_by(Drill.category.asc().nullsfirst(), Drill.name.asc()).all()
+    return render_template('drills_categories.html', categories=categories, total=total, drills=drill_list)
 
 
 @bp.route('/drills/<category>', endpoint='drills_by_category')

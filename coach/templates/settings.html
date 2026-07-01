@@ -3,6 +3,10 @@
 
 {% block content %}
 <h1>Nastavení týmu</h1>
+{# Mobile-only native settings index (Phase 8). Include is AFTER the <h1> so the
+   desktop `main > h1:first-child` rule keeps matching (zero desktop shift). The
+   h1 + desktop cards are hidden on mobile via body[data-page="settings"]. #}
+{% include 'mobile/_settings.html' %}
 
 <div class="cards">
   <div class="card" style="text-align:left;">
@@ -104,7 +108,7 @@
         <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_refresh"><button type="submit" class="btn-secondary btn-sm">🔄 Obnovit data</button></form>
       </div>
       <div style="margin-top:12px; font-size:0.85rem;">
-        <div>Poslední úspěšná aktualizace: <strong>{% if league_cfg.last_updated %}{{ league_cfg.last_updated.strftime('%d.%m.%Y %H:%M') }} UTC{% else %}—{% endif %}</strong></div>
+        <div>Poslední úspěšná aktualizace: <strong>{% if league_cfg.last_updated %}{{ league_cfg.last_updated | prague('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</strong></div>
         {% if league and league.info and league.info.competition_name %}
           <div style="opacity:0.8;">Soutěž: {{ league.info.competition_name }}{% if league.info.season %} · {{ league.info.season }}{% endif %} · {{ league.standings|length }} týmů · {{ league.results|length }} výsledků</div>
         {% endif %}

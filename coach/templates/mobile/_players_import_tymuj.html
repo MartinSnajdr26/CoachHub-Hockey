@@ -1,0 +1,9 @@
+{# MOBILE-ONLY app bar for Týmuj Player Import. The desktop matching table is
+   REFLOWED into cards via mobile.css (same single form, same indexed fields
+   import_idx / name_<idx> / pos_<idx>, select-all JS preserved). No external
+   refresh on render. Namespaced .tpm-*. #}
+<header class="tpm-bar">
+  <a class="tpm-back" href="{{ url_for('players') }}" aria-label="Zpět na hráče">‹</a>
+  <div class="tpm-bar-title">Import hráčů z Týmuj</div>
+  <span class="tpm-bar-spacer" aria-hidden="true"></span>
+</header>

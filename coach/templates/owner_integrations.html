@@ -13,8 +13,8 @@
         <td>{{ r.tymuj.updated_at or '—' }}</td>
         <td>{{ r.tymuj.last_failed_at or '—' }}</td>
         <td>{% if r.league and r.league.last_error %}<span style="color:var(--danger);">failing</span>{% elif r.league and r.league.enabled %}<span style="color:var(--success);">enabled</span>{% else %}<span class="muted">off</span>{% endif %}</td>
-        <td>{{ r.league.last_updated.strftime('%Y-%m-%d %H:%M') if r.league and r.league.last_updated else '—' }}</td>
-        <td>{{ r.league.last_attempt.strftime('%Y-%m-%d %H:%M') if r.league and r.league.last_attempt else '—' }}</td>
+        <td>{{ (r.league.last_updated | prague('%Y-%m-%d %H:%M')) if r.league else '—' or '—' }}</td>
+        <td>{{ (r.league.last_attempt | prague('%Y-%m-%d %H:%M')) if r.league else '—' or '—' }}</td>
         <td>{{ r.tymuj.last_error or '' }}{% if r.league and r.league.last_error %} {{ r.league.last_error }}{% endif %}</td>
       </tr>
     {% endfor %}

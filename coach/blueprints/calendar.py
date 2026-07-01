@@ -201,6 +201,10 @@ def _collect_events_for_team(tid: int, start_date: date, end_date: date) -> list
             'title': ev.title or 'Trénink',
             'kind': ev.kind or 'training',
             'source': 'local',
+            # Additive, read-only: lets the mobile Dashboard event manager show the
+            # recurrence scope selector (one/future/series). Desktop calendar uses a
+            # separate data path (events_by_day) and never reads this.
+            'series_id': ev.series_id,
         })
     for item in tymuj_svc.get_cached_events(tid, start_date, end_date):
         key = tymuj_svc.make_event_key(item['title'], item['day'], item.get('time') or '', item.get('kind') or 'tymuj', 'tymuj')

@@ -1,0 +1,61 @@
+{# ============================================================================
+   MOBILE-ONLY Nástěnka composer FAB (Phase 6). Additive: reuses the EXISTING
+   #cm-composer form + communication.js (reactions/edit/pin untouched). On
+   mobile the inline composer is hidden (mobile.css) and revealed as a bottom
+   sheet by this FAB. Hidden on desktop (base display:none). Namespaced .nm-*.
+   ============================================================================ #}
+<button type="button" class="nm-fab" id="nmFab" aria-label="Napsat zprávu" aria-haspopup="dialog">✎</button>
+<div class="nm-backdrop" id="nmBackdrop" aria-hidden="true"></div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var fab = document.getElementById('nmFab');
+  var bd = document.getElementById('nmBackdrop');
+  var composer = document.getElementById('cm-composer');
+  if (!fab || !composer) return;
+  function open() { document.body.classList.add('nm-compose-open'); var t = document.getElementById('cm-text'); if (t) setTimeout(function () { try { t.focus(); } catch (e) {} }, 250); }
+  function close() { document.body.classList.remove('nm-compose-open'); }
+  fab.addEventListener('click', function () { document.body.classList.contains('nm-compose-open') ? close() : open(); });
+  if (bd) bd.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  // close after a successful (non-prevented) submit so the sheet doesn't linger on reload
+  composer.addEventListener('submit', function () { close(); });
+})();
+
+/* Compact-by-default feed cards: 3-line text clamp + hidden actions, with a
+   per-card expand toggle. MOBILE ONLY — nothing is injected on desktop, so the
+   desktop DOM stays byte-identical. */
+(function () {
+  var mq = window.matchMedia('(max-width: 768px)');
+  function setup() {
+    if (!mq.matches) return;
+    document.querySelectorAll('.cm-feed .cm-card').forEach(function (card) {
+      var text = card.querySelector('.cm-text');
+      var btn = card.querySelector('.cm-expand');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'cm-expand'; btn.setAttribute('aria-expanded', 'false');
+        btn.textContent = 'Zobrazit více';
+        if (text) { text.insertAdjacentElement('afterend', btn); } else { card.appendChild(btn); }
+        btn.addEventListener('click', function () {
+          var ex = card.classList.toggle('cm-expanded');
+          btn.textContent = ex ? 'Skrýt' : 'Zobrazit více';
+          btn.setAttribute('aria-expanded', ex ? 'true' : 'false');
+        });
+      }
+      // collapsible when there is hidden content: long text OR actions to reveal
+      var hasActions = !!(card.querySelector('.cm-wa') || card.querySelector('.cm-mod'));
+      var overflow = false;
+      if (text) {
+        var wasEx = card.classList.contains('cm-expanded');
+        if (wasEx) card.classList.remove('cm-expanded');
+        overflow = text.scrollHeight > text.clientHeight + 2;   // measured with the 3-line clamp active
+        if (wasEx) card.classList.add('cm-expanded');
+      }
+      card.classList.toggle('cm-collapsible', overflow || hasActions);
+    });
+  }
+  if (mq.matches) setup();
+  var t; window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(setup, 150); });
+})();
+</script>

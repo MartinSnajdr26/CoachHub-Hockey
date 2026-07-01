@@ -53,3 +53,8 @@ logs/
 
 # Unrelated sibling project that lives inside the repo tree — never commit
 /TrailQuest/
+
+# Stray browser profiles / verification artifacts (never commit)
+coach/_bc/
+**/mobp/
+lines_verify/

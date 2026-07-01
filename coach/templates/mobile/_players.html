@@ -1,0 +1,99 @@
+{# ============================================================================
+   MOBILE-ONLY Players (Phase 5). Renders ALONGSIDE the untouched desktop
+   players page; shown only <=768px. Reuses the SAME data (players) and routes
+   (add_player / edit_player / delete_player). Namespaced .plm-*.
+   ============================================================================ #}
+<div class="plm-root" style="display:none">
+  <header class="plm-bar"><div class="plm-bar-title">Hráči</div><div class="plm-bar-count">{{ players|length }}</div></header>
+
+  <input type="search" class="plm-search" id="plm-search" placeholder="Hledat hráče…" autocomplete="off">
+
+  <div class="plm-seg" role="tablist" aria-label="Filtr pozic">
+    {% for key,label in [('all','Všichni'),('F','Útok'),('D','Obrana'),('G','Brankáři')] %}
+      <button type="button" class="plm-seg-btn {{ 'is-active' if key=='all' }}" data-plm-filter="{{ key }}" aria-selected="{{ 'true' if key=='all' else 'false' }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+
+  {% if players %}
+  <div class="plm-list" id="plm-list">
+    {% for p in players %}
+    <article class="plm-row" data-pos="{{ p.position }}" data-name="{{ p.name|lower }}">
+      <span class="plm-av plm-pos-{{ p.position }}">{{ p.name.split()[0][0] }}{{ p.name.split()[-1][0] if p.name.split()|length > 1 else '' }}</span>
+      <a class="plm-row-main" href="{{ url_for('edit_player', player_id=p.id) }}">
+        <span class="plm-name">{{ p.name }}</span>
+        <span class="plm-poschip plm-pos-{{ p.position }}">{{ {'F':'Útočník','D':'Obránce','G':'Brankář'}.get(p.position, p.position) }}</span>
+      </a>
+      {% if is_coach %}
+      <a class="plm-act" href="{{ url_for('edit_player', player_id=p.id) }}" aria-label="Upravit {{ p.name }}">✏️</a>
+      <form action="{{ url_for('delete_player', player_id=p.id) }}" method="POST" class="plm-del form-confirm" data-message="Opravdu smazat hráče {{ p.name }}?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="plm-act plm-act--danger" aria-label="Smazat {{ p.name }}">🗑</button>
+      </form>
+      {% else %}<span class="plm-row-go" aria-hidden="true">›</span>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  <div class="plm-empty" id="plm-noresult" hidden><div class="plm-empty-emoji">🔍</div><p>Nikdo neodpovídá filtru.</p></div>
+  {% else %}
+  <div class="plm-empty"><div class="plm-empty-emoji">🧑‍🤝‍🧑</div><h2>Žádní hráči</h2><p>Přidej prvního hráče tlačítkem +.</p></div>
+  {% endif %}
+</div>
+
+{% if is_coach %}
+<button type="button" class="plm-fab" id="plmFab" aria-haspopup="dialog" aria-controls="plmAddSheet" aria-label="Přidat hráče">＋</button>
+<div class="plm-sheet" id="plmAddSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Přidat hráče">
+  <div class="plm-sheet-scrim" data-plm-close></div>
+  <div class="plm-sheet-panel">
+    <div class="plm-sheet-grip"></div>
+    <div class="plm-sheet-head"><h3>Nový hráč</h3><button type="button" class="plm-sheet-x" data-plm-close aria-label="Zavřít">✕</button></div>
+    <form action="{{ url_for('add_player') }}" method="POST" class="plm-add-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="plm-fld">Jméno<input type="text" name="name" placeholder="Jméno hráče" required></label>
+      <label class="plm-fld">Pozice
+        <select name="position" required>
+          <option value="">Vyber pozici</option>
+          <option value="F">Útočník</option>
+          <option value="D">Obránce</option>
+          <option value="G">Brankář</option>
+        </select>
+      </label>
+      <button type="submit" class="plm-add-submit">➕ Přidat hráče</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var root = document.querySelector('.plm-root'); if (!root) return;
+  var search = document.getElementById('plm-search');
+  var nores = document.getElementById('plm-noresult');
+  var filter = 'all';
+  function apply() {
+    var q = (search && search.value || '').trim().toLowerCase(); var shown = 0;
+    document.querySelectorAll('#plm-list .plm-row').forEach(function (r) {
+      var ok = (filter === 'all' || r.getAttribute('data-pos') === filter) && (!q || (r.getAttribute('data-name') || '').indexOf(q) >= 0);
+      r.style.display = ok ? '' : 'none'; if (ok) shown++;
+    });
+    if (nores) nores.hidden = shown !== 0;
+  }
+  root.querySelectorAll('[data-plm-filter]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filter = b.getAttribute('data-plm-filter');
+      root.querySelectorAll('[data-plm-filter]').forEach(function (x) { var on = x === b; x.classList.toggle('is-active', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      apply();
+    });
+  });
+  if (search) search.addEventListener('input', apply);
+
+  /* FAB add sheet */
+  var fab = document.getElementById('plmFab'), sheet = document.getElementById('plmAddSheet');
+  if (fab && sheet) {
+    function open() { sheet.style.display = 'block'; requestAnimationFrame(function () { sheet.classList.add('open'); }); document.body.style.overflow = 'hidden'; var i = sheet.querySelector('input[name=name]'); if (i) setTimeout(function () { i.focus(); }, 250); }
+    function close() { sheet.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function () { sheet.style.display = 'none'; }, 220); }
+    fab.addEventListener('click', open);
+    sheet.addEventListener('click', function (e) { if (e.target.closest('[data-plm-close]')) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet.classList.contains('open')) close(); });
+  }
+})();
+</script>

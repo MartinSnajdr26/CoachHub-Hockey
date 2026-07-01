@@ -2,6 +2,10 @@
 {% block title %}{{ drill.name }}{% endblock %}
 
 {% block content %}
+{# Mobile-only native Practice Detail. Desktop viewer below is untouched and
+   hidden on mobile via body[data-page="drill_detail"] in mobile.css; the single
+   #board canvas is reused (not duplicated). Self-guards on embed_mode. #}
+{% include 'mobile/_drill_detail.html' %}
 {% if embed_mode %}
 <style>
   html, body { margin:0; padding:0; height:100%; background:#fff; }

@@ -1,0 +1,36 @@
+{# MOBILE-ONLY app bar for Saved Training Sessions. Desktop .cards list reflows
+   to compact cards via mobile.css (existing open/export/share/delete reused).
+   Namespaced .tsm-*. #}
+<header class="tsm-bar">
+  <a class="tsm-back" href="{{ url_for('drills') }}" aria-label="Zpět">‹</a>
+  <div class="tsm-bar-title">Uložené tréninky</div>
+  <a class="tsm-add" href="{{ url_for('drills_select') }}" aria-label="Nový export">＋</a>
+</header>
+
+<script nonce="{{ csp_nonce }}">
+/* Mobile-only: collapse each session's drill list to 3 items with a "+ N dalších"
+   toggle. Desktop is untouched (guarded by viewport; only reflows existing DOM). */
+(function () {
+  if (!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
+  if (!document.querySelector('.tsm-bar')) return;
+  var LIMIT = 3;
+  document.querySelectorAll('main .card ul').forEach(function (ul) {
+    var items = Array.prototype.slice.call(ul.children).filter(function (n) { return n.tagName === 'LI'; });
+    if (items.length <= LIMIT) return;
+    var extra = items.length - LIMIT;
+    for (var i = LIMIT; i < items.length; i++) { items[i].hidden = true; }
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'tsm-more';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.textContent = '+ ' + extra + ' dalších';
+    var open = false;
+    btn.addEventListener('click', function () {
+      open = !open;
+      for (var i = LIMIT; i < items.length; i++) { items[i].hidden = !open; }
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.textContent = open ? 'Skrýt' : ('+ ' + extra + ' dalších');
+    });
+    ul.parentNode.insertBefore(btn, ul.nextSibling);
+  });
+})();
+</script>

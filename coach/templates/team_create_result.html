@@ -17,4 +17,6 @@
     <a class="btn btn-lg" href="{{ url_for('team_auth') }}" style="margin-top:var(--space-3);">Přihlásit se do týmu →</a>
   </div>
 </div>
+{# Mobile-only: touch-friendly copy buttons for the shown-once keys (clipboard only). #}
+{% include 'mobile/_team_create_result.html' %}
 {% endblock %}

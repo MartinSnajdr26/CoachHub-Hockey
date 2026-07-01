@@ -2,6 +2,58 @@
    fill-substitutes, print. Runs after lines.js; reuses the same slot DOM. */
 (function () {
   'use strict';
+
+  /* ============================================================================
+     PURE, testable validation helpers (also exported for node tests).
+     Root-cause fix for the FALSE duplicate-player warning: the lineup slots are
+     rendered TWICE in the DOM (the authoritative #formations / desktop copies
+     AND the hidden .lines-swiper copies). Scanning every .slot counted each
+     assigned player twice -> false "Duplicitní hráč". These helpers collapse the
+     DOM to ONE effective assignment per logical slot name before checking.
+     ============================================================================ */
+
+  // Given raw slot descriptors [{name, group, playerId, playerName, inSwiper}],
+  // return ONE per logical slot name: skip the hidden .lines-swiper duplicates,
+  // keep only filled slots, and normalize the player id to a string.
+  function effectiveAssignments(descriptors) {
+    var byName = {}, order = [];
+    (descriptors || []).forEach(function (d) {
+      if (!d || !d.name) return;
+      if (d.inSwiper) return;                 // ignore duplicated swiper representation
+      if (Object.prototype.hasOwnProperty.call(byName, d.name)) return;   // one per slot name
+      order.push(d.name);
+      byName[d.name] = d;
+    });
+    return order.map(function (n) { return byName[n]; }).filter(function (d) {
+      return d.playerId !== null && d.playerId !== undefined && String(d.playerId) !== '';
+    }).map(function (d) {
+      return { name: d.name, group: d.group || '5v5', playerId: String(d.playerId), playerName: d.playerName || '?' };
+    });
+  }
+
+  // Duplicate = same player id appearing in >1 slot WITHIN THE SAME group.
+  // (A player may legitimately be in a 5v5 line AND a special-teams 'st' unit —
+  // different groups — and is NOT flagged.)
+  function duplicateIssues(effective) {
+    var byGroup = {}, issues = [];
+    (effective || []).forEach(function (a) {
+      var g = a.group || '5v5', pid = String(a.playerId);
+      (byGroup[g] = byGroup[g] || {});
+      (byGroup[g][pid] = byGroup[g][pid] || []).push(a.playerName || '?');
+    });
+    Object.keys(byGroup).forEach(function (g) {
+      Object.keys(byGroup[g]).forEach(function (pid) {
+        if (byGroup[g][pid].length > 1) issues.push('Duplicitní hráč: ' + byGroup[g][pid][0] + ' je ve více slotech');
+      });
+    });
+    return issues;
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { effectiveAssignments: effectiveAssignments, duplicateIssues: duplicateIssues };
+  }
+  if (typeof document === 'undefined') { return; }   // node require: skip DOM wiring
+
   function ready(fn) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
   ready(function () {
     var form = document.getElementById('linesForm');
@@ -48,31 +100,32 @@
     var panel = $('#lineup-validation');
     function grp(slot) { return slot.getAttribute('data-group') || '5v5'; }
     function fillOf(slot) { return slot.querySelector('.fill'); }
+    // Raw descriptors for EVERY .slot in the DOM (including hidden swiper copies);
+    // effectiveAssignments() collapses them to one per logical slot name.
+    function slotDescriptors() {
+      return $$('.slot').map(function (s) {
+        var f = fillOf(s), span = f ? f.querySelector('span') : null;
+        return {
+          name: s.getAttribute('data-slot'),
+          group: grp(s),
+          inSwiper: !!(s.closest && s.closest('.lines-swiper')),
+          playerId: f ? f.getAttribute('data-id') : null,
+          playerName: span ? span.textContent : '?'
+        };
+      });
+    }
     function validate() {
       if (!panel) return;
-      var issues = [];
-      // duplicate same player within the same group (line+PP overlap is allowed)
-      var byGroup = {};
-      $$('.slot').forEach(function (s) {
-        var f = fillOf(s); if (!f) return;
-        var g = grp(s), id = f.getAttribute('data-id');
-        (byGroup[g] = byGroup[g] || {});
-        (byGroup[g][id] = byGroup[g][id] || []).push(f.querySelector('span') ? f.querySelector('span').textContent : '?');
-      });
-      Object.keys(byGroup).forEach(function (g) {
-        Object.keys(byGroup[g]).forEach(function (id) {
-          if (byGroup[g][id].length > 1) issues.push('Duplicitní hráč: ' + byGroup[g][id][0] + ' je ve více slotech');
-        });
-      });
-      // incomplete 5v5 lines
+      // Duplicate check runs on the single EFFECTIVE lineup state (root-cause fix).
+      var issues = duplicateIssues(effectiveAssignments(slotDescriptors()));
+      // Completeness checks use $('.slot[data-slot="X"]') = the FIRST (authoritative
+      // #formations/desktop/subs) copy, so they are unaffected by the duplicate DOM.
       for (var ln = 1; ln <= 4; ln++) {
         var names = ['L' + ln + 'LW', 'L' + ln + 'C', 'L' + ln + 'RW', 'D' + ln + 'LD', 'D' + ln + 'RD'];
         var filled = names.filter(function (n) { var s = $('.slot[data-slot="' + n + '"]'); return s && fillOf(s); }).length;
         if (filled > 0 && filled < 5) issues.push(ln + '. lajna je neúplná (' + filled + '/5)');
       }
-      // goalie
       var g1 = $('.slot[data-slot="G1"]'); if (g1 && !fillOf(g1)) issues.push('Chybí první brankář (G1)');
-      // incomplete special-teams units
       $$('.st-unit').forEach(function (u) {
         var slots = $$('.slot', u), filled = slots.filter(fillOf).length;
         if (filled > 0 && filled < slots.length) {
@@ -100,8 +153,10 @@
     // ---------- fill substitutes from remaining players ----------
     var btnFill = $('#btnFillSubs');
     if (btnFill) btnFill.addEventListener('click', function () {
+      // "used" counts the effective 5v5 state (ignore hidden swiper copies so a
+      // player already on a line is not offered again as a substitute).
       var used = {};
-      $$('.slot').forEach(function (s) { if ((s.getAttribute('data-group') || '5v5') === '5v5') { var f = fillOf(s); if (f) used[f.getAttribute('data-id')] = true; } });
+      effectiveAssignments(slotDescriptors()).forEach(function (a) { if (a.group === '5v5') used[a.playerId] = true; });
       var remaining = {};
       $$('.pl-item').forEach(function (it) { var id = it.getAttribute('data-id'); if (!used[id]) { var p = it.getAttribute('data-pos'); (remaining[p] = remaining[p] || []).push(it); } });
       ['SUBF1', 'SUBF2', 'SUBF3', 'SUBD1', 'SUBD2', 'SUBG1'].forEach(function (sn) {

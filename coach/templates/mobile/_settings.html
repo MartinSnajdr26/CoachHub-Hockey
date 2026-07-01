@@ -1,0 +1,296 @@
+{# ============================================================================
+   MOBILE-ONLY Settings / Nastavení (Phase 8). Renders ALONGSIDE the untouched
+   desktop settings cards; shown only <=768px. A native settings INDEX whose rows
+   open focused bottom-sheet panels. Reuses the SAME route (/settings), actions
+   (brand / tymuj_refresh / league_save / league_test / league_refresh /
+   league_confirm / delete_team) and field names. No new data model. .stm-*.
+
+   NOTE: the `brand` action clears tymuj_ics_url when the field is absent, so the
+   Barvy panel carries the current ICS as a hidden field to preserve it; the Týmuj
+   panel omits colours/logo (those are guarded server-side and never wiped).
+   The whole /settings route is coach-only, so all rows here are coach-level.
+   ============================================================================ #}
+<div class="stm-root" style="display:none">
+  <header class="stm-head">
+    <div class="stm-title">Nastavení týmu</div>
+    <div class="stm-sub">Správa vzhledu, přístupů a integrací.</div>
+  </header>
+
+  <div class="stm-group-label">Tým</div>
+  <div class="stm-group">
+    <button type="button" class="stm-row" data-stm-open="stmBrand">
+      <span class="stm-ic">🎨</span>
+      <span class="stm-row-main"><span class="stm-row-title">Barvy a logo</span>
+        <span class="stm-row-sub">Vzhled týmu a klubové logo</span></span>
+      <span class="stm-swatches" aria-hidden="true">
+        <span class="stm-sw" style="background: {{ brand.primary or '#d4c76f' }}"></span>
+        <span class="stm-sw" style="background: {{ brand.secondary or '#000000' }}"></span>
+      </span>
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </button>
+  </div>
+
+  <div class="stm-group-label">Integrace</div>
+  <div class="stm-group">
+    <button type="button" class="stm-row" data-stm-open="stmTymuj">
+      <span class="stm-ic">🗓️</span>
+      <span class="stm-row-main"><span class="stm-row-title">Týmuj kalendář (ICS)</span>
+        <span class="stm-row-sub">Import událostí z tymuj.cz</span></span>
+      {% if team and team.tymuj_ics_url %}<span class="stm-pill stm-pill--ok">Připojeno</span>{% else %}<span class="stm-pill stm-pill--off">Nenastaveno</span>{% endif %}
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </button>
+    <button type="button" class="stm-row" data-stm-open="stmLeague">
+      <span class="stm-ic">🏆</span>
+      <span class="stm-row-main"><span class="stm-row-title">Liga / výsledky</span>
+        <span class="stm-row-sub">{% if league_cfg and league_cfg.highlight_team %}{{ league_cfg.highlight_team }}{% else %}Tabulka a výsledky soutěže{% endif %}</span></span>
+      {% if league_cfg and league_cfg.enabled %}<span class="stm-pill stm-pill--ok">Aktivní</span>{% else %}<span class="stm-pill stm-pill--off">Vypnuto</span>{% endif %}
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </button>
+  </div>
+
+  <div class="stm-group-label">Správa</div>
+  <div class="stm-group">
+    <a class="stm-row" href="{{ url_for('audit_log') }}">
+      <span class="stm-ic">📋</span>
+      <span class="stm-row-main"><span class="stm-row-title">Audit log</span>
+        <span class="stm-row-sub">Historie akcí a změn</span></span>
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </a>
+    <a class="stm-row" href="{{ url_for('attendance.import_attendance') }}">
+      <span class="stm-ic">⬇️</span>
+      <span class="stm-row-main"><span class="stm-row-title">Import docházky / hráčů</span>
+        <span class="stm-row-sub">CSV / Excel · migrace z Týmuj</span></span>
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </a>
+    {% if owner_admin_authenticated %}
+    <a class="stm-row" href="{{ url_for('owner.dashboard') }}">
+      <span class="stm-ic">⚙️</span>
+      <span class="stm-row-main"><span class="stm-row-title">Owner / administrace</span>
+        <span class="stm-row-sub">Správa platformy</span></span>
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="stm-group-label">Nápověda</div>
+  <div class="stm-group">
+    <button type="button" class="stm-row" data-stm-open="stmKeys">
+      <span class="stm-ic">🔐</span>
+      <span class="stm-row-main"><span class="stm-row-title">Přihlašovací klíče</span>
+        <span class="stm-row-sub">Trenérský a hráčský klíč</span></span>
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </button>
+  </div>
+
+  <div class="stm-group-label stm-group-label--danger">Nebezpečná zóna</div>
+  <div class="stm-group">
+    <button type="button" class="stm-row stm-row--danger" data-stm-open="stmDelete">
+      <span class="stm-ic">🗑️</span>
+      <span class="stm-row-main"><span class="stm-row-title">Smazat tým</span>
+        <span class="stm-row-sub">Trvale odstranit tým a data</span></span>
+      <span class="stm-chev" aria-hidden="true">›</span>
+    </button>
+  </div>
+</div>
+
+{# ================= PANELS (bottom sheets) ================= #}
+
+{# --- Barvy a logo --- #}
+<div class="stm-sheet" id="stmBrand" style="display:none" role="dialog" aria-modal="true" aria-label="Barvy a logo">
+  <div class="stm-sheet-scrim" data-stm-close></div>
+  <div class="stm-sheet-panel">
+    <div class="stm-sheet-head"><div class="stm-sheet-grip"></div>
+      <div class="stm-sheet-titlebar"><button type="button" class="stm-sheet-x" data-stm-close>Zavřít</button><h3>Barvy a logo</h3><span></span></div>
+    </div>
+    <form method="POST" enctype="multipart/form-data" class="stm-sheet-body" id="stmBrandForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="brand">
+      {# preserve current ICS so the brand action does not wipe it #}
+      <input type="hidden" name="tymuj_ics_url" value="{{ team.tymuj_ics_url or '' }}">
+
+      <div class="stm-logo-prev">
+        {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="Logo týmu">{% else %}<span class="stm-logo-empty">Zatím žádné logo</span>{% endif %}
+      </div>
+      <label class="stm-fld">Logo týmu (PNG/JPG)
+        <input type="file" name="team_logo" accept="image/*">
+        <small>Nahraj nebo nahraď klubové logo.</small>
+      </label>
+
+      <div class="stm-colors">
+        <label class="stm-col">Primární<input id="stmPrim" type="color" name="primary_color" value="{{ brand.primary or '#d4c76f' }}"></label>
+        <button type="button" class="stm-swap" id="stmSwap" aria-label="Prohodit barvy">↔</button>
+        <label class="stm-col">Sekundární<input id="stmSec" type="color" name="secondary_color" value="{{ brand.secondary or '#000000' }}"></label>
+      </div>
+      <small class="stm-help">Barvy se použijí v celé aplikaci (záhlaví, tlačítka, zvýraznění).</small>
+
+      <div class="stm-sheet-foot">
+        <button type="button" class="stm-btn-ghost" data-stm-close>Zrušit</button>
+        <button type="submit" class="stm-btn-primary">💾 Uložit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# --- Týmuj --- #}
+<div class="stm-sheet" id="stmTymuj" style="display:none" role="dialog" aria-modal="true" aria-label="Týmuj kalendář">
+  <div class="stm-sheet-scrim" data-stm-close></div>
+  <div class="stm-sheet-panel">
+    <div class="stm-sheet-head"><div class="stm-sheet-grip"></div>
+      <div class="stm-sheet-titlebar"><button type="button" class="stm-sheet-x" data-stm-close>Zavřít</button><h3>Týmuj kalendář</h3><span></span></div>
+    </div>
+    <div class="stm-sheet-body">
+      <div class="stm-status-line">
+        {% if team and team.tymuj_ics_url %}<span class="stm-pill stm-pill--ok">Připojeno</span>{% else %}<span class="stm-pill stm-pill--off">Nenastaveno</span>{% endif %}
+        {% if tymuj_status and tymuj_status.last_error %}<span class="stm-pill stm-pill--err">Chyba</span>{% endif %}
+      </div>
+      {% if team and team.tymuj_ics_url %}
+      <p class="stm-muted">Poslední načtení: {{ tymuj_status.updated_at or '—' }} · Události: {{ tymuj_status.events_count or 0 }} · Účastníci: {{ tymuj_status.participants_count or 0 }}</p>
+      <form method="POST" class="stm-inline-action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="tymuj_refresh">
+        <button type="submit" class="stm-btn-ghost stm-btn-block">🔄 Obnovit Týmuj data</button>
+      </form>
+      {% endif %}
+
+      <form method="POST" id="stmTymujForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="brand">
+        <label class="stm-fld">ICS URL z tymuj.cz
+          <input type="url" name="tymuj_ics_url" value="{{ team.tymuj_ics_url or '' }}" placeholder="https://.../calendar/xxxxx.ics">
+          <small>Vlož URL exportu .ics z tymuj.cz. Události se načtou do kalendáře. Ponech prázdné pro odpojení.</small>
+        </label>
+        <div class="stm-sheet-foot">
+          <button type="button" class="stm-btn-ghost" data-stm-close>Zrušit</button>
+          <button type="submit" class="stm-btn-primary">💾 Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# --- Liga / výsledky --- #}
+<div class="stm-sheet" id="stmLeague" style="display:none" role="dialog" aria-modal="true" aria-label="Liga a výsledky">
+  <div class="stm-sheet-scrim" data-stm-close></div>
+  <div class="stm-sheet-panel">
+    <div class="stm-sheet-head"><div class="stm-sheet-grip"></div>
+      <div class="stm-sheet-titlebar"><button type="button" class="stm-sheet-x" data-stm-close>Zavřít</button><h3>Liga / výsledky</h3><span></span></div>
+    </div>
+    <div class="stm-sheet-body">
+      <form method="POST" id="stmLeagueForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="league_save">
+        <label class="stm-toggle">
+          <span>Zapnout ligovou integraci</span>
+          <input type="checkbox" name="league_enabled" {% if league_cfg and league_cfg.enabled %}checked{% endif %}>
+          <span class="stm-toggle-track" aria-hidden="true"></span>
+        </label>
+        <label class="stm-fld">URL soutěže
+          <input type="url" name="competition_url" value="{{ league_cfg.source_url if league_cfg and league_cfg.source_url else '' }}" placeholder="https://vysledky.com/...">
+          <small>Veřejná data z externího webu (např. vysledky.com).</small>
+        </label>
+        <label class="stm-fld">Název našeho týmu
+          <input type="text" name="highlight_team" value="{{ league_cfg.highlight_team if league_cfg and league_cfg.highlight_team else (brand.team_name or '') }}" placeholder="HC Smíchov">
+          <small>Pro zvýraznění v tabulce.</small>
+        </label>
+        <div class="stm-sheet-foot">
+          <button type="button" class="stm-btn-ghost" data-stm-close>Zrušit</button>
+          <button type="submit" class="stm-btn-primary">💾 Uložit</button>
+        </div>
+      </form>
+
+      {% if league_cfg and league_cfg.source_url %}
+      <div class="stm-subsection">
+        <div class="stm-status-line">
+          <span class="stm-muted">Aktualizováno: {% if league_cfg.last_updated %}{{ league_cfg.last_updated | prague('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</span>
+          {% if league_cfg.last_error %}<span class="stm-pill stm-pill--err">Chyba</span>{% endif %}
+        </div>
+        {% if league and league.info and league.info.competition_name %}
+        <p class="stm-muted">{{ league.info.competition_name }}{% if league.info.season %} · {{ league.info.season }}{% endif %} · {{ league.standings|length }} týmů · {{ league.results|length }} výsledků</p>
+        {% endif %}
+        <div class="stm-action-row">
+          <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_test"><button type="submit" class="stm-btn-ghost">🔌 Test</button></form>
+          <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_refresh"><button type="submit" class="stm-btn-ghost">🔄 Obnovit</button></form>
+        </div>
+        {% if league and league.needs_confirm and league.suggestions %}
+        <div class="stm-confirm-box">
+          Tým „{{ league_cfg.highlight_team }}" nebyl nalezen přesně. Vyber správný:
+          <div class="stm-action-row">
+            {% for s in league.suggestions %}
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="league_confirm"><input type="hidden" name="team_name" value="{{ s }}"><button type="submit" class="stm-btn-ghost">{{ s }}</button></form>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# --- Klíče (info) --- #}
+<div class="stm-sheet" id="stmKeys" style="display:none" role="dialog" aria-modal="true" aria-label="Přihlašovací klíče">
+  <div class="stm-sheet-scrim" data-stm-close></div>
+  <div class="stm-sheet-panel">
+    <div class="stm-sheet-head"><div class="stm-sheet-grip"></div>
+      <div class="stm-sheet-titlebar"><button type="button" class="stm-sheet-x" data-stm-close>Zavřít</button><h3>Přihlašovací klíče</h3><span></span></div>
+    </div>
+    <div class="stm-sheet-body">
+      <p class="stm-muted">Přihlášení do týmu probíhá pomocí klíčů pro role <b>Trenér</b> a <b>Hráč</b>.</p>
+      <ul class="stm-list">
+        <li>Nejprve zkus získat klíč od ostatních členů týmu.</li>
+        <li>Pokud klíč nikdo nezná, kontaktuj <a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a>.</li>
+        <li>Správce může bezpečně vygenerovat nový klíč (rotace) — starý ihned přestane fungovat.</li>
+      </ul>
+      <p class="stm-muted">Nový klíč se zobrazí jen jednou. Ulož si ho na bezpečné místo a nesdílej veřejně.</p>
+    </div>
+  </div>
+</div>
+
+{# --- Smazat tým (dangerous, type-to-confirm) --- #}
+<div class="stm-sheet" id="stmDelete" style="display:none" role="dialog" aria-modal="true" aria-label="Smazat tým">
+  <div class="stm-sheet-scrim" data-stm-close></div>
+  <div class="stm-sheet-panel">
+    <div class="stm-sheet-head"><div class="stm-sheet-grip"></div>
+      <div class="stm-sheet-titlebar"><button type="button" class="stm-sheet-x" data-stm-close>Zavřít</button><h3>Smazat tým</h3><span></span></div>
+    </div>
+    <form method="POST" id="stmDeleteForm" class="stm-sheet-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="delete_team">
+      <div class="stm-danger-note">Tato akce <b>trvale odstraní</b> celý tým včetně hráčů, soupisek, lajn, cvičení a exportů. <b>Nelze vrátit zpět.</b></div>
+      <label class="stm-fld">Pro potvrzení napiš přesný název týmu: <code>{{ team.name if team else '' }}</code>
+        <input type="text" id="stmDeleteInput" name="confirm_team_name" data-team-name="{{ team.name if team else '' }}" autocomplete="off" spellcheck="false" placeholder="{{ team.name if team else 'Název týmu' }}">
+      </label>
+      <div class="stm-sheet-foot">
+        <button type="button" class="stm-btn-ghost" data-stm-close>Zrušit</button>
+        <button type="submit" class="stm-btn-danger" id="stmDeleteBtn" disabled>🗑 Trvale smazat</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var root = document.querySelector('.stm-root'); if (!root) return;
+
+  /* generic panel open/close */
+  function open(id) { var s = document.getElementById(id); if (!s) return; s.style.display = 'block'; requestAnimationFrame(function () { s.classList.add('open'); }); document.body.style.overflow = 'hidden'; }
+  function closeAll() { document.querySelectorAll('.stm-sheet.open').forEach(function (s) { s.classList.remove('open'); setTimeout(function () { s.style.display = 'none'; }, 240); }); document.body.style.overflow = ''; }
+  root.querySelectorAll('[data-stm-open]').forEach(function (r) { r.addEventListener('click', function () { open(r.getAttribute('data-stm-open')); }); });
+  document.querySelectorAll('.stm-sheet').forEach(function (s) { s.addEventListener('click', function (e) { if (e.target.closest('[data-stm-close]')) closeAll(); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+
+  /* swap colours */
+  var swap = document.getElementById('stmSwap');
+  if (swap) swap.addEventListener('click', function () { var a = document.getElementById('stmPrim'), b = document.getElementById('stmSec'); var t = a.value; a.value = b.value; b.value = t; });
+
+  /* delete confirm enable */
+  var di = document.getElementById('stmDeleteInput'), db = document.getElementById('stmDeleteBtn');
+  if (di && db) {
+    var target = (di.getAttribute('data-team-name') || '').trim().toLowerCase();
+    function chk() { db.disabled = !(target && di.value.trim().toLowerCase() === target); }
+    di.addEventListener('input', chk);
+    document.getElementById('stmDeleteForm').addEventListener('submit', function (e) { if (db.disabled) e.preventDefault(); });
+    chk();
+  }
+})();
+</script>

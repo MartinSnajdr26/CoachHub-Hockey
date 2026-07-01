@@ -1,0 +1,215 @@
+{# ============================================================================
+   MOBILE-ONLY Team Attendance (Phase 3). Renders ALONGSIDE the untouched
+   desktop matrix (.am-wrap); hidden on desktop via mobile.css. Reuses the SAME
+   data (the embedded #am-data view JSON) and the SAME cell endpoint
+   (attendance.attendance_cell). Default = event-first "Akce" view; the desktop
+   matrix is reused as the optional "Tabulka" advanced view. Namespaced .tam-*.
+   ============================================================================ #}
+<div class="tam-root" style="display:none"
+     data-cell-url="{{ url_for('attendance.attendance_cell') }}"
+     data-csrf="{{ csrf_token() }}"
+     data-coach="{{ '1' if is_coach else '0' }}">
+
+  <header class="tam-bar">
+    <div class="tam-bar-title">Docházka týmu</div>
+  </header>
+
+  {# range filter (navigates; mirrors desktop ?range=) #}
+  <div class="tam-range">
+    {% for key,label in [('future','Budoucí'),('next30','30 dní'),('past','Minulé'),('all','Vše')] %}
+      <a class="tam-chip {{ 'is-active' if filters.range==key }}" href="{{ url_for('dochazka', range=key) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  {# view switch #}
+  <div class="tam-seg" role="tablist" aria-label="Zobrazení">
+    <button type="button" class="tam-seg-btn is-active" data-tam-view="akce" role="tab" aria-selected="true">Akce</button>
+    <button type="button" class="tam-seg-btn" data-tam-view="hraci" role="tab" aria-selected="false">Hráči</button>
+    <button type="button" class="tam-seg-btn" data-tam-view="tabulka" role="tab" aria-selected="false">Tabulka</button>
+  </div>
+
+  {# -------- VIEW: AKCE (default) -------- #}
+  <section class="tam-view" data-view="akce">
+    {% if view.events %}
+    <div class="tam-events" id="tam-events">
+      {% for e in view.events %}
+      <button type="button" class="tam-evcard tam-k-{{ e.kind }}" data-key="{{ e.key }}" data-upcoming="{{ '1' if e.is_upcoming else '0' }}">
+        <span class="tam-evcard-top"><span class="tam-evbadge">{{ '🥅' if e.kind=='match' else '🧊' }}</span><span class="tam-evcard-date">{{ e.day_label }}{% if e.time %} · {{ e.time }}{% endif %}</span></span>
+        <span class="tam-evcard-title">{{ e.title }}</span>
+        <span class="tam-evcard-resp"><i class="tam-evdot" style="--w:{{ e.summary.pct }}%"></i>{{ e.summary.going }}/{{ e.summary.total }}</span>
+      </button>
+      {% endfor %}
+    </div>
+    <div id="tam-akce-body"></div>
+    {% else %}
+    <div class="tam-empty"><div class="tam-empty-emoji">📅</div><h2>Žádné události</h2><p>Pro zvolené období tu nic není. Zkus jiný filtr nahoře.</p></div>
+    {% endif %}
+  </section>
+
+  {# -------- VIEW: HRÁČI -------- #}
+  <section class="tam-view" data-view="hraci" hidden>
+    <input type="search" class="tam-search" id="tam-search" placeholder="Hledat hráče…" autocomplete="off">
+    <div class="tam-players" id="tam-players">
+      {% for p in view.players %}
+      <article class="tam-prow" data-player-id="{{ p.id }}" data-name="{{ p.name|lower }}" data-open-player="{{ p.id }}" role="button" tabindex="0">
+        <span class="tam-av tam-pos-{{ p.position }}">{{ p.initials }}</span>
+        <div class="tam-prow-main">
+          <div class="tam-prow-name">{{ p.name }}</div>
+          <div class="tam-prow-meta"><span class="tam-poschip">{{ p.position }}</span> <span class="tam-prow-pct">{{ p.summary.pct }}% docházka</span></div>
+        </div>
+        <span class="tam-prow-ev" data-p-evstatus="{{ p.id }}"></span>
+        <span class="tam-prow-caret" aria-hidden="true">›</span>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# -------- VIEW: TABULKA (advanced — reuses desktop matrix) -------- #}
+  <section class="tam-view" data-view="tabulka" hidden>
+    <div class="tam-tab-note">Pokročilá tabulka · posuň ji do stran ⟷</div>
+  </section>
+</div>
+
+{# ---- Player detail bottom sheet (filled by JS) ---- #}
+<div class="tam-sheet" id="tamPlayerSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Detail hráče">
+  <div class="tam-sheet-scrim" data-tam-close></div>
+  <div class="tam-sheet-panel">
+    <div class="tam-sheet-grip"></div>
+    <button type="button" class="tam-sheet-x" data-tam-close aria-label="Zavřít">✕</button>
+    <div id="tamPlayerBody"></div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function tamInit() {
+  var root = document.querySelector('.tam-root'); if (!root) return;
+  var dataEl = document.getElementById('am-data'); if (!dataEl) return;   // #am-data is rendered later in the page
+  var DATA; try { DATA = JSON.parse(dataEl.textContent || '{}'); } catch (e) { return; }
+  var CELL_URL = root.getAttribute('data-cell-url');
+  var CSRF = root.getAttribute('data-csrf');
+  var COACH = root.getAttribute('data-coach') === '1';
+  var events = DATA.events || [], players = DATA.players || [], team = DATA.team || {};
+  var byKey = {}; events.forEach(function (e) { byKey[e.key] = e; });
+  var byPid = {}; players.forEach(function (p) { byPid[p.id] = p; });
+
+  // mutable status model from status_map
+  var model = {};
+  players.forEach(function (p) { model[p.id] = {}; });
+  var sm = DATA.status_map || {};
+  Object.keys(sm).forEach(function (pid) { Object.keys(sm[pid]).forEach(function (k) { (model[pid] = model[pid] || {})[k] = sm[pid][k]; }); });
+  function statusOf(pid, key) { return (model[pid] && model[pid][key]) || 'unknown'; }
+
+  var ST = { going: 'Jde', maybe: 'Možná', not_going: 'Nejde', unknown: 'Bez odp.' };
+  var SEG = [['going', 'Jde'], ['maybe', 'Možná'], ['not_going', 'Nejde'], ['unknown', '—']];
+  var GROUPS = [['going', 'Jde'], ['maybe', 'Možná'], ['not_going', 'Nejde'], ['unknown', 'Bez odpovědi']];
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  // selected event = first upcoming else last
+  var selKey = null;
+  for (var i = 0; i < events.length; i++) { if (events[i].is_upcoming) { selKey = events[i].key; break; } }
+  if (!selKey && events.length) selKey = events[events.length - 1].key;
+
+  /* ---------- AKCE view ---------- */
+  function counts(key) { var c = { going: 0, maybe: 0, not_going: 0, unknown: 0 }; players.forEach(function (p) { c[statusOf(p.id, key)]++; }); return c; }
+  function renderAkce() {
+    var body = document.getElementById('tam-akce-body'); if (!body || !selKey) return;
+    var ev = byKey[selKey]; if (!ev) { body.innerHTML = ''; return; }
+    var c = counts(selKey), total = players.length, pct = total ? Math.round(c.going * 100 / total) : 0;
+    var h = '';
+    h += '<article class="tam-hero tam-k-' + ev.kind + '">';
+    h += '<div class="tam-hero-row"><span class="tam-badge tam-badge--' + ev.kind + '">' + (ev.kind === 'match' ? 'Zápas' : (ev.kind === 'camp' ? 'Soustředění' : 'Trénink')) + '</span><span class="tam-hero-when">' + esc(ev.day_full) + (ev.time ? ' · ' + esc(ev.time) : '') + '</span></div>';
+    h += '<h2 class="tam-hero-title">' + esc(ev.title) + '</h2>';
+    h += '<div class="tam-hero-pct"><b>' + pct + '%</b> potvrzená účast</div>';
+    h += '</article>';
+    h += '<div class="tam-kpis">'
+       + kpi('going', 'Jde', c.going) + kpi('maybe', 'Možná', c.maybe)
+       + kpi('not_going', 'Nejde', c.not_going) + kpi('unknown', 'Bez odp.', c.unknown) + '</div>';
+    GROUPS.forEach(function (g) {
+      var list = players.filter(function (p) { return statusOf(p.id, selKey) === g[0]; });
+      if (!list.length) return;
+      h += '<div class="tam-grouplabel">' + g[1] + ' · ' + list.length + '</div><div class="tam-glist">';
+      list.forEach(function (p) { h += playerRow(p, statusOf(p.id, selKey)); });
+      h += '</div>';
+    });
+    body.innerHTML = h;
+  }
+  function kpi(k, label, v) { return '<div class="tam-kpi tam-kpi--' + k + '"><span class="tam-kpi-v">' + v + '</span><span class="tam-kpi-l">' + label + '</span></div>'; }
+  function playerRow(p, st) {
+    var seg = '<div class="tam-seg4" data-pid="' + p.id + '">';
+    SEG.forEach(function (s) { seg += '<button type="button" class="tam-seg4-btn tam-s-' + s[0] + (st === s[0] ? ' is-active' : '') + '" data-status="' + s[0] + '"' + (COACH ? '' : ' disabled') + '>' + s[1] + '</button>'; });
+    seg += '</div>';
+    return '<article class="tam-prow tam-state-' + st + '" data-player-id="' + p.id + '">'
+      + '<div class="tam-prow-head"><span class="tam-av tam-pos-' + p.position + '" data-open-player="' + p.id + '">' + esc(p.initials) + '</span>'
+      + '<button type="button" class="tam-prow-namebtn" data-open-player="' + p.id + '"><span class="tam-prow-name">' + esc(p.name) + '</span><span class="tam-poschip">' + esc(p.position) + '</span></button></div>'
+      + seg + '</article>';
+  }
+
+  /* ---------- event selector ---------- */
+  function renderEventSel() {
+    document.querySelectorAll('.tam-evcard').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-key') === selKey); });
+    var act = document.querySelector('.tam-evcard.is-active'); if (act && act.scrollIntoView) { try { act.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) {} }
+  }
+  document.addEventListener('click', function (ev) {
+    var card = ev.target.closest('.tam-evcard'); if (!card) return;
+    selKey = card.getAttribute('data-key'); renderEventSel(); renderAkce(); renderHraciBadges();
+  });
+
+  /* ---------- HRÁČI badges (status for selected event) ---------- */
+  function renderHraciBadges() {
+    players.forEach(function (p) {
+      var el = document.querySelector('[data-p-evstatus="' + p.id + '"]'); if (!el) return;
+      var st = statusOf(p.id, selKey); el.className = 'tam-prow-ev tam-s-' + st; el.textContent = ST[st];
+    });
+  }
+  var search = document.getElementById('tam-search');
+  if (search) search.addEventListener('input', function () { var q = search.value.trim().toLowerCase(); document.querySelectorAll('#tam-players .tam-prow').forEach(function (r) { r.style.display = (!q || (r.getAttribute('data-name') || '').indexOf(q) >= 0) ? '' : 'none'; }); });
+
+  /* ---------- status change (reuses attendance_cell) ---------- */
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.tam-seg4-btn'); if (!btn || btn.disabled) return;
+    var grp = btn.closest('.tam-seg4'); var pid = parseInt(grp.getAttribute('data-pid'), 10); var status = btn.getAttribute('data-status');
+    if (statusOf(pid, selKey) === status) return;
+    var prev = statusOf(pid, selKey);
+    model[pid] = model[pid] || {}; model[pid][selKey] = status;
+    btn.classList.add('tam-pop'); setTimeout(function () { btn.classList.remove('tam-pop'); }, 220);
+    renderAkce(); renderHraciBadges(); renderEventCounts();
+    fetch(CELL_URL, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify({ player_id: pid, event_key: selKey, status: status }) })
+      .then(function (r) { if (!r.ok) throw new Error('bad'); })
+      .catch(function () { model[pid][selKey] = prev; renderAkce(); renderHraciBadges(); renderEventCounts(); alert('Uložení se nezdařilo, zkus to znovu.'); });
+  });
+  function renderEventCounts() {
+    events.forEach(function (e) { var c = counts(e.key); var el = document.querySelector('.tam-evcard[data-key="' + e.key + '"] .tam-evcard-resp'); if (el) { var pct = players.length ? Math.round(c.going * 100 / players.length) : 0; el.innerHTML = '<i class="tam-evdot" style="--w:' + pct + '%"></i>' + c.going + '/' + players.length; } });
+  }
+
+  /* ---------- view switch ---------- */
+  root.querySelectorAll('[data-tam-view]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = b.getAttribute('data-tam-view');
+      root.querySelectorAll('[data-tam-view]').forEach(function (x) { var on = x === b; x.classList.toggle('is-active', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      root.querySelectorAll('.tam-view').forEach(function (s) { s.hidden = s.getAttribute('data-view') !== v; });
+      document.body.classList.toggle('tam-show-matrix', v === 'tabulka');
+    });
+  });
+
+  /* ---------- player detail sheet ---------- */
+  var sheet = document.getElementById('tamPlayerSheet'); var sheetBody = document.getElementById('tamPlayerBody');
+  function openPlayer(pid) {
+    var p = byPid[pid]; if (!p || !sheet) return;
+    var rec = (p.recent || []).map(function (r) { return '<i class="tam-sp tam-s-' + r.status + '" title="' + esc(r.day) + '"></i>'; }).join('');
+    var h = '<div class="tam-pd-hero"><span class="tam-av tam-av--lg tam-pos-' + p.position + '">' + esc(p.initials) + '</span><div><div class="tam-pd-name">' + esc(p.name) + '</div><div class="tam-pd-sub">' + esc(p.position) + ' · ' + p.summary.pct + '% docházka</div></div></div>';
+    h += '<div class="tam-kpis tam-kpis--3"><div class="tam-kpi"><span class="tam-kpi-v">' + p.summary.pct + '%</span><span class="tam-kpi-l">Celkem</span></div>'
+       + '<div class="tam-kpi"><span class="tam-kpi-v">' + (p.trainings.pct) + '%</span><span class="tam-kpi-l">Tréninky</span></div>'
+       + '<div class="tam-kpi"><span class="tam-kpi-v">' + (p.games.pct) + '%</span><span class="tam-kpi-l">Zápasy</span></div></div>';
+    if (rec) h += '<div class="tam-grouplabel">Poslední akce</div><div class="tam-spark">' + rec + '</div>';
+    h += '<div class="tam-grouplabel">Série</div><div class="tam-pd-streak">🔥 ' + (p.streak || 0) + ' v řadě · nejdelší ' + (p.longest_streak || 0) + '</div>';
+    sheetBody.innerHTML = h; sheet.style.display = 'block'; requestAnimationFrame(function () { sheet.classList.add('open'); }); document.body.style.overflow = 'hidden';
+  }
+  function closePlayer() { if (!sheet) return; sheet.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function () { sheet.style.display = 'none'; }, 220); }
+  document.addEventListener('click', function (ev) { var t = ev.target.closest('[data-open-player]'); if (t) { openPlayer(parseInt(t.getAttribute('data-open-player'), 10)); return; } if (ev.target.closest('[data-tam-close]')) closePlayer(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet && sheet.classList.contains('open')) closePlayer(); });
+
+  /* ---------- init ---------- */
+  renderEventSel(); renderAkce(); renderHraciBadges();
+}
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', tamInit); } else { tamInit(); }
+</script>

@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Týmové klíče{% endblock %}
 {% block content %}
+{# Mobile-only app bar + reflow (via mobile.css); desktop cards/table reused. #}
+{% include 'mobile/_team_keys.html' %}
 <h1>Klíče týmu – {{ team.name }}</h1>
 
 <div class="cards">

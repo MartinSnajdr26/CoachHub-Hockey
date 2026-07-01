@@ -1,0 +1,204 @@
+{# ============================================================================
+   MOBILE-ONLY Player Attendance (Phase 1 PoC).
+   Renders ALONGSIDE the untouched desktop .pa-wrap; hidden on desktop via
+   mobile.css. Reuses the SAME context (active_player, players, summary, groups,
+   rng) and the SAME backend endpoint (attendance.attendance_set). No desktop
+   markup/CSS touched. Namespaced .pam-* to avoid any collision.
+   ============================================================================ #}
+{% set RSVP = [('going','Jdu','✅'),('maybe','Možná','🤔'),('not_going','Nejdu','❌')] %}
+{% set ST_LABEL = {'going':'Jdu','maybe':'Možná','not_going':'Nejdu','unknown':'Nevyplněno'} %}
+{% set ns = namespace(next=None) %}
+{% if active_player and groups %}
+  {% for g in groups %}{% for e in g.events %}{% if ns.next is none and not e.is_past %}{% set ns.next = e %}{% endif %}{% endfor %}{% endfor %}
+{% endif %}
+
+<div class="pam-root" style="display:none" data-coach="{{ '1' if is_coach else '0' }}">
+
+  <header class="pam-bar">
+    <div class="pam-bar-title">Moje docházka</div>
+    <button type="button" class="pam-who" data-pam-open-player>
+      {% if active_player %}
+        <span class="pam-who-av">{{ active_player.name.split()[0][0] }}{{ active_player.name.split()[-1][0] if active_player.name.split()|length > 1 else '' }}</span>
+        <span class="pam-who-name">{{ active_player.name }}</span>
+      {% else %}
+        <span class="pam-who-av pam-who-av--empty">?</span>
+        <span class="pam-who-name">Vyber hráče</span>
+      {% endif %}
+      <span class="pam-who-caret" aria-hidden="true">▾</span>
+    </button>
+  </header>
+
+  {% if not active_player %}
+    <div class="pam-empty">
+      <div class="pam-empty-emoji">🏒</div>
+      <h2>Vyber svoje jméno</h2>
+      <p>Pak uvidíš nejbližší akci a potvrdíš účast jedním ťuknutím.</p>
+      <button type="button" class="pam-cta" data-pam-open-player>Vybrat hráče</button>
+    </div>
+  {% else %}
+
+    <div class="pam-seg" role="tablist" aria-label="Období">
+      {% for key,label in [('future','Budoucí'),('next30','30 dní'),('past','Minulé'),('all','Vše')] %}
+        <button type="button" class="pam-seg-btn {{ 'is-active' if rng==key }}" data-pam-range="{{ key }}" role="tab" aria-selected="{{ 'true' if rng==key else 'false' }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+
+    {% if ns.next %}
+    <section class="pam-next">
+      <div class="pam-eyebrow">Další akce</div>
+      <article class="pam-hero pam-k-{{ ns.next.kind }} pam-state-{{ ns.next.status }}" data-key="{{ ns.next.key }}">
+        <div class="pam-hero-row">
+          <span class="pam-badge pam-badge--{{ ns.next.kind }}">{{ ns.next.kind_label }}</span>
+          <span class="pam-hero-when">{{ ns.next.day_label }}{% if ns.next.time %} · {{ ns.next.time }}{% endif %}</span>
+        </div>
+        <h2 class="pam-hero-title">{{ ns.next.title }}</h2>
+        {% if ns.next.location %}<div class="pam-hero-loc">📍 {{ ns.next.location }}</div>{% endif %}
+        <div class="pam-q">Jdeš?</div>
+        <div class="pam-rsvp pam-rsvp--lg" data-pam-rsvp data-key="{{ ns.next.key }}">
+          {% for code,label,icon in RSVP %}
+          <button type="button" class="pam-rsvp-btn pam-rsvp-btn--{{ code }} {{ 'is-active' if ns.next.status==code }}" data-status="{{ code }}" aria-pressed="{{ 'true' if ns.next.status==code else 'false' }}">
+            <span class="pam-rsvp-ic" aria-hidden="true">{{ icon }}</span><span class="pam-rsvp-lb">{{ label }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
+    {% endif %}
+
+    <button type="button" class="pam-sumline" data-pam-stats aria-expanded="false">
+      <span class="pam-sum-main"><b data-sum="going">{{ summary.going }}</b>/<span data-sum="upcoming">{{ summary.upcoming }}</span> potvrzeno</span>
+      <span class="pam-sum-dot">·</span>
+      <span class="pam-sum-pct"><b data-sum="pct">{{ summary.pct }}</b>% docházka</span>
+      <span class="pam-sum-caret" aria-hidden="true">▾</span>
+    </button>
+    <div class="pam-stats" hidden>
+      <div class="pam-tile"><span class="pam-tile-v" data-sum="upcoming2">{{ summary.upcoming }}</span><span class="pam-tile-l">Nadcházející</span></div>
+      <div class="pam-tile pam-tile--go"><span class="pam-tile-v" data-sum="going2">{{ summary.going }}</span><span class="pam-tile-l">Potvrzeno</span></div>
+      <div class="pam-tile pam-tile--un"><span class="pam-tile-v" data-sum="unknown2">{{ summary.unknown }}</span><span class="pam-tile-l">Nevyplněno</span></div>
+      <div class="pam-tile"><span class="pam-tile-v" data-sum="pct2">{{ summary.pct }}%</span><span class="pam-tile-l">Docházka</span></div>
+    </div>
+
+    {% if not groups %}
+      <div class="pam-empty pam-empty--sm">
+        <div class="pam-empty-emoji">📅</div>
+        <h2>Žádné akce</h2>
+        <p>Pro vybrané období tu nic není. Zkus jiné období nahoře.</p>
+      </div>
+    {% else %}
+      {% for g in groups %}
+      <div class="pam-group-label">{{ g.label }}</div>
+      <div class="pam-list">
+        {% for e in g.events %}{% if not (ns.next and e.key == ns.next.key) %}
+        <article class="pam-row pam-k-{{ e.kind }} pam-state-{{ e.status }} {{ 'is-past' if e.is_past }}" data-key="{{ e.key }}">
+          <div class="pam-row-head">
+            <span class="pam-badge pam-badge--{{ e.kind }}">{{ e.kind_label }}</span>
+            <span class="pam-row-when">{{ e.day_label }}{% if e.time %} · {{ e.time }}{% endif %}</span>
+            <span class="pam-row-state pam-st-{{ e.status }}" aria-label="{{ ST_LABEL[e.status] }}">{{ ST_LABEL[e.status] }}</span>
+          </div>
+          <div class="pam-row-title">{{ e.title }}</div>
+          {% if e.location %}<div class="pam-row-loc">📍 {{ e.location }}</div>{% endif %}
+          <div class="pam-rsvp" data-pam-rsvp data-key="{{ e.key }}">
+            {% for code,label,icon in RSVP %}
+            <button type="button" class="pam-rsvp-btn pam-rsvp-btn--{{ code }} {{ 'is-active' if e.status==code }}" data-status="{{ code }}" aria-pressed="{{ 'true' if e.status==code else 'false' }}">
+              <span class="pam-rsvp-ic" aria-hidden="true">{{ icon }}</span><span class="pam-rsvp-lb">{{ label }}</span>
+            </button>
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}{% endfor %}
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+
+{# ---- Player picker bottom sheet ---- #}
+<div class="pam-sheet" id="pamPlayerSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Vyber hráče">
+  <div class="pam-sheet-scrim" data-pam-close></div>
+  <div class="pam-sheet-panel">
+    <div class="pam-sheet-grip"></div>
+    <div class="pam-sheet-head"><h3>Vyber hráče</h3><button type="button" class="pam-sheet-x" data-pam-close aria-label="Zavřít">✕</button></div>
+    <input type="search" class="pam-sheet-search" id="pamPlayerSearch" placeholder="Hledat hráče…" autocomplete="off">
+    <div class="pam-sheet-list" id="pamPlayerList">
+      {% for p in players %}
+      <button type="button" class="pam-pick {{ 'is-current' if active_player and active_player.id == p.id }}" data-player-id="{{ p.id }}" data-name="{{ p.name|lower }}">
+        <span class="pam-pick-av">{{ p.name.split()[0][0] }}{{ p.name.split()[-1][0] if p.name.split()|length > 1 else '' }}</span>
+        <span class="pam-pick-name">{{ p.name }}</span>
+        <span class="pam-pick-pos">{{ p.position }}</span>
+        {% if active_player and active_player.id == p.id %}<span class="pam-pick-check" aria-hidden="true">✓</span>{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var root = document.querySelector('.pam-root');
+  if (!root) return;
+  var COACH = root.getAttribute('data-coach') === '1';
+  var SRC = COACH ? 'CoachHub Coach' : 'CoachHub Player';
+  var ST = { going:'Jdu', maybe:'Možná', not_going:'Nejdu', unknown:'Nevyplněno' };
+  var setUrl = "{{ url_for('attendance.attendance_set') }}";
+  var pageUrl = "{{ url_for('attendance.attendance') }}";
+  var CSRF = "{{ csrf_token() }}";
+  var RANGE = "{{ rng }}";
+  var PID = "{{ active_player.id if active_player else '' }}";
+
+  function go(params){ var u=new URL(pageUrl, location.origin); Object.keys(params).forEach(function(k){u.searchParams.set(k,params[k]);}); location.assign(u.toString()); }
+
+  /* ---- range segmented ---- */
+  root.querySelectorAll('[data-pam-range]').forEach(function(b){
+    b.addEventListener('click', function(){ var r=b.getAttribute('data-pam-range'); try{localStorage.setItem('att_range',r);}catch(e){} go({player_id:PID, range:r}); });
+  });
+
+  /* ---- player picker sheet ---- */
+  var sheet = document.getElementById('pamPlayerSheet');
+  function openSheet(){ if(!sheet)return; sheet.style.display='block'; requestAnimationFrame(function(){sheet.classList.add('open');}); document.body.style.overflow='hidden'; var s=document.getElementById('pamPlayerSearch'); if(s){setTimeout(function(){s.focus();},250);} }
+  function closeSheet(){ if(!sheet)return; sheet.classList.remove('open'); document.body.style.overflow=''; setTimeout(function(){sheet.style.display='none';},220); }
+  document.querySelectorAll('[data-pam-open-player]').forEach(function(b){ b.addEventListener('click', openSheet); });
+  if(sheet){ sheet.addEventListener('click', function(e){ if(e.target.closest('[data-pam-close]')) closeSheet(); }); }
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && sheet && sheet.classList.contains('open')) closeSheet(); });
+  var search = document.getElementById('pamPlayerSearch');
+  if(search){ search.addEventListener('input', function(){ var q=search.value.trim().toLowerCase(); document.querySelectorAll('#pamPlayerList .pam-pick').forEach(function(p){ p.style.display = (!q || p.getAttribute('data-name').indexOf(q)>=0)?'':'none'; }); }); }
+  document.querySelectorAll('#pamPlayerList .pam-pick').forEach(function(p){
+    p.addEventListener('click', function(){ var id=p.getAttribute('data-player-id'); try{localStorage.setItem('att_player',id);}catch(e){} go({player_id:id, range:RANGE||'future'}); });
+  });
+
+  /* ---- one-tap RSVP (optimistic, reuses attendance_set) ---- */
+  function recalc(){
+    var going=0, unknown=0, total=0;
+    document.querySelectorAll('.pam-root [data-pam-rsvp]').forEach(function(g){
+      total++; var a=g.querySelector('.pam-rsvp-btn.is-active'); var st=a?a.getAttribute('data-status'):'unknown';
+      if(st==='going')going++; if(!a)unknown++;
+    });
+    var set=function(sel,v){document.querySelectorAll('[data-sum="'+sel+'"]').forEach(function(el){el.textContent=v;});};
+    set('going',going); set('going2',going); set('unknown',unknown); set('unknown2',unknown);
+    set('upcoming',total); set('upcoming2',total);
+    var pct = total?Math.round(going*100/total):0; set('pct',pct); set('pct2',pct+'%');
+  }
+  root.addEventListener('click', function(ev){
+    var btn = ev.target.closest('.pam-rsvp-btn'); if(!btn) return;
+    var grp = btn.closest('[data-pam-rsvp]'); var key = grp.getAttribute('data-key'); var status = btn.getAttribute('data-status');
+    if(btn.classList.contains('is-active')) return;
+    var prev = grp.querySelector('.pam-rsvp-btn.is-active');
+    // optimistic
+    grp.querySelectorAll('.pam-rsvp-btn').forEach(function(b){var on=b===btn;b.classList.toggle('is-active',on);b.setAttribute('aria-pressed',on?'true':'false');});
+    var card = btn.closest('.pam-hero, .pam-row');
+    if(card){ card.className=card.className.replace(/pam-state-\w+/,'pam-state-'+status); var sp=card.querySelector('.pam-row-state'); if(sp){sp.className='pam-row-state pam-st-'+status;sp.textContent=ST[status];} }
+    btn.classList.add('pam-pop'); setTimeout(function(){btn.classList.remove('pam-pop');},220);
+    recalc();
+    var body=new URLSearchParams(); body.append('csrf_token',CSRF); body.append('player_id',PID); body.append('event_key',key); body.append('range',RANGE); body.append('status',status);
+    fetch(setUrl,{method:'POST',credentials:'same-origin',redirect:'manual',body:body})
+      .then(function(r){ if(!(r.ok||r.status===0||r.type==='opaqueredirect')) throw new Error('bad'); })
+      .catch(function(){ // revert on failure
+        grp.querySelectorAll('.pam-rsvp-btn').forEach(function(b){var on=prev&&b===prev;b.classList.toggle('is-active',on);b.setAttribute('aria-pressed',on?'true':'false');});
+        recalc(); alert('Uložení se nezdařilo, zkus to znovu.');
+      });
+  });
+
+  /* ---- stats accordion ---- */
+  var stBtn=root.querySelector('[data-pam-stats]'); var stPanel=root.querySelector('.pam-stats');
+  if(stBtn&&stPanel){ stBtn.addEventListener('click', function(){ var open=!stPanel.hasAttribute('hidden'); if(open){stPanel.setAttribute('hidden','');stBtn.setAttribute('aria-expanded','false');}else{stPanel.removeAttribute('hidden');stBtn.setAttribute('aria-expanded','true');} }); }
+})();
+</script>

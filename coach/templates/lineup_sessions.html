@@ -2,6 +2,8 @@
 {% block title %}Seznam sestav{% endblock %}
 
 {% block content %}
+{# Mobile-only app bar; desktop .cards list reflows via mobile.css. #}
+{% include 'mobile/_lineup_sessions.html' %}
 <h1>Seznam sestav</h1>
 
 <p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -13,7 +15,7 @@
   {% for s in sessions %}
     <div class="card">
       <h2>{{ s.title }}</h2>
-      <p><b>Vytvořeno:</b> {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      <p><b>Vytvořeno:</b> {{ s.created_at | prague('%Y-%m-%d %H:%M') }}</p>
       {% set abs = url_for('download_export', filename=s.filename, _external=True) %}
       <p>
         <a class="btn" href="{{ url_for('download_export', filename=s.filename) }}" download>⬇️ Stáhnout PDF</a>

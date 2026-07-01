@@ -3,6 +3,9 @@
 {% set STATUS = [('paid','Zaplaceno'),('partial','Částečně zaplaceno'),('unpaid','Nezaplaceno')] %}
 {% set STATUS_LABEL = {'paid':'Zaplaceno','partial':'Částečně','unpaid':'Nezaplaceno'} %}
 {% block content %}
+{# Mobile-only native screen (Phase 2). Renders alongside the desktop .pk-wrap;
+   shown only <=768px. Desktop DOM/CSS untouched. #}
+{% include 'mobile/_pokladna.html' %}
 <div class="pk-wrap">
   <div class="pk-head">
     <div>

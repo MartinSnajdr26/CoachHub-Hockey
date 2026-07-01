@@ -1,0 +1,48 @@
+{# ============================================================================
+   MOBILE-ONLY controller/view for the Lines editor (≤768px, /lines only).
+   Renders NO formation slots or lineup inputs — purely an app bar, line tabs, a
+   player-picker bottom-sheet shell, and a sticky save bar. lines.css's mobile
+   block hides the .lines-swiper and shows the #formations grid; that grid is
+   ALSO the authoritative save copy (first in DOM). So this layer controls the
+   #formations cards directly (one at a time via body[data-lnm-tab]) and drives
+   the existing lines.js tap-to-assign on those slots — no swiper, no sync needed.
+   Namespaced .lnm-*. Tabs come from the same range(1,5) the template uses.
+   ============================================================================ #}
+<header class="lnm-bar">
+  <a class="lnm-back" href="{{ url_for('home') }}" aria-label="Zpět">‹</a>
+  <div class="lnm-bar-title">Formace</div>
+  <span class="lnm-bar-spacer" aria-hidden="true"></span>
+</header>
+
+{# Line tabs (5v5 mode only): 1–4 map to swiper slide index 0–3, Brankáři to the
+   goalie slide (index 4), Náhradníci to the existing .subs-card. #}
+<nav class="lnm-tabs" id="lnmTabs" role="tablist" aria-label="Lajny">
+  {% for line in range(1, 5) %}
+  <button type="button" class="lnm-tab {{ 'is-active' if line == 1 }}" role="tab"
+          data-lnm-target="slide" data-lnm-index="{{ line - 1 }}" aria-selected="{{ 'true' if line == 1 else 'false' }}">{{ line }}. lajna</button>
+  {% endfor %}
+  <button type="button" class="lnm-tab" role="tab" data-lnm-target="slide" data-lnm-index="4" aria-selected="false">Brankáři</button>
+  <button type="button" class="lnm-tab" role="tab" data-lnm-target="subs" aria-selected="false">Náhradníci</button>
+</nav>
+
+{# Player-picker bottom sheet (populated at runtime from the existing pool). #}
+<div class="lnm-sheet" id="lnmPicker" style="display:none" role="dialog" aria-modal="true" aria-label="Vybrat hráče">
+  <div class="lnm-sheet-scrim" data-lnm-close></div>
+  <div class="lnm-sheet-panel">
+    <div class="lnm-sheet-grip"></div>
+    <div class="lnm-sheet-head">
+      <div class="lnm-sheet-titles"><h3 id="lnmPickTitle">Vybrat hráče</h3><span class="lnm-sheet-sub" id="lnmPickSub"></span></div>
+      <button type="button" class="lnm-sheet-x" data-lnm-close aria-label="Zavřít">✕</button>
+    </div>
+    <input type="search" class="lnm-pick-search" id="lnmPickSearch" placeholder="Hledat hráče…" autocomplete="off" aria-label="Hledat hráče">
+    <div class="lnm-pick-actions">
+      <button type="button" class="lnm-pick-clear" id="lnmPickClear">✕ Vyprázdnit slot</button>
+    </div>
+    <div class="lnm-pick-list" id="lnmPickList" role="listbox"></div>
+  </div>
+</div>
+
+{# Sticky save bar — triggers the existing #linesForm submit (after sync). #}
+<div class="lnm-savebar" id="lnmSavebar">
+  <button type="button" class="lnm-save" id="lnmSave">💾 Uložit formace</button>
+</div>

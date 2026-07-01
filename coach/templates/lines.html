@@ -5,6 +5,10 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
 <script nonce="{{ csp_nonce }}">try{document.body.classList.add('lines-page');}catch(e){}</script>
+{# Mobile-only (≤768px) controller/view: app bar, line tabs, player-picker sheet,
+   sticky save. Renders NO slots; controls the existing #formations cards (the
+   copy lines.css shows on mobile, and the authoritative save copy) + lines.js. #}
+{% include 'mobile/_lines.html' %}
 <div class="lines-head">
   <h1>Formace</h1>
   <button type="button" class="help-btn" data-help="lines" data-help-src="help-lines"><span class="ico">i</span> Nápověda</button>
@@ -219,4 +223,5 @@
   {{ super() }}
   <script src="{{ url_for('static', filename='lines.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
   <script src="{{ url_for('static', filename='lines2.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script src="{{ url_for('static', filename='lines_mobile.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
 {% endblock %}

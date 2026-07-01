@@ -2,6 +2,8 @@
 {% block title %}Vybrat tréninky k exportu{% endblock %}
 
 {% block content %}
+{# Mobile-only app bar + reflow (via mobile.css); desktop selection form reused. #}
+{% include 'mobile/_drills_select.html' %}
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
   <h1>Vybrat tréninky k exportu (PDF)</h1>
   <button type="button" class="help-btn" data-help="drills_select" data-help-src="help-drills-select"><span class="ico">i</span> Nápověda</button>

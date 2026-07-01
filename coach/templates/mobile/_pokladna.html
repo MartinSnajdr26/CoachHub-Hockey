@@ -1,0 +1,197 @@
+{# ============================================================================
+   MOBILE-ONLY Pokladna (Phase 2). Renders ALONGSIDE the untouched desktop
+   .pk-wrap; hidden on desktop via mobile.css. Reuses the SAME context
+   (period, month_label, rows, summary, history, is_current) and the SAME
+   endpoints (pokladna_status AJAX, pokladna_amount POST) + window.CoachHubWA
+   for WhatsApp. Namespaced .pkm-* — no desktop markup/CSS touched.
+   ============================================================================ #}
+{% set PAY = [('paid','Zaplaceno'),('partial','Částečně'),('unpaid','Nezaplaceno')] %}
+{% set PAY_LABEL = {'paid':'Zaplaceno','partial':'Částečně zaplaceno','unpaid':'Nezaplaceno'} %}
+{% set amt = "{:,}".format(period.amount).replace(",", " ") %}
+
+<div class="pkm-root" style="display:none">
+
+  <header class="pkm-bar">
+    <div class="pkm-bar-title">Pokladna</div>
+    <button type="button" class="pkm-month" data-pkm-history>
+      <span>{{ month_label }}</span>
+      {% if not is_current %}<span class="pkm-month-tag">archiv</span>{% endif %}
+      <span class="pkm-month-caret" aria-hidden="true">▾</span>
+    </button>
+  </header>
+
+  {# ---- Hero: contribution + primary actions ---- #}
+  <section class="pkm-hero">
+    <div class="pkm-hero-label">Měsíční příspěvek</div>
+    <div class="pkm-hero-amt">{{ amt }} Kč</div>
+    <div class="pkm-hero-sub">{{ month_label }}</div>
+    <div class="pkm-hero-actions">
+      <button type="button" class="pkm-act pkm-act--ghost" data-pkm-edit><span aria-hidden="true">✏️</span> Upravit částku</button>
+      <button type="button" class="pkm-act pkm-act--wa" data-pkm-wa-all><span aria-hidden="true">📲</span> Připomenout</button>
+    </div>
+  </section>
+
+  {# ---- KPI tiles ---- #}
+  <div class="pkm-kpis">
+    <div class="pkm-tile pkm-tile--paid"><span class="pkm-tile-v" data-sum="paid">{{ summary.paid }}</span><span class="pkm-tile-l">Zaplaceno</span></div>
+    <div class="pkm-tile pkm-tile--partial"><span class="pkm-tile-v" data-sum="partial">{{ summary.partial }}</span><span class="pkm-tile-l">Částečně</span></div>
+    <div class="pkm-tile pkm-tile--unpaid"><span class="pkm-tile-v" data-sum="unpaid">{{ summary.unpaid }}</span><span class="pkm-tile-l">Nezaplaceno</span></div>
+    <div class="pkm-tile"><span class="pkm-tile-v"><span data-sum="paid2">{{ summary.paid }}</span>/{{ summary.total }}</span><span class="pkm-tile-l">Zaplatilo</span></div>
+  </div>
+
+  {# ---- Filter segmented ---- #}
+  <div class="pkm-seg" role="tablist" aria-label="Filtr stavu">
+    {% for key,label in [('all','Všichni'),('unpaid','Nezapl.'),('partial','Částečně'),('paid','Zapl.')] %}
+      <button type="button" class="pkm-seg-btn {{ 'is-active' if key=='all' }}" data-pkm-filter="{{ key }}" aria-selected="{{ 'true' if key=='all' else 'false' }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+
+  {# ---- Player list (JS sorts unpaid -> partial -> paid) ---- #}
+  {% if rows %}
+  <div class="pkm-list" id="pkm-list" data-period="{{ period.id }}">
+    {% for r in rows %}
+    <article class="pkm-row pkm-state-{{ r.status }}" data-player-id="{{ r.player.id }}" data-status="{{ r.status }}" data-name="{{ r.player.name }}">
+      <div class="pkm-row-head">
+        <span class="pkm-av">{{ r.player.name.split()[0][0] }}{{ r.player.name.split()[-1][0] if r.player.name.split()|length > 1 else '' }}</span>
+        <span class="pkm-name">{{ r.player.name }}</span>
+        <span class="pkm-pill pkm-pill--{{ r.status }}">{{ PAY_LABEL[r.status] }}</span>
+        <button type="button" class="pkm-row-wa {{ 'is-hidden' if r.status=='paid' }}" data-pkm-wa-one aria-label="Připomenout {{ r.player.name }}">📲</button>
+      </div>
+      <div class="pkm-rsvp" data-pkm-status>
+        {% for code,label in PAY %}
+        <button type="button" class="pkm-rsvp-btn pkm-rsvp-btn--{{ code }} {{ 'is-active' if r.status==code }}" data-status="{{ code }}" aria-pressed="{{ 'true' if r.status==code else 'false' }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  <div class="pkm-empty pkm-empty--sm" id="pkm-noresult" hidden><div class="pkm-empty-emoji">🔍</div><p>Nikdo v tomto filtru.</p></div>
+  {% else %}
+  <div class="pkm-empty"><div class="pkm-empty-emoji">🧑‍🤝‍🧑</div><h2>Žádní hráči</h2><p>Přidej hráče v sekci Hráči.</p></div>
+  {% endif %}
+
+  {# ---- History accordion ---- #}
+  <button type="button" class="pkm-hist-toggle" data-pkm-hist-toggle aria-expanded="false">
+    <span>Historie měsíců</span><span class="pkm-hist-caret" aria-hidden="true">▾</span>
+  </button>
+  <div class="pkm-hist" hidden>
+    {% for h in history %}
+    <a class="pkm-hist-card {{ 'is-viewed' if h.is_viewed }}" href="{{ url_for('pokladna.pokladna_month', year=h.period.year, month=h.period.month) }}">
+      <div class="pkm-hist-row"><span class="pkm-hist-month">{{ h.label }}</span><span class="pkm-hist-state {{ 'is-open' if h.open else 'is-closed' }}">{{ 'Otevřeno' if h.open else 'Uzavřeno' }}</span></div>
+      <div class="pkm-hist-meta">{{ "{:,}".format(h.period.amount).replace(",", " ") }} Kč · {{ h.paid }}/{{ h.total }} zaplatilo</div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{# ---- Amount edit bottom sheet ---- #}
+<div class="pkm-sheet" id="pkmAmountSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Upravit částku">
+  <div class="pkm-sheet-scrim" data-pkm-close></div>
+  <div class="pkm-sheet-panel">
+    <div class="pkm-sheet-grip"></div>
+    <div class="pkm-sheet-head"><h3>Upravit částku</h3><button type="button" class="pkm-sheet-x" data-pkm-close aria-label="Zavřít">✕</button></div>
+    <div class="pkm-sheet-ctx">Měsíční příspěvek · {{ month_label }}</div>
+    <form method="post" action="{{ url_for('pokladna.pokladna_amount') }}" class="pkm-amt-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="period_id" value="{{ period.id }}">
+      <label class="pkm-amt-label" for="pkmAmt">Částka (Kč)</label>
+      <input type="number" id="pkmAmt" name="amount" min="0" step="50" value="{{ period.amount }}" inputmode="numeric" class="pkm-amt-input">
+      <div class="pkm-sheet-actions">
+        <button type="button" class="pkm-act pkm-act--ghost" data-pkm-close>Zrušit</button>
+        <button type="submit" class="pkm-act pkm-act--primary">Uložit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ---- History bottom sheet (month selector via header chip) ---- #}
+<div class="pkm-sheet" id="pkmHistorySheet" style="display:none" role="dialog" aria-modal="true" aria-label="Vyber měsíc">
+  <div class="pkm-sheet-scrim" data-pkm-close></div>
+  <div class="pkm-sheet-panel">
+    <div class="pkm-sheet-grip"></div>
+    <div class="pkm-sheet-head"><h3>Měsíce</h3><button type="button" class="pkm-sheet-x" data-pkm-close aria-label="Zavřít">✕</button></div>
+    <div class="pkm-sheet-list">
+      {% for h in history %}
+      <a class="pkm-pick {{ 'is-current' if h.is_viewed }}" href="{{ url_for('pokladna.pokladna_month', year=h.period.year, month=h.period.month) }}">
+        <span class="pkm-pick-month">{{ h.label }}</span>
+        <span class="pkm-pick-meta">{{ "{:,}".format(h.period.amount).replace(",", " ") }} Kč · {{ h.paid }}/{{ h.total }}</span>
+        {% if h.is_viewed %}<span class="pkm-pick-check" aria-hidden="true">✓</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var root = document.querySelector('.pkm-root'); if (!root) return;
+  var STATUS_URL = "{{ url_for('pokladna.pokladna_status') }}";
+  var CSRF = "{{ csrf_token() }}";
+  var PERIOD = {{ period.id }};
+  var MONTH = "{{ month_label }}";
+  var AMOUNT = "{{ amt }}";
+  var PILL = { paid:'Zaplaceno', partial:'Částečně zaplaceno', unpaid:'Nezaplaceno' };
+  var ORDER = { unpaid:0, partial:1, paid:2 };
+
+  /* ---- sort unpaid -> partial -> paid (stable on name) ---- */
+  var list = document.getElementById('pkm-list');
+  if (list) {
+    var rows = Array.prototype.slice.call(list.querySelectorAll('.pkm-row'));
+    rows.sort(function(a,b){ var d=ORDER[a.getAttribute('data-status')]-ORDER[b.getAttribute('data-status')]; return d!==0?d:(a.getAttribute('data-name')||'').localeCompare(b.getAttribute('data-name')||''); });
+    rows.forEach(function(r){ list.appendChild(r); });
+  }
+
+  /* ---- filter segmented ---- */
+  var nores = document.getElementById('pkm-noresult');
+  function applyFilter(f){
+    var shown=0;
+    document.querySelectorAll('.pkm-row').forEach(function(r){ var ok=(f==='all'||r.getAttribute('data-status')===f); r.style.display=ok?'':'none'; if(ok)shown++; });
+    if(nores) nores.hidden = shown!==0;
+  }
+  root.querySelectorAll('[data-pkm-filter]').forEach(function(b){
+    b.addEventListener('click', function(){ root.querySelectorAll('[data-pkm-filter]').forEach(function(x){x.classList.remove('is-active');x.setAttribute('aria-selected','false');}); b.classList.add('is-active'); b.setAttribute('aria-selected','true'); applyFilter(b.getAttribute('data-pkm-filter')); });
+  });
+
+  /* ---- one-tap status (AJAX, reuses pokladna_status; uses returned summary) ---- */
+  function setSummary(s){ if(!s)return; ['paid','partial','unpaid'].forEach(function(k){ document.querySelectorAll('[data-sum="'+k+'"]').forEach(function(el){el.textContent=s[k];}); }); var p2=document.querySelector('[data-sum="paid2"]'); if(p2)p2.textContent=s.paid; }
+  list && list.addEventListener('click', function(ev){
+    var btn = ev.target.closest('.pkm-rsvp-btn'); if(!btn) return;
+    var row = btn.closest('.pkm-row'); var status = btn.getAttribute('data-status');
+    if(btn.classList.contains('is-active')) return;
+    var prev = row.getAttribute('data-status');
+    paint(row, status); btn.classList.add('pkm-pop'); setTimeout(function(){btn.classList.remove('pkm-pop');},220);
+    fetch(STATUS_URL, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body: JSON.stringify({period_id:PERIOD, player_id:parseInt(row.getAttribute('data-player-id'),10), status:status}) })
+      .then(function(r){ return r.ok?r.json():Promise.reject(r); })
+      .then(function(j){ if(j&&j.summary) setSummary(j.summary); })
+      .catch(function(){ paint(row, prev); alert('Uložení se nezdařilo, zkus to znovu.'); });
+  });
+  function paint(row, status){
+    row.setAttribute('data-status', status);
+    row.className = row.className.replace(/pkm-state-\w+/, 'pkm-state-'+status);
+    var pill=row.querySelector('.pkm-pill'); if(pill){pill.className='pkm-pill pkm-pill--'+status; pill.textContent=PILL[status];}
+    row.querySelectorAll('.pkm-rsvp-btn').forEach(function(b){var on=b.getAttribute('data-status')===status;b.classList.toggle('is-active',on);b.setAttribute('aria-pressed',on?'true':'false');});
+    var wa=row.querySelector('.pkm-row-wa'); if(wa) wa.classList.toggle('is-hidden', status==='paid');
+  }
+
+  /* ---- WhatsApp via existing CoachHubWA (built from current mobile rows) ---- */
+  function names(statuses){ return Array.prototype.slice.call(document.querySelectorAll('.pkm-row')).filter(function(r){return statuses.indexOf(r.getAttribute('data-status'))>=0;}).map(function(r){return r.getAttribute('data-name');}); }
+  function waPreview(audiences){ if(!(window.CoachHubWA&&CoachHubWA.openPreview&&CoachHubWA.tpl)){return;} CoachHubWA.openPreview({title:'Připomenout příspěvek', audiences:audiences}); }
+  function mk(label, ns){ return CoachHubWA.tpl.payment({month:MONTH, amount:AMOUNT, audienceLabel:label, names:ns}); }
+  var waAll = root.querySelector('[data-pkm-wa-all]');
+  if(waAll) waAll.addEventListener('click', function(){ var u=names(['unpaid']); var up=names(['unpaid','partial']); waPreview([ {label:'Nezaplatili ('+u.length+')', text:function(){return mk('Nezaplatili',u);}}, {label:'Nezapl. + částečně ('+up.length+')', text:function(){return mk('Nezaplatili / částečně',up);}} ]); });
+  list && list.addEventListener('click', function(ev){ var b=ev.target.closest('[data-pkm-wa-one]'); if(!b)return; var row=b.closest('.pkm-row'); var nm=row.getAttribute('data-name'); waPreview([ {label:nm, text:function(){return mk('Připomínka platby',[nm]);}} ]); });
+
+  /* ---- bottom sheets (amount + history) ---- */
+  function openSheet(el){ if(!el)return; el.style.display='block'; requestAnimationFrame(function(){el.classList.add('open');}); document.body.style.overflow='hidden'; }
+  function closeSheet(el){ if(!el)return; el.classList.remove('open'); document.body.style.overflow=''; setTimeout(function(){el.style.display='none';},220); }
+  var amtSheet=document.getElementById('pkmAmountSheet'), histSheet=document.getElementById('pkmHistorySheet');
+  root.querySelector('[data-pkm-edit]') && root.querySelector('[data-pkm-edit]').addEventListener('click', function(){ openSheet(amtSheet); var i=document.getElementById('pkmAmt'); if(i)setTimeout(function(){i.focus();i.select();},250); });
+  root.querySelector('[data-pkm-history]') && root.querySelector('[data-pkm-history]').addEventListener('click', function(){ openSheet(histSheet); });
+  [amtSheet,histSheet].forEach(function(sh){ if(sh) sh.addEventListener('click', function(e){ if(e.target.closest('[data-pkm-close]')) closeSheet(sh); }); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ if(amtSheet&&amtSheet.classList.contains('open'))closeSheet(amtSheet); if(histSheet&&histSheet.classList.contains('open'))closeSheet(histSheet); } });
+
+  /* ---- history accordion ---- */
+  var ht=root.querySelector('[data-pkm-hist-toggle]'), hp=root.querySelector('.pkm-hist');
+  if(ht&&hp) ht.addEventListener('click', function(){ var open=!hp.hasAttribute('hidden'); if(open){hp.setAttribute('hidden','');ht.setAttribute('aria-expanded','false');}else{hp.removeAttribute('hidden');ht.setAttribute('aria-expanded','true');} });
+})();
+</script>

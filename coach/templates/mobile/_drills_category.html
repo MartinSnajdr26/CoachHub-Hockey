@@ -1,0 +1,12 @@
+{# ============================================================================
+   MOBILE-ONLY polish for the Drill Category subpage. Additive app bar; the
+   existing desktop toolbar (search + favorites + count) and .drill-card grid are
+   REFLOWED via mobile.css so ALL existing behaviour (search, favorites +
+   localStorage, drill opening, coach edit/delete, player read-only) is reused
+   untouched. No separate list, no duplicated drill data. Namespaced .dcm-*.
+   ============================================================================ #}
+<header class="dcm-bar">
+  <a class="dcm-back" href="{{ url_for('drills') }}" aria-label="Zpět na kategorie">‹</a>
+  <div class="dcm-bar-title">{{ category }}</div>
+  {% if is_coach %}<a class="dcm-add" href="{{ url_for('new_drill') }}" aria-label="Nové cvičení">＋</a>{% else %}<span class="dcm-bar-spacer" aria-hidden="true"></span>{% endif %}
+</header>

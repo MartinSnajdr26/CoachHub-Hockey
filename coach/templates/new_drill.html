@@ -2,6 +2,10 @@
 {% block title %}{{ 'Upravit cvičení' if drill else 'Nové cvičení' }}{% endblock %}
 
 {% block content %}
+{# Mobile-only polish layer (app bar + sticky save + form/canvas reflow via
+   mobile.css). Desktop editor below is untouched; the single #board canvas,
+   form, tools and save logic are reused. Hidden on desktop. #}
+{% include 'mobile/_drill_editor.html' %}
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
   <div>
     <h1>{{ 'Upravit cvičení' if drill else 'Nové cvičení' }}</h1>

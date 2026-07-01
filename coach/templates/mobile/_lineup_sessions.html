@@ -1,0 +1,8 @@
+{# MOBILE-ONLY app bar for Saved Lineups (list only; the Formations editor is NOT
+   touched). Desktop .cards list reflows to compact cards via mobile.css
+   (existing download/open/share/delete reused). Namespaced .lsm-*. #}
+<header class="lsm-bar">
+  <a class="lsm-back" href="{{ url_for('lines') }}" aria-label="Zpět na formace">‹</a>
+  <div class="lsm-bar-title">Uložené sestavy</div>
+  <span class="lsm-bar-spacer" aria-hidden="true"></span>
+</header>

@@ -1,0 +1,46 @@
+{# ============================================================================
+   MOBILE-ONLY polish for Team Keys (coach-only page). Additive app bar; the
+   existing desktop rotation form + history table are REFLOWED via mobile.css
+   (not duplicated) so routes, CSRF and rotation semantics are reused untouched.
+   Mobile-only JS (viewport-gated) adds a rotation confirmation and a copy button
+   for a freshly revealed key — keys are only ever read from the DOM into the
+   clipboard, never logged, printed, or placed in a URL. Namespaced .tkm-*.
+   ============================================================================ #}
+<header class="tkm-bar">
+  <button type="button" class="tkm-back" data-tkm-back data-fallback="{{ url_for('settings') }}" aria-label="Zpět">‹</button>
+  <div class="tkm-bar-title">Klíče týmu</div>
+  <span class="tkm-bar-spacer" aria-hidden="true"></span>
+</header>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var back = document.querySelector('.tkm-bar [data-tkm-back]');
+  if (back) back.addEventListener('click', function () {
+    if (window.history.length > 1) { window.history.back(); }
+    else { window.location.href = back.getAttribute('data-fallback') || '/settings'; }
+  });
+  /* Everything below is mobile-only so the desktop workflow stays unchanged. */
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  if (!isMobile) return;
+
+  /* Rotation confirmation (desktop form reused; no second form). */
+  document.querySelectorAll('.cards form').forEach(function (f) {
+    if (!f.querySelector('button[name="which"]')) return;
+    f.addEventListener('submit', function (e) {
+      if (!window.confirm('Vygenerovat nový klíč? Starý klíč ihned přestane platit.')) e.preventDefault();
+    });
+  });
+
+  /* Copy button for a freshly revealed key (shown once). Clipboard only. */
+  var code = document.querySelector('.cards code');
+  if (code && navigator.clipboard) {
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'tkm-copy'; btn.textContent = '📋 Kopírovat klíč';
+    btn.setAttribute('aria-label', 'Kopírovat nový klíč do schránky');
+    btn.addEventListener('click', function () {
+      navigator.clipboard.writeText((code.textContent || '').trim()).then(
+        function () { btn.textContent = '✓ Zkopírováno'; }, function () {});
+    });
+    code.parentNode.appendChild(btn);
+  }
+})();
+</script>

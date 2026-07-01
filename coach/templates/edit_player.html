@@ -2,6 +2,9 @@
 {% block title %}Upravit hráče{% endblock %}
 
 {% block content %}
+{# Mobile-only polish (app bar + identity + reflowed form via mobile.css). Desktop
+   form below is untouched and reused; hidden extras hidden on desktop. #}
+{% include 'mobile/_edit_player.html' %}
 <h1>Upravit hráče</h1>
 
 <form method="POST">

@@ -18,6 +18,9 @@
 {%- endmacro -%}
 
 {% block content %}
+{# Mobile-only native dashboard (Phase 4). Renders alongside the desktop .dash;
+   shown only <=768px. Desktop .dash DOM/CSS untouched. #}
+{% include 'mobile/_home.html' %}
 <div class="dash">
 
   <!-- ROW 1 — HERO -->
@@ -337,28 +340,45 @@
         {% if league.source_url %}<a class="card-head-link" href="{{ league.source_url }}" target="_blank" rel="noopener noreferrer nofollow">Zdroj →</a>{% endif %}
       </div>
       {% if league.stale_schema %}<div class="league-warn">⚠ Data jsou ve starém formátu.{% if is_coach_home %} Otevři <a href="{{ url_for('settings') }}">Nastavení → Liga</a> a klikni „Obnovit data".{% endif %}</div>{% endif %}
-      {% if league.error %}<div class="league-warn">⚠ Data se nepodařilo obnovit — zobrazujeme poslední uložená{% if league.updated %} ({{ league.updated.strftime('%d.%m. %H:%M') }}){% endif %}.</div>{% endif %}
+      {% if league.error %}<div class="league-warn">⚠ Data se nepodařilo obnovit — zobrazujeme poslední uložená{% if league.updated %} ({{ league.updated | prague('%d.%m. %H:%M') }}){% endif %}.</div>{% endif %}
       {% if league.standings %}
       <div class="table-scroll">
         <table class="league-table">
           <thead><tr><th>#</th><th>Tým</th><th>Z</th><th>V</th><th>R</th><th>P</th><th>Skóre</th><th>B</th><th>+/-</th></tr></thead>
           <tbody>
           {% for s in league.standings %}
-            <tr class="{{ 'is-team' if s.is_team }}">
-              <td>{{ s.position }}</td>
-              <td class="lt-team">{{ s.team_name }}</td>
-              <td>{{ s.played }}</td><td>{{ s.wins }}</td><td>{{ s.draws }}</td><td>{{ s.losses }}</td>
-              <td>{{ s.score or (s.goals_for ~ ':' ~ s.goals_against) }}</td><td><strong>{{ s.points }}</strong></td>
-              <td>{{ '%+d'|format(s.plus_minus) if s.plus_minus is not none else '' }}</td>
+            <tr class="{{ 'is-team is-mine' if s.is_team }}">
+              <td class="lt-pos">{{ s.position }}</td>
+              <td class="lt-team" data-label="Tým">{{ s.team_name }}</td>
+              <td data-label="Zápasy">{{ s.played }}</td><td data-label="Výhry">{{ s.wins }}</td><td data-label="Remízy">{{ s.draws }}</td><td data-label="Prohry">{{ s.losses }}</td>
+              <td data-label="Skóre">{{ s.score or (s.goals_for ~ ':' ~ s.goals_against) }}</td><td data-label="Body"><strong>{{ s.points }}</strong></td>
+              <td data-label="Rozdíl">{{ '%+d'|format(s.plus_minus) if s.plus_minus is not none else '' }}</td>
             </tr>
           {% endfor %}
           </tbody>
         </table>
+        {# Mobile-only compact standings cards (hidden on desktop via inline display:none) #}
+        <div class="league-cards" style="display:none">
+          {% for s in league.standings %}
+          <div class="lc {{ 'lc--mine' if s.is_team }}">
+            <div class="lc-top">
+              <span class="lc-pos">{{ s.position }}</span>
+              <span class="lc-team">{{ s.team_name }}</span>
+              <span class="lc-pts">{{ s.points }} b</span>
+            </div>
+            <div class="lc-rec">{{ s.played }} zápasů · {{ s.wins }} V · {{ s.draws }} R · {{ s.losses }} P</div>
+            <div class="lc-chips">
+              <span class="lc-chip">Skóre {{ s.score or (s.goals_for ~ ':' ~ s.goals_against) }}</span>
+              <span class="lc-chip">+/- {{ '%+d'|format(s.plus_minus) if s.plus_minus is not none else '—' }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
       {% else %}
         <div class="empty">Zatím žádná data.{% if is_coach_home %} Otevři <a href="{{ url_for('settings') }}">Nastavení → Liga</a> a klikni „Obnovit data".{% endif %}</div>
       {% endif %}
-      <p class="league-src muted">Externí data z {{ league.connector or 'webu' }}{% if league.updated %} · aktualizováno {{ league.updated.strftime('%d.%m.%Y %H:%M') }} UTC{% endif %}.</p>
+      <p class="league-src muted">Externí data z {{ league.connector or 'webu' }}{% if league.updated %} · aktualizováno {{ league.updated | prague('%d.%m.%Y %H:%M') }}{% endif %}.</p>
     </div>
 
     <div class="dash-side">

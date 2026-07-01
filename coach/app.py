@@ -22,6 +22,34 @@ def create_app():
     from coach.context import register_context
     register_context(app)
 
+    # ---- Prague-time DISPLAY filter (DST-safe) ----
+    # DB stores timestamps as naive UTC (datetime.utcnow). User-facing displays
+    # must show Europe/Prague. Event day/time entered by coaches are naive LOCAL
+    # strings (TrainingEvent.time) and are NOT passed through this filter.
+    import datetime as _dtmod
+    try:
+        from zoneinfo import ZoneInfo
+        _PRAGUE_TZ = ZoneInfo("Europe/Prague")
+    except Exception:
+        _PRAGUE_TZ = None
+
+    def _prague_fmt(dt, fmt='%d.%m.%Y %H:%M'):
+        if not dt:
+            return ''
+        try:
+            if getattr(dt, 'tzinfo', None) is None:        # naive -> assume UTC (storage convention)
+                dt = dt.replace(tzinfo=_dtmod.timezone.utc)
+            if _PRAGUE_TZ is not None:
+                dt = dt.astimezone(_PRAGUE_TZ)
+            return dt.strftime(fmt)
+        except Exception:
+            return ''
+    app.jinja_env.filters['prague'] = _prague_fmt
+    app.jinja_env.globals['now_prague'] = (
+        lambda: (_dtmod.datetime.now(_dtmod.timezone.utc).astimezone(_PRAGUE_TZ)
+                 if _PRAGUE_TZ else _dtmod.datetime.utcnow())
+    )
+
     # Blueprints registration (register individually and log failures)
     from importlib import import_module
     def _reg(mod_path: str, name: str):

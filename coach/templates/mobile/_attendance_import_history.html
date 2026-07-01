@@ -1,0 +1,8 @@
+{# MOBILE-ONLY app bar for Attendance Import History. The desktop history table
+   is REFLOWED into cards via mobile.css (same data/context, rollback form + CSRF
+   preserved). Namespaced .aihm-*. #}
+<header class="aihm-bar">
+  <a class="aihm-back" href="{{ url_for('attendance.import_attendance') }}" aria-label="Zpět">‹</a>
+  <div class="aihm-bar-title">Historie importů</div>
+  <a class="aihm-new" href="{{ url_for('attendance.import_attendance') }}" aria-label="Nový import">＋</a>
+</header>

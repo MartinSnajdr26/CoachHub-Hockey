@@ -2,6 +2,12 @@
 {% block title %}Cvičení – kategorie{% endblock %}
 
 {% block content %}
+{# Mobile-only native Practice Library (Knihovna cvičení). Desktop category grid
+   below is untouched and hidden on mobile via body[data-page="drills"] in
+   mobile.css. Reuses the SAME route (/drills), context (categories + the additive
+   read-only `drills` list) and routes (drill_detail / new_drill / edit_drill /
+   delete_drill). Namespaced .dlm-*. #}
+{% include 'mobile/_drills_library.html' %}
 <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
   <div>
     <h1 style="margin:0 0 4px;">Knihovna cvičení</h1>

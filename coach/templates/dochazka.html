@@ -2,6 +2,9 @@
 {% block title %}Docházka{% endblock %}
 {% block content %}
 {% set team = view.team %}
+{# Mobile-only native screen (Phase 3). Renders alongside the desktop matrix;
+   shown only <=768px. Desktop .am-wrap / matrix DOM/CSS untouched. #}
+{% include 'mobile/_dochazka.html' %}
 <div class="am-wrap">
   <div class="am-head">
     <div>

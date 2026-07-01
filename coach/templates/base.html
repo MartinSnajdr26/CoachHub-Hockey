@@ -34,8 +34,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=csp_nonce) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='help.css', v=csp_nonce) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css', v=csp_nonce) }}">
 </head>
-<body data-team-name="{{ brand.team_name or 'CoachHub' }}" style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#c44747' }}; --primary: var(--brand-primary); --secondary: var(--brand-secondary); --tertiary: var(--brand-tertiary);">
+<body data-page="{{ ep }}" data-team-name="{{ brand.team_name or 'CoachHub' }}" style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#c44747' }}; --primary: var(--brand-primary); --secondary: var(--brand-secondary); --tertiary: var(--brand-tertiary);">
 
     <!-- Brand bar -->
     <header class="header-top">
@@ -158,8 +159,58 @@
         {% endblock %}
 </main>
 
+    {% if current_user.is_authenticated or team_session_login %}
+    {# ---- Mobile-only bottom navigation (hidden on desktop via inline display:none) ---- #}
+    <nav class="mnav" style="display:none" aria-label="Hlavní navigace">
+      <a class="{{ 'is-active' if ep == 'home' }}" href="{{ url_for('home') }}"><span class="mnav-ic" aria-hidden="true">🏠</span>Domů</a>
+      <a class="{{ 'is-active' if ep == 'communication.feed' }}" href="{{ url_for('communication.feed') }}"><span class="mnav-ic" aria-hidden="true">💬</span>Nástěnka</a>
+      <button type="button" id="mnavDochazka" class="{{ 'is-active' if ep in ['attendance.attendance','dochazka'] }}" aria-haspopup="dialog" aria-controls="attSheet" aria-expanded="false"><span class="mnav-ic" aria-hidden="true">📋</span>Docházka</button>
+      <a class="{{ 'is-active' if 'drill' in ep }}" href="{{ url_for('drills') }}"><span class="mnav-ic" aria-hidden="true">🏒</span>Tréninky</a>
+      <button type="button" id="mnavMore" aria-haspopup="dialog" aria-controls="mSheet" aria-expanded="false"><span class="mnav-ic" aria-hidden="true">⋯</span>Tým</button>
+    </nav>
+
+    <div class="msheet" id="mSheet" role="dialog" aria-modal="true" aria-label="Tým a nastavení" style="display:none">
+      <div class="msheet-backdrop" data-msheet-close></div>
+      <div class="msheet-panel">
+        <div class="msheet-grip"></div>
+        <div class="msheet-head"><h2>Tým &amp; nastavení</h2><button type="button" class="msheet-close" data-msheet-close aria-label="Zavřít">✕</button></div>
+        <div class="msheet-grid">
+          <a href="{{ url_for('players') }}"><span class="msheet-ic">👤</span> Hráči</a>
+          <a href="{{ url_for('roster') }}"><span class="msheet-ic">📝</span> Soupiska</a>
+          <a href="{{ url_for('lines') }}"><span class="msheet-ic">⚙️</span> Formace</a>
+          <a href="{{ url_for('lineup_sessions') }}"><span class="msheet-ic">🗂</span> Sestavy</a>
+          {% if is_coach %}<a href="{{ url_for('pokladna.pokladna') }}"><span class="msheet-ic">💰</span> Pokladna</a>{% endif %}
+          <a href="{{ url_for('settings') }}"><span class="msheet-ic">🔧</span> Nastavení</a>
+          {% if is_coach %}<a href="{{ url_for('audit_log') }}"><span class="msheet-ic">📋</span> Audit log</a>{% endif %}
+          {% if is_coach %}<a href="{{ url_for('players.import_tymuj') }}"><span class="msheet-ic">⬇️</span> Import z Týmuj</a>{% endif %}
+          {% if owner_admin_authenticated %}<a href="{{ url_for('owner.dashboard') }}"><span class="msheet-ic">⚙</span> Owner</a>{% endif %}
+          <a class="msheet-wide is-danger" href="{{ url_for('team_logout') }}"><span class="msheet-ic">↩</span> Odhlásit</a>
+        </div>
+      </div>
+    </div>
+
+    {# Mobile attendance chooser: Player vs Team (opened from the Docházka nav item) #}
+    <div class="msheet" id="attSheet" role="dialog" aria-modal="true" aria-label="Docházka" style="display:none">
+      <div class="msheet-backdrop" data-msheet-close></div>
+      <div class="msheet-panel">
+        <div class="msheet-grip"></div>
+        <div class="msheet-head"><h2>Docházka</h2><button type="button" class="msheet-close" data-msheet-close aria-label="Zavřít">✕</button></div>
+        <div class="att-choices">
+          {% if is_coach %}
+          <a class="att-choice {{ 'is-active' if ep == 'dochazka' }}" href="{{ url_for('dochazka') }}"><span class="att-choice-ic">👥</span><span class="att-choice-tx"><b>Týmová docházka</b><small>Přehled a správa týmu</small></span><span class="att-choice-go" aria-hidden="true">›</span></a>
+          <a class="att-choice {{ 'is-active' if ep == 'attendance.attendance' }}" href="{{ url_for('attendance.attendance') }}"><span class="att-choice-ic">🙋</span><span class="att-choice-tx"><b>Moje docházka</b><small>Potvrď svoji účast</small></span><span class="att-choice-go" aria-hidden="true">›</span></a>
+          {% else %}
+          <a class="att-choice {{ 'is-active' if ep == 'attendance.attendance' }}" href="{{ url_for('attendance.attendance') }}"><span class="att-choice-ic">🙋</span><span class="att-choice-tx"><b>Moje docházka</b><small>Potvrď svoji účast</small></span><span class="att-choice-go" aria-hidden="true">›</span></a>
+          <a class="att-choice {{ 'is-active' if ep == 'dochazka' }}" href="{{ url_for('dochazka') }}"><span class="att-choice-ic">👥</span><span class="att-choice-tx"><b>Týmová docházka</b><small>Přehled a správa týmu</small></span><span class="att-choice-go" aria-hidden="true">›</span></a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='app.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ url_for('static', filename='mobilenav.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
     <script src="{{ url_for('static', filename='wa.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
     <script src="{{ url_for('static', filename='help.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
     <script src="{{ url_for('static', filename='pwa.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>

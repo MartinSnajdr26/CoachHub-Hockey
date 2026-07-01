@@ -2,6 +2,9 @@
 {% block title %}Soupiska hráčů{% endblock %}
 
 {% block content %}
+{# Mobile-only native players screen (Phase 5). Desktop content below is untouched
+   and hidden on mobile via body[data-page="players"] in mobile.css. #}
+{% include 'mobile/_players.html' %}
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
 <h1>Soupiska hráčů</h1>
   <button type="button" class="help-btn" data-help="players" data-help-src="help-players"><span class="ico">i</span> Nápověda</button>

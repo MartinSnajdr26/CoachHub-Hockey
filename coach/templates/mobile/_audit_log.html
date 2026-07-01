@@ -1,0 +1,8 @@
+{# MOBILE-ONLY app bar for Audit Log. The desktop table is REFLOWED into cards
+   via mobile.css; the existing #auditSearch filter JS is preserved (it toggles
+   row display, which still works on the reflowed cards). Namespaced .alm-*. #}
+<header class="alm-bar">
+  <a class="alm-back" href="{{ url_for('settings') }}" aria-label="Zpět">‹</a>
+  <div class="alm-bar-title">Audit log</div>
+  <span class="alm-bar-spacer" aria-hidden="true"></span>
+</header>

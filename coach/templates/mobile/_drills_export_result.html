@@ -1,0 +1,26 @@
+{# ============================================================================
+   MOBILE-ONLY Export Result. A compact native status card shown <=768px; the
+   desktop link row + iframe preview are hidden on mobile. Reuses the SAME
+   file_url (download_export, ownership-checked) and return routes; no new export
+   route, no filesystem paths exposed. Namespaced .derm-*.
+   ============================================================================ #}
+<div class="derm-root">
+  <header class="derm-bar">
+    <a class="derm-back" href="{{ url_for('drills') }}" aria-label="Zpět do knihovny">‹</a>
+    <div class="derm-bar-title">Export dokončen</div>
+    <span class="derm-bar-spacer" aria-hidden="true"></span>
+  </header>
+  <div class="derm-card">
+    <div class="derm-emoji" aria-hidden="true">✅</div>
+    <h2 class="derm-title">Hotovo</h2>
+    <p class="derm-sub">PDF bylo vytvořeno.</p>
+    <p class="derm-file">{{ filename }}</p>
+    <a class="derm-primary" href="{{ file_url }}" download>⬇️ Stáhnout PDF</a>
+    <a class="derm-secondary" href="{{ file_url }}" target="_blank" rel="noopener">👁 Otevřít</a>
+    <button type="button" class="derm-secondary btn-share-pdf" data-url="{{ abs_url }}" data-filename="{{ filename }}">📎 Sdílet soubor</button>
+    <div class="derm-links">
+      <a href="{{ url_for('drills') }}">← Zpět do knihovny</a>
+      <a href="{{ url_for('drills_select') }}">↩️ Zpět na výběr</a>
+    </div>
+  </div>
+</div>

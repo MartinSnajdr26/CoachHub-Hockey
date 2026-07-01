@@ -1,0 +1,390 @@
+{# ============================================================================
+   MOBILE-ONLY Dashboard (Phase 4). Renders ALONGSIDE the untouched desktop
+   dashboard; hidden on desktop via mobile.css. Reuses the SAME context
+   (dash, team_messages, league, is_coach_home). No desktop markup/CSS/backend
+   touched. Namespaced .dm-*. Scroll order: hero, alerts, week, latest message,
+   quick actions, stats, league, results.
+   ============================================================================ #}
+{% set coach = is_coach_home %}
+{% set up = dash.upcoming or [] %}
+{% set nextev = up[0] if up else None %}
+{% set att = dash.attendance %}
+{# newest message by time (team_messages is pinned-first; take latest by date) #}
+{% set latest_msg = (team_messages | sort(attribute='created_at') | last) if team_messages else None %}
+{% set has_pinned = team_messages | selectattr('pinned') | list | length > 0 %}
+{# coach-editable events only (local; Týmuj/external events are read-only) #}
+{% set local_events = (up | selectattr('source', 'equalto', 'local') | list) %}
+
+<div class="dm-root" style="display:none" data-today="{{ today_iso }}" data-coach="{{ '1' if coach else '0' }}">
+
+  <div class="dm-greet">
+    <div class="dm-greet-hi">Dobrý den 👋</div>
+    <div class="dm-greet-day">{{ today_label }}</div>
+  </div>
+
+  {# ---------- SECTION 1: NEXT EVENT HERO ---------- #}
+  {% if nextev %}
+  <div class="dm-eyebrow">Další akce</div>
+  <article class="dm-hero dm-k-{{ nextev.kind }}" data-day="{{ nextev.day.isoformat() }}" data-time="{{ nextev.time or '' }}">
+    <div class="dm-hero-row">
+      <span class="dm-badge dm-badge--{{ nextev.kind }}">{{ '🥅 Zápas' if nextev.is_game else ('🏕 Soustředění' if nextev.kind=='camp' else '🧊 Trénink') }}</span>
+      <span class="dm-hero-cd" data-dm-countdown>{{ nextev.label }}</span>
+    </div>
+    <h2 class="dm-hero-title">{{ nextev.title }}</h2>
+    <div class="dm-hero-when">{{ nextev.label }}{% if nextev.time %} · {{ nextev.time }}{% endif %}</div>
+    {% if att and att.event and att.event.key == nextev.key %}
+    <div class="dm-hero-att"><span class="dm-hero-att-pct">{{ att.pct }}%</span> potvrzeno · {{ att.going }}/{{ att.total }}</div>
+    {% endif %}
+    <a class="dm-hero-cta" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">{{ 'Otevřít docházku' if coach else '🙋 Moje docházka' }}</a>
+  </article>
+  {% else %}
+  <article class="dm-hero dm-hero--empty">
+    <div class="dm-empty-emoji">📅</div>
+    <h2 class="dm-hero-title">Žádná nadcházející akce</h2>
+    <div class="dm-hero-when">Naplánuj trénink nebo zápas v kalendáři.</div>
+  </article>
+  {% endif %}
+
+  {# ---------- COACH: event management entry (create / manage) ---------- #}
+  {% if coach %}
+  <div class="dm-ev-cta">
+    <button type="button" class="dm-ev-cta-btn dm-ev-cta-btn--primary" data-dmev-open="dmEvCreateSheet">＋ Nová akce</button>
+    {% if local_events %}<button type="button" class="dm-ev-cta-btn" data-dmev-open="dmEvManageSheet">✏️ Spravovat</button>{% endif %}
+  </div>
+  {% endif %}
+
+  {# ---------- SECTION 2: ALERTS (max 3, only if relevant) ---------- #}
+  {% set ns = namespace(alerts=[]) %}
+  {% if coach and att and att.pending and att.pending > 0 %}
+    {% set ns.alerts = ns.alerts + [{'ic':'⏳','tone':'warn','txt':att.pending ~ ' hráčů ještě nepotvrdilo účast','url':url_for('dochazka')}] %}
+  {% endif %}
+  {% set today_ev = (up | selectattr('is_today') | list) %}
+  {% if today_ev %}
+    {% set ns.alerts = ns.alerts + [{'ic':'📍','tone':'info','txt':'Dnes: ' ~ today_ev[0].title,'url':(url_for('dochazka') if coach else url_for('attendance.attendance'))}] %}
+  {% endif %}
+  {% if has_pinned %}
+    {% set ns.alerts = ns.alerts + [{'ic':'📌','tone':'info','txt':'Připnutý vzkaz na nástěnce','url':url_for('communication.feed')}] %}
+  {% endif %}
+  {% if coach and dash.latest_lineup %}
+    {% set ns.alerts = ns.alerts + [{'ic':'🧩','tone':'info','txt':'Sestava: ' ~ (dash.latest_lineup.title or 'nová'),'url':url_for('lineup_sessions')}] %}
+  {% endif %}
+  {% if ns.alerts %}
+  <div class="dm-alerts">
+    {% for a in ns.alerts[:3] %}
+    <a class="dm-alert dm-alert--{{ a.tone }}" href="{{ a.url }}"><span class="dm-alert-ic">{{ a.ic }}</span><span class="dm-alert-tx">{{ a.txt }}</span><span class="dm-alert-go" aria-hidden="true">›</span></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ---------- SECTION 3: THIS WEEK ---------- #}
+  {% set week = up[1:6] %}
+  {% if week %}
+  <div class="dm-sec-head">Tento týden</div>
+  <div class="dm-week">
+    {% for e in week %}
+    <a class="dm-wk dm-k-{{ e.kind }}" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">
+      <span class="dm-wk-badge">{{ '🥅' if e.is_game else ('🏕' if e.kind=='camp' else '🧊') }}</span>
+      <span class="dm-wk-main"><span class="dm-wk-title">{{ e.title }}</span><span class="dm-wk-when">{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}</span></span>
+      <span class="dm-wk-go" aria-hidden="true">›</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ---------- SECTION 4: QUICK ACTIONS ---------- #}
+  <div class="dm-sec-head">Rychlé akce</div>
+  <div class="dm-actions">
+    {% if coach %}
+    <a class="dm-act" href="{{ url_for('communication.feed') }}"><span class="dm-act-ic">💬</span>Zpráva</a>
+    <a class="dm-act" href="{{ url_for('dochazka') }}"><span class="dm-act-ic">📋</span>Docházka</a>
+    <a class="dm-act" href="{{ url_for('lines') }}"><span class="dm-act-ic">⚙️</span>Formace</a>
+    <a class="dm-act" href="{{ url_for('drills') }}"><span class="dm-act-ic">🏒</span>Cvičení</a>
+    <a class="dm-act" href="{{ url_for('pokladna.pokladna') }}"><span class="dm-act-ic">💰</span>Pokladna</a>
+    <a class="dm-act" href="{{ url_for('players') }}"><span class="dm-act-ic">👤</span>Hráči</a>
+    {% else %}
+    <a class="dm-act" href="{{ url_for('communication.feed') }}"><span class="dm-act-ic">💬</span>Nástěnka</a>
+    <a class="dm-act" href="{{ url_for('attendance.attendance') }}"><span class="dm-act-ic">🙋</span>Docházka</a>
+    <a class="dm-act" href="{{ url_for('drills') }}"><span class="dm-act-ic">🏒</span>Tréninky</a>
+    <a class="dm-act" href="{{ url_for('roster') }}"><span class="dm-act-ic">📝</span>Soupiska</a>
+    {% endif %}
+  </div>
+
+  {# ---------- SECTION 6: QUICK STATS (2x2) ---------- #}
+  <div class="dm-sec-head">Přehled</div>
+  <div class="dm-stats">
+    <div class="dm-stat"><span class="dm-stat-v">{{ att.pct if att else '—' }}{{ '%' if att }}</span><span class="dm-stat-l">Účast (další akce)</span></div>
+    <div class="dm-stat"><span class="dm-stat-v">{{ dash.players_total }}</span><span class="dm-stat-l">Hráčů</span></div>
+    <div class="dm-stat"><span class="dm-stat-v">{{ up | length }}</span><span class="dm-stat-l">Nadcházející akce</span></div>
+    {% if league and league.team_row %}
+    <div class="dm-stat"><span class="dm-stat-v">{{ league.team_row.position }}.</span><span class="dm-stat-l">Pozice v lize</span></div>
+    {% else %}
+    <div class="dm-stat"><span class="dm-stat-v">{{ dash.recent_messages_7d }}</span><span class="dm-stat-l">Zpráv (7 dní)</span></div>
+    {% endif %}
+  </div>
+
+  {# ---------- SECTION 7: LEAGUE SNAPSHOT ---------- #}
+  {% if league and league.team_row %}
+  {% set tr = league.team_row %}
+  <div class="dm-sec-head">Liga</div>
+  <article class="dm-league">
+    <div class="dm-league-top">
+      <span class="dm-league-pos">{{ tr.position }}.</span>
+      <span class="dm-league-team">{{ tr.team_name }}</span>
+      <span class="dm-league-pts">{{ tr.points }} b</span>
+    </div>
+    <div class="dm-league-meta">{{ tr.played }} zápasů · skóre {{ tr.score or (tr.goals_for ~ ':' ~ tr.goals_against) }}{% if tr.plus_minus is not none %} · {{ '%+d'|format(tr.plus_minus) }}{% endif %}</div>
+    {% if dash.next_game %}<div class="dm-league-next">Příště: {{ dash.next_game.title }} · {{ dash.next_game.label }}</div>{% endif %}
+    {% if league.standings %}<button type="button" class="dm-league-btn" data-dm-league>Celá tabulka →</button>{% endif %}
+  </article>
+  {% endif %}
+
+  {# ---------- SECTION 7b: LAST 5 GAMES FORM ---------- #}
+  {% if league and league.form_cards %}
+  {% set wins = league.form_cards | selectattr('code', 'in', ('W','OW')) | list | length %}
+  {% set nf = league.form_cards | length %}
+  <div class="dm-sec-head">Forma posledních 5 zápasů</div>
+  <div class="dm-form"{% if league.standings %} data-dm-league role="button" tabindex="0"{% endif %}>
+    <div class="dm-form-chips">
+      {% for f in league.form_cards %}
+      <span class="dm-chip dm-chip--{{ 'win' if f.code in ('W','OW') else ('draw' if f.code == 'D' else 'loss') }}" title="{{ f.code }}">{{ f.label }}</span>
+      {% endfor %}
+    </div>
+    <div class="dm-form-sub">{{ wins }} {{ 'výhra' if wins == 1 else ('výhry' if 1 < wins < 5 else 'výher') }} z posledních {{ nf }}</div>
+  </div>
+  {% endif %}
+
+  {# ---------- SECTION 8: LATEST MESSAGE (moved to bottom) ---------- #}
+  {% if latest_msg and latest_msg.text %}
+  <div class="dm-sec-head">Poslední vzkaz</div>
+  <a class="dm-msg" href="{{ url_for('communication.feed') }}">
+    <div class="dm-msg-meta"><span class="dm-msg-author">{{ 'Trenér' if latest_msg.role == 'coach' else 'Hráč' }}</span><span class="dm-msg-time">{{ latest_msg.created_at | prague('%d.%m. %H:%M') }}</span></div>
+    <div class="dm-msg-text">{{ latest_msg.text | truncate(140) }}</div>
+    <div class="dm-msg-go">Otevřít nástěnku ›</div>
+  </a>
+  {% endif %}
+</div>
+
+{# ---- League bottom sheet (full standings + results) ---- #}
+{% if league and (league.standings or league.results) %}
+<div class="dm-sheet" id="dmLeagueSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Liga">
+  <div class="dm-sheet-scrim" data-dm-close></div>
+  <div class="dm-sheet-panel">
+    <div class="dm-sheet-grip"></div>
+    <div class="dm-sheet-head"><h3>Liga</h3><button type="button" class="dm-sheet-x" data-dm-close aria-label="Zavřít">✕</button></div>
+    <div class="dm-lgseg" role="tablist">
+      <button type="button" class="dm-lgseg-btn is-active" data-dmlg="tabulka">Tabulka</button>
+      <button type="button" class="dm-lgseg-btn" data-dmlg="vysledky">Výsledky</button>
+    </div>
+    <div class="dm-sheet-list" data-dmlg-view="tabulka">
+      {% for s in league.standings %}
+      <div class="dm-lgrow {{ 'is-mine' if s.is_team }}">
+        <span class="dm-lgrow-pos">{{ s.position }}</span>
+        <span class="dm-lgrow-team">{{ s.team_name }}</span>
+        <span class="dm-lgrow-pts">{{ s.points }} b</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="dm-sheet-list" data-dmlg-view="vysledky" hidden>
+      {% for r in league.results %}
+      <div class="dm-lgres"><span class="dm-lgres-teams">{{ r.home_team }} – {{ r.away_team }}</span><span class="dm-lgres-score">{{ r.home_score }}:{{ r.away_score }}</span></div>
+      {% else %}
+      <div class="dm-empty--sm">Žádné výsledky.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ============================================================================
+   COACH-ONLY mobile event management. Separate .dm-ev-* sheets that post
+   DIRECTLY to the existing calendar_add / calendar_update / calendar_delete
+   routes with the SAME field names + CSRF (no reuse of the hidden desktop
+   #calFormSheet / day-cell DOM, no proxy-click). Players never render these.
+   ============================================================================ #}
+{% if coach %}
+{# --- CREATE --- #}
+<div class="dm-ev-sheet" id="dmEvCreateSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Nová akce">
+  <div class="dm-ev-scrim" data-dmev-close></div>
+  <div class="dm-ev-panel">
+    <div class="dm-ev-grip"></div>
+    <div class="dm-ev-head"><h3>Nová akce</h3><button type="button" class="dm-ev-x" data-dmev-close aria-label="Zavřít">✕</button></div>
+    <form method="POST" action="{{ url_for('calendar_add') }}" class="dm-ev-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="dm-ev-fld">Název<input type="text" name="title" placeholder="Např. Trénink A" required></label>
+      <div class="dm-ev-row2">
+        <label class="dm-ev-fld">Datum<input type="date" name="day" value="{{ today_iso }}" required></label>
+        <label class="dm-ev-fld">Čas<input type="time" name="time" value="18:00" required></label>
+      </div>
+      <label class="dm-ev-fld">Typ
+        <select name="kind"><option value="training" selected>Trénink</option><option value="match">Zápas</option></select>
+      </label>
+      <label class="dm-ev-fld">Opakování
+        <select name="repeat" id="dmEvRepeat">
+          <option value="none" selected>Neopakovat</option>
+          <option value="daily">Denně</option>
+          <option value="weekly">Týdně</option>
+          <option value="biweekly">Každé 2 týdny</option>
+          <option value="monthly">Měsíčně</option>
+        </select>
+      </label>
+      <div class="dm-ev-recur" id="dmEvRecur" hidden>
+        <div class="dm-ev-wdays">
+          {% for code,lbl in [('MO','Po'),('TU','Út'),('WE','St'),('TH','Čt'),('FR','Pá'),('SA','So'),('SU','Ne')] %}
+          <label class="dm-ev-wday"><input type="checkbox" name="weekday" value="{{ code }}"><span>{{ lbl }}</span></label>
+          {% endfor %}
+        </div>
+        <div class="dm-ev-row2">
+          <label class="dm-ev-fld">Do<input type="date" name="until"></label>
+          <label class="dm-ev-fld">nebo počet<input type="number" name="count" min="1" max="100" placeholder="12"></label>
+        </div>
+        <p class="dm-ev-hint">Zadej datum „Do" nebo počet opakování.</p>
+      </div>
+      <div class="dm-ev-foot">
+        <button type="button" class="dm-ev-btn-ghost" data-dmev-close>Zrušit</button>
+        <button type="submit" class="dm-ev-btn-primary">💾 Uložit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# --- MANAGE (pick an event to edit/delete) --- #}
+{% if local_events %}
+<div class="dm-ev-sheet" id="dmEvManageSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Spravovat akce">
+  <div class="dm-ev-scrim" data-dmev-close></div>
+  <div class="dm-ev-panel">
+    <div class="dm-ev-grip"></div>
+    <div class="dm-ev-head"><h3>Spravovat akce</h3><button type="button" class="dm-ev-x" data-dmev-close aria-label="Zavřít">✕</button></div>
+    <div class="dm-ev-mlist">
+      {% for e in local_events %}
+      <button type="button" class="dm-ev-mrow" data-dmev-edit
+              data-id="{{ e.id }}" data-title="{{ e.title }}" data-time="{{ e.time }}"
+              data-kind="{{ e.kind }}" data-series="{{ '1' if e.series_id else '' }}"
+              data-game="{{ '1' if e.is_game else '' }}"
+              data-when="{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}">
+        <span class="dm-ev-mrow-main"><span class="dm-ev-mrow-title">{{ e.title }}{% if e.series_id %} 🔁{% endif %}</span>
+        <span class="dm-ev-mrow-when">{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}</span></span>
+        <span class="dm-ev-mrow-go" aria-hidden="true">✏️</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# --- EDIT + DELETE --- #}
+<div class="dm-ev-sheet" id="dmEvEditSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Upravit akci">
+  <div class="dm-ev-scrim" data-dmev-close></div>
+  <div class="dm-ev-panel">
+    <div class="dm-ev-grip"></div>
+    <div class="dm-ev-head"><h3 id="dmEvEditTitle">Upravit akci</h3><button type="button" class="dm-ev-x" data-dmev-close aria-label="Zavřít">✕</button></div>
+    <form method="POST" action="{{ url_for('calendar_update') }}" class="dm-ev-form" id="dmEvEditForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="id" value="">
+      <label class="dm-ev-fld">Název<input type="text" name="title" required></label>
+      <div class="dm-ev-row2">
+        <label class="dm-ev-fld">Čas<input type="time" name="time"></label>
+        <label class="dm-ev-fld">Typ
+          <select name="kind"><option value="training">Trénink</option><option value="match">Zápas</option></select>
+        </label>
+      </div>
+      <label class="dm-ev-fld dm-ev-scope" id="dmEvEditScope" hidden>Rozsah (opakovaná akce)
+        <select name="scope"><option value="one" selected>Jen tuto</option><option value="future">Tuto a další</option><option value="series">Celou sérii</option></select>
+      </label>
+      <div class="dm-ev-foot">
+        <button type="button" class="dm-ev-btn-ghost" data-dmev-close>Zrušit</button>
+        <button type="submit" class="dm-ev-btn-primary">💾 Uložit</button>
+      </div>
+    </form>
+    <div class="dm-ev-secondary">
+      <button type="button" class="dm-ev-share" id="dmEvWa" data-wa="event" data-wa-kind="training" data-wa-title="" data-wa-when="">📲 Sdílet na WhatsApp</button>
+      <form method="POST" action="{{ url_for('calendar_delete') }}" class="form-confirm" id="dmEvDeleteForm" data-message="Smazat tuto akci?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="id" value="">
+        <label class="dm-ev-fld dm-ev-scope" id="dmEvDelScope" hidden>Rozsah mazání
+          <select name="scope"><option value="one" selected>Jen tuto</option><option value="future">Tuto a další</option><option value="series">Celou sérii</option></select>
+        </label>
+        <button type="submit" class="dm-ev-del">🗑 Smazat akci</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var sheets = Array.prototype.slice.call(document.querySelectorAll('.dm-ev-sheet'));
+  if (!sheets.length) return;
+  function openSheet(id) { var s = document.getElementById(id); if (!s) return; s.style.display = 'block'; requestAnimationFrame(function () { s.classList.add('open'); }); document.body.style.overflow = 'hidden'; }
+  function closeAll() { sheets.forEach(function (s) { if (!s.classList.contains('open')) return; s.classList.remove('open'); setTimeout(function () { s.style.display = 'none'; }, 220); }); document.body.style.overflow = ''; }
+
+  document.querySelectorAll('[data-dmev-open]').forEach(function (b) {
+    b.addEventListener('click', function () { openSheet(b.getAttribute('data-dmev-open')); });
+  });
+  sheets.forEach(function (s) { s.addEventListener('click', function (e) { if (e.target.closest('[data-dmev-close]')) closeAll(); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+
+  /* create: reveal recurrence controls only when a repeat frequency is chosen */
+  var rep = document.getElementById('dmEvRepeat'), recur = document.getElementById('dmEvRecur');
+  if (rep && recur) rep.addEventListener('change', function () { recur.hidden = (rep.value === 'none'); });
+
+  /* manage -> edit: prefill the edit + delete forms from the tapped row */
+  var editForm = document.getElementById('dmEvEditForm');
+  var delForm = document.getElementById('dmEvDeleteForm');
+  var editScope = document.getElementById('dmEvEditScope');
+  var delScope = document.getElementById('dmEvDelScope');
+  var editTitle = document.getElementById('dmEvEditTitle');
+  var wa = document.getElementById('dmEvWa');
+  document.querySelectorAll('[data-dmev-edit]').forEach(function (row) {
+    row.addEventListener('click', function () {
+      var d = row.dataset;
+      if (editForm) { editForm.elements['id'].value = d.id || ''; editForm.elements['title'].value = d.title || ''; editForm.elements['time'].value = d.time || ''; editForm.elements['kind'].value = (d.kind === 'match' ? 'match' : 'training'); }
+      if (delForm) { delForm.elements['id'].value = d.id || ''; }
+      var isSeries = !!d.series;
+      if (editScope) editScope.hidden = !isSeries;
+      if (delScope) delScope.hidden = !isSeries;
+      if (editTitle) editTitle.textContent = d.title || 'Upravit akci';
+      if (wa) { wa.setAttribute('data-wa-title', d.title || ''); wa.setAttribute('data-wa-when', d.when || ''); wa.setAttribute('data-wa-kind', d.game ? 'match' : 'training'); }
+      openSheet('dmEvEditSheet');
+    });
+  });
+})();
+</script>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var root = document.querySelector('.dm-root'); if (!root) return;
+
+  /* countdown on the hero */
+  var hero = root.querySelector('.dm-hero[data-day]');
+  if (hero) {
+    var cd = hero.querySelector('[data-dm-countdown]');
+    var day = hero.getAttribute('data-day'), time = hero.getAttribute('data-time') || '00:00';
+    if (cd && day) {
+      var when = new Date(day + 'T' + (time.length === 5 ? time : '18:00') + ':00');
+      var now = new Date(); var ms = when - now;
+      if (!isNaN(ms)) {
+        if (ms < 0) cd.textContent = 'Probíhá / proběhlo';
+        else { var h = Math.floor(ms / 3600000), d = Math.floor(h / 24);
+          cd.textContent = d >= 1 ? ('za ' + d + ' ' + (d === 1 ? 'den' : (d < 5 ? 'dny' : 'dní'))) : ('za ' + h + ' h'); }
+      }
+    }
+  }
+
+  /* league bottom sheet */
+  var sheet = document.getElementById('dmLeagueSheet');
+  function open() { if (!sheet) return; sheet.style.display = 'block'; requestAnimationFrame(function(){ sheet.classList.add('open'); }); document.body.style.overflow = 'hidden'; }
+  function close() { if (!sheet) return; sheet.classList.remove('open'); document.body.style.overflow = ''; setTimeout(function(){ sheet.style.display = 'none'; }, 220); }
+  root.querySelectorAll('[data-dm-league]').forEach(function (b) { b.addEventListener('click', open); });
+  if (sheet) {
+    sheet.addEventListener('click', function (e) { if (e.target.closest('[data-dm-close]')) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet.classList.contains('open')) close(); });
+    sheet.querySelectorAll('[data-dmlg]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-dmlg');
+        sheet.querySelectorAll('[data-dmlg]').forEach(function (x){ x.classList.toggle('is-active', x === b); });
+        sheet.querySelectorAll('[data-dmlg-view]').forEach(function (s){ s.hidden = s.getAttribute('data-dmlg-view') !== v; });
+      });
+    });
+  }
+})();
+</script>

@@ -54,8 +54,8 @@
               <td>{{ row.competition_id or '—' }}</td>
               <td>{% if li.enabled %}<span style="color:var(--success);">enabled</span>{% else %}<span class="muted">disabled</span>{% endif %}</td>
               <td>{{ li.highlight_team or '—' }}</td>
-              <td>{{ li.last_updated.strftime('%Y-%m-%d %H:%M') if li.last_updated else '—' }}</td>
-              <td>{{ li.last_attempt.strftime('%Y-%m-%d %H:%M') if li.last_attempt else '—' }}</td>
+              <td>{{ li.last_updated | prague('%Y-%m-%d %H:%M') or '—' }}</td>
+              <td>{{ li.last_attempt | prague('%Y-%m-%d %H:%M') or '—' }}</td>
               <td>
                 schema {{ row.cache_schema or '—' }}
                 {% if row.stale_warning %}<br><span style="color:var(--danger);">{{ row.cache_validation }}</span>{% endif %}

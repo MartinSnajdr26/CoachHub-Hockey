@@ -2,6 +2,9 @@
 {% block title %}{{ category }} – Cvičení{% endblock %}
 
 {% block content %}
+{# Mobile-only app bar; the desktop toolbar + .drill-card grid are reflowed via
+   mobile.css so existing search/favorites/coach actions are preserved. #}
+{% include 'mobile/_drills_category.html' %}
 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
   <a class="btn-ghost btn-sm" href="{{ url_for('drills') }}">← Kategorie</a>
   <h1 style="margin:0;">{{ category }}</h1>

@@ -43,7 +43,7 @@
     <tbody>
       {% for r in imports %}
       <tr>
-        <td>{{ r.b.created_at.strftime('%Y-%m-%d %H:%M') if r.b.created_at else '—' }}</td>
+        <td>{{ r.b.created_at | prague('%Y-%m-%d %H:%M') or '—' }}</td>
         <td>{{ r.team_name }}</td>
         <td>{{ r.b.filename or '—' }} ({{ r.b.file_type or '?' }})</td>
         <td>{{ r.b.attendance_imported }} ({{ r.b.players_created }}p / {{ r.b.events_created }}e)</td>

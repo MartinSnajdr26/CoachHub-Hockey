@@ -1,0 +1,35 @@
+{# ============================================================================
+   MOBILE-ONLY polish layer for the Drill editor (create + edit share this one
+   template/form/renderer). Shown only <=768px. This is a PRESENTATION layer
+   only: it adds a compact app bar and (via mobile.css) reflows the existing
+   metadata form, caps canvas overflow, enlarges toolbar touch targets, and
+   repositions the EXISTING action buttons into a sticky bar.
+
+   IMPORTANT: it adds NO canvas, NO form, NO inputs, NO save logic, and does NOT
+   touch the editor's touch/renderer/coordinate code. The single #board canvas,
+   #newDrillForm, hidden image_data/path_data fields, tool buttons, sync toggles,
+   Undo/Clear and the real submit button are all reused untouched. The app bar's
+   only JS proxies the existing help button and a Back navigation. Namespaced
+   .dem-*. CSS is scoped via main:has(> .dem-bar) so it never affects other pages.
+   ============================================================================ #}
+<header class="dem-bar">
+  <button type="button" class="dem-back" data-dem-back data-fallback="{{ url_for('drills') }}" aria-label="Zpět">‹</button>
+  <div class="dem-bar-title">{{ 'Upravit cvičení' if drill else 'Nové cvičení' }}</div>
+  <button type="button" class="dem-help" data-dem-help aria-label="Nápověda">ⓘ</button>
+</header>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var bar = document.querySelector('.dem-bar'); if (!bar) return;
+  var back = bar.querySelector('[data-dem-back]');
+  if (back) back.addEventListener('click', function () {
+    if (window.history.length > 1) { window.history.back(); }
+    else { window.location.href = back.getAttribute('data-fallback') || '/drills'; }
+  });
+  /* Proxy the existing desktop help button (help.js toggles #help-newdrill). */
+  var help = bar.querySelector('[data-dem-help]');
+  if (help) help.addEventListener('click', function () {
+    var hb = document.querySelector('.help-btn'); if (hb) hb.click();
+  });
+})();
+</script>
