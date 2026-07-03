@@ -114,10 +114,16 @@
     // Reuse lines.js tap-to-assign: select pool item, then click the (visible,
     // authoritative) slot. lines.js runs placeInto -> fill/group-dedup/badges/
     // validation. We never write inputs ourselves; no sync needed.
+    // `placing` suppresses our own capture-phase slot-tap interceptor (below) so
+    // the PROGRAMMATIC placement click reaches lines.js instead of re-opening the
+    // picker (that interception was BUG-1: player never got assigned).
+    var placing = false;
     function assign(poolItem) {
       if (!activeSlot) return;
+      var target = activeSlot;                 // capture before closePicker() nulls it
       if (!poolItem.classList.contains('is-selected')) poolItem.click();
-      activeSlot.click();
+      placing = true;
+      try { target.click(); } finally { placing = false; }
       closePicker();
     }
     if (clearBtn) clearBtn.addEventListener('click', function () {
@@ -135,6 +141,7 @@
     // i.e. everything EXCEPT the hidden .lines-swiper. Capture-phase + stopPropagation
     // so lines.js's own slot tap-to-assign does not also fire on mobile. Inert >768px.
     document.addEventListener('click', function (e) {
+      if (placing) return;                          // programmatic placement -> let lines.js handle it (BUG-1 fix)
       if (!isMobile()) return;
       var slot = e.target.closest && e.target.closest('.slot');
       if (!slot) return;

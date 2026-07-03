@@ -369,7 +369,7 @@
   .pam-sheet-head h3 { margin: 0; font-size: 1.2rem; }
   .pam-sheet-x { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 1rem; cursor: pointer; }
   .pam-sheet-search { width: 100%; box-sizing: border-box; min-height: 48px; font-size: 16px; padding: 0 14px; margin-bottom: 8px;
-    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--text); }
+    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--field-text, var(--text)); }
   .pam-sheet-list { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .pam-pick { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 10px; border: 0; background: transparent; color: var(--text); cursor: pointer; border-radius: 12px; text-align: left; }
   .pam-pick:active { background: var(--hover-soft, rgba(255,255,255,.05)); }
@@ -605,7 +605,7 @@
 
   /* Hráči view rows */
   .tam-search { width: 100%; box-sizing: border-box; min-height: 48px; font-size: 16px; padding: 0 14px; margin-bottom: 12px;
-    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--text); }
+    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--field-text, var(--text)); }
   .tam-players .tam-prow { display: flex; align-items: center; gap: 12px; }
   .tam-prow-main { flex: 1 1 auto; min-width: 0; }
   .tam-prow-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
@@ -784,7 +784,7 @@
   .plm-bar-count { font-weight: 800; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; }
 
   .plm-search { width: 100%; box-sizing: border-box; min-height: 48px; font-size: 16px; padding: 0 14px; margin-bottom: 12px;
-    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--text); }
+    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--field-text, var(--text)); }
 
   .plm-seg { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; padding: 4px; margin-bottom: 14px;
     background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 12px; }
@@ -828,7 +828,7 @@
   .plm-sheet-x { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 1rem; cursor: pointer; }
   .plm-fld { display: block; margin-bottom: 12px; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; }
   .plm-fld input, .plm-fld select { display: block; width: 100%; box-sizing: border-box; min-height: 50px; font-size: 16px; margin-top: 6px; padding: 0 14px;
-    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--text); font-weight: 600; }
+    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--field-text, var(--text)); font-weight: 600; }
   .plm-add-submit { width: 100%; min-height: 52px; border: 0; border-radius: 12px; background: var(--primary); color: var(--on-primary, #1a1606); font-weight: 800; font-size: 1rem; cursor: pointer; }
 }
 
@@ -932,7 +932,7 @@
   .rom-overflow { margin-left: auto; flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 1.2rem; cursor: pointer; }
 
   .rom-search { width: 100%; box-sizing: border-box; min-height: 46px; font-size: 16px; padding: 0 14px; margin-bottom: 8px;
-    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--text); }
+    border: 1px solid var(--field-border, var(--border)); border-radius: 12px; background: var(--field-bg, var(--surface-2)); color: var(--field-text, var(--text)); }
 
   .rom-seg { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; padding: 4px; margin-bottom: 8px;
     background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 12px; }
@@ -1918,4 +1918,49 @@
 
   /* slightly shorter sticky save */
   body.lines-page .lnm-save { min-height: 46px; }
+}
+
+/* ============================================================================
+   MOBILE CONTRAST FIXES (BUG-3/4/5): dark readable text on light fields.
+   All scoped to mobile; desktop (>768px) and protected stylesheets untouched.
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* BUG-4: import-docházky upload form has an inline white background; its label
+     + file input inherited the page's light --text. Scope to the aim upload form
+     (the only form[enctype] on that page) so its text is dark/readable. */
+  main:has(> .aim-bar) form[enctype],
+  main:has(> .aim-bar) form[enctype] label { color: var(--field-text, #111418); }
+
+  /* BUG-3: keep the (now dark) name field readable when browser-autofilled. */
+  .plm-fld input:-webkit-autofill { -webkit-text-fill-color: var(--field-text, var(--text)); caret-color: var(--field-text, var(--text)); }
+
+  /* BUG-5: info popup (Nápověda) titles. .help-dialog sets a dark color on its
+     white background, but the global `h1..h6 { color: var(--text) }` (light)
+     DIRECTLY targets the title and beats inheritance. Re-assert the dark dialog
+     text color on the headings (higher specificity). No team colors used. */
+  .help-dialog h1, .help-dialog h2, .help-dialog h3, .help-dialog h4 { color: var(--field-text, #111418); }
+}
+
+/* ============================================================================
+   BATCH FIXES (BUG-6/7/8): Formace color-control alignment, Docházka matrix
+   header height, global footer clearance. All mobile-scoped; desktop untouched.
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* BUG-6: "Podklad"/"Text" color controls — equal-width grid, aligned swatches;
+     wraps to one column (same start x, equal width) at very narrow widths. */
+  body.lines-page #formations .formation .lines-colorpick {
+    display: grid !important; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; align-items: center; }
+  body.lines-page #formations .formation .lines-colorpick::before { grid-column: 1 / -1; }
+  body.lines-page #formations .formation .lines-colorpick label {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; margin: 0; }
+
+  /* BUG-7: Docházka matrix header row is too short for its 4 lines (kind/date,
+     title, count, bar) -> clipped. Grow ONLY the header row via the grid var;
+     player rows use --am-row and are unchanged. Overrides style.css's 58px. */
+  .am-grid { --am-hhead: 72px; }
+
+  /* BUG-8: the fixed .mnav bottom nav overlays the in-flow .app-footer. Add
+     bottom clearance ONLY when the nav exists (logged-in), so logged-out pages
+     get no excess space. */
+  body:has(.mnav) .app-footer { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }

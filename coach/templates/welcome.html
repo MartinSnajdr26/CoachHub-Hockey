@@ -20,7 +20,6 @@
     </a>
     <nav class="lp-nav-links">
       <a href="#funkce">Funkce</a>
-      <a href="#nahled">Náhled</a>
       <a href="#proc">Proč CoachHub</a>
     </nav>
     <div class="lp-nav-cta">
@@ -63,27 +62,6 @@
     </div>
   </section>
 
-  <!-- PRODUCT PREVIEW -->
-  <section class="lp-section" id="nahled">
-    <div class="lp-section-head">
-      <span class="lp-eyebrow">Náhled</span>
-      <h2>Navržené pro každodenní práci</h2>
-      <p>Moderní rozhraní, které zvládneš ovládat z mobilu i z počítače.</p>
-    </div>
-    <div class="lp-preview">
-      <figure><img src="{{ url_for('static', filename='kalendar.png') }}" alt="Kalendář" loading="lazy"><figcaption>Kalendář tréninků a zápasů</figcaption></figure>
-      <figure><img src="{{ url_for('static', filename='tvorba_cviceni.png') }}" alt="Tvorba cvičení" loading="lazy"><figcaption>Tvorba cvičení a animací</figcaption></figure>
-      <figure><img src="{{ url_for('static', filename='soupiska.png') }}" alt="Soupiska" loading="lazy"><figcaption>Soupiska a formace</figcaption></figure>
-      <figure><img src="{{ url_for('static', filename='message_board.png') }}" alt="Nástěnka" loading="lazy"><figcaption>Týmová nástěnka</figcaption></figure>
-    </div>
-    <div class="lp-video">
-      <video controls muted loop playsinline preload="none" poster="{{ url_for('static', filename='home_page.png') }}">
-        <source src="{{ url_for('static', filename='app_demo.webm') }}" type="video/webm">
-        <source src="{{ url_for('static', filename='app_demo.mp4') }}" type="video/mp4">
-      </video>
-    </div>
-  </section>
-
   <!-- TRUST / WHY -->
   <section class="lp-section lp-section--why" id="proc">
     <div class="lp-section-head">
@@ -118,7 +96,7 @@
         <p>CoachHub Hockey — organizuj svůj tým chytře a jednoduše.</p>
       </div>
       <div class="lp-footer-cols">
-        <div><h4>Produkt</h4><a href="#funkce">Funkce</a><a href="#nahled">Náhled</a><a href="{{ url_for('team_auth') }}">Vytvořit tým</a></div>
+        <div><h4>Produkt</h4><a href="#funkce">Funkce</a><a href="{{ url_for('team_auth') }}">Vytvořit tým</a></div>
         <div><h4>Informace</h4><a href="{{ url_for('about') }}">O mně</a><a href="{{ url_for('terms') }}">Podmínky</a><a href="{{ url_for('privacy') }}">Soukromí</a></div>
         <div><h4>Kontakt</h4><a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a></div>
       </div>

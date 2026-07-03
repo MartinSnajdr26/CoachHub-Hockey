@@ -324,11 +324,28 @@
       fileInput.addEventListener('change', function(){ var f=fileInput.files&&fileInput.files[0]; handleFiles(f); });
     }
 
-    // Team search filter
+    // Team search filter.
+    // Native <select> pickers on mobile (iOS/Android) IGNORE `option.hidden`, so
+    // hiding options did not filter the dropdown on phones (BUG-2). Instead we
+    // remove/re-add the option elements in the DOM, which native pickers respect.
     var search = document.getElementById('teamSearch');
     var select = document.getElementById('existingTeam');
     if(search && select){
-      search.addEventListener('input', function(){ var q=(search.value||'').toLowerCase(); Array.prototype.slice.call(select.options).forEach(function(opt){ opt.hidden = q && (opt.textContent||'').toLowerCase().indexOf(q)===-1; }); });
+      // cache all real (non-placeholder) options once, in their original order
+      var allOpts = Array.prototype.slice.call(select.options).filter(function(o){ return o.value; });
+      search.addEventListener('input', function(){
+        var q = (search.value||'').trim().toLowerCase();
+        var selected = select.value;
+        // remove every real option (keep the placeholder = value-less option)
+        Array.prototype.slice.call(select.options).forEach(function(o){ if(o.value) select.removeChild(o); });
+        // re-append only matching options, preserving original order
+        allOpts.forEach(function(o){
+          if(!q || (o.textContent||'').toLowerCase().indexOf(q) !== -1){ select.appendChild(o); }
+        });
+        // preserve the current selection if still present, else fall back to placeholder
+        var stillThere = Array.prototype.slice.call(select.options).some(function(o){ return o.value === selected; });
+        if(selected && stillThere){ select.value = selected; } else { select.selectedIndex = 0; }
+      });
     }
 
     // Consent checkbox enables submit
