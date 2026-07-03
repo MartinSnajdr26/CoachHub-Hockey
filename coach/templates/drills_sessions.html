@@ -2,74 +2,137 @@
 {% block title %}Seznam tréninkových jednotek{% endblock %}
 
 {% block content %}
-{# Mobile-only app bar; desktop .cards list reflows via mobile.css. #}
+{# Mobile app bar (hides the desktop h1 + nav row on mobile via mobile.css). #}
 {% include 'mobile/_drill_sessions.html' %}
-<h1>Seznam tréninkových jednotek</h1>
+<h1>Uložené tréninky</h1>
 
-<p style="margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+<p class="tsl-nav">
   <a class="btn" href="{{ url_for('drills_select') }}">➕ Nový export</a>
-  <a href="{{ url_for('drills') }}">← Zpět na kategorie</a>
-  <span style="font-size:12px; opacity:0.8;">Staré neuložené exporty se mažou automaticky.</span>
-  </p>
+  <a class="btn-ghost btn-sm" href="{{ url_for('drills') }}">← Zpět na kategorie</a>
+  <span class="tsl-nav-note">Staré neuložené exporty se mažou automaticky.</span>
+</p>
 
-<div class="cards">
+{# ---------- compact library-style cards ---------- #}
+<style nonce="{{ csp_nonce }}">
+  .tsl-nav { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .tsl-nav-note { font-size:12px; color:var(--text-muted); }
+
+  .tsl-grid { display:grid; grid-template-columns:1fr; gap:14px; margin-top:4px; align-items:stretch; }
+  @media (min-width:700px){ .tsl-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (min-width:1024px){ .tsl-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+
+  .tsl-card { display:flex; flex-direction:column; min-width:0; padding:14px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:14px; }
+  .tsl-body { flex:1 1 auto; min-width:0; }
+  .tsl-title { margin:0 0 6px; font-size:1.05rem; font-weight:800; line-height:1.25; overflow-wrap:anywhere;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .tsl-meta { color:var(--text-muted); font-size:0.85rem; line-height:1.4; }
+  .tsl-badge { display:inline-block; font-size:12px; color:var(--text-muted); }
+
+  .tsl-actions { display:flex; align-items:center; gap:8px; margin-top:14px; }
+  .tsl-open { flex:1 1 auto; min-width:0; min-height:42px; display:inline-flex; align-items:center; justify-content:center;
+    padding:0 14px; border:0; border-radius:10px; background:var(--primary); color:var(--on-primary, #08101a);
+    font-weight:800; font-size:0.9rem; text-decoration:none; cursor:pointer; }
+
+  .tsl-menu-wrap { position:relative; flex:none; }
+  .tsl-menu-btn { width:44px; height:42px; display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text);
+    font-size:1.3rem; line-height:1; cursor:pointer; }
+  .tsl-menu { position:absolute; right:0; bottom:calc(100% + 6px); z-index:60; min-width:220px; max-width:82vw;
+    background:var(--surface, #12161d); border:1px solid var(--border); border-radius:12px; padding:6px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4); display:flex; flex-direction:column; gap:2px; }
+  .tsl-menu[hidden]{ display:none; }
+  .tsl-menu form { margin:0; }
+  .tsl-menu-item { display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box; min-height:44px;
+    padding:0 12px; text-align:left; border:0; border-radius:9px; background:transparent; color:var(--text);
+    font-weight:600; font-size:0.9rem; text-decoration:none; cursor:pointer; }
+  .tsl-menu-item:hover, .tsl-menu-item:focus-visible { background:var(--surface-2); }
+  .tsl-menu-sep { border-top:1px solid var(--border); margin:4px 0; }
+  .tsl-menu-item--danger { color:var(--danger); }
+  .tsl-menu-item--danger:hover, .tsl-menu-item--danger:focus-visible { background:color-mix(in srgb, var(--danger) 14%, transparent); }
+
+  .tsl-open:focus-visible, .tsl-menu-btn:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+
+  .tsl-empty { color:var(--text-muted); font-style:italic; margin-top:8px; }
+</style>
+
+<div class="tsl-grid">
   {% for s in sessions %}
-    <div class="card">
-      <h2>{{ s.title }}</h2>
-      <p><b>Vytvořeno:</b> {{ s.created_at | prague('%Y-%m-%d %H:%M') }}</p>
-      {% set abs = url_for('download_export', filename=s.filename, _external=True) %}
-      {% if s.filename and s.filename != '-' %}
-        <p>
-          <a class="btn" href="{{ url_for('download_export', filename=s.filename) }}" download>⬇️ Stáhnout PDF</a>
-          <button type="button" class="btn-share-pdf" data-url="{{ abs }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
-        </p>
-        <p>
-          {% set abs_page = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
-          <a class="btn" href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}">👁 Otevřít stránku tréninku</a>
-          <a class="btn" href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet stránku</a>
-        </p>
-      {% else %}
-        <p style="opacity:0.8; font-size:14px;">Složka tréninku (bez PDF)</p>
-        <p>
-          {% set abs_page = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
-          <a class="btn" href="{{ url_for('drills.drill_session_detail', sess_id=s.id) }}">👁 Otevřít stránku tréninku</a>
-          <a class="btn" href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ abs_page) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet stránku</a>
-        </p>
-        {% if is_coach %}
-        <form method="post" action="{{ url_for('export_drills_pdf') }}" style="margin-top:8px;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="session_id" value="{{ s.id }}">
-          <input type="hidden" name="session_title" value="{{ s.title }}">
-          <button type="submit">📄 Vygenerovat PDF</button>
-        </form>
-        {% endif %}
-      {% endif %}
-      {% set ids = (s.drill_ids or '') %}
-      {% set id_list = ids.split(',') if ids else [] %}
-      {% if id_list %}
-        <p><b>Obsahuje cvičení:</b></p>
-        <ul>
-        {% for sid in id_list %}
-          {% set did = sid|int if sid else None %}
-          {% set d = drills_by_id.get(did) %}
-          {% if d %}
-            <li><a href="{{ url_for('drill_detail', drill_id=d.id) }}">{{ d.name }}</a> <span style="opacity:0.7;">({{ d.category or '-' }})</span></li>
-          {% endif %}
-        {% endfor %}
-        </ul>
-      {% endif %}
-      {% if is_coach %}
-      <form method="post" action="{{ url_for('delete_drill_session', sess_id=s.id) }}" class="form-confirm" data-message="Smazat záznam exportu? PDF bude odstraněno.">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" style="background:var(--danger); color:var(--on-danger);">🗑 Smazat</button>
-      </form>
-      {% endif %}
-    </div>
+    {% set id_list = (s.drill_ids or '').split(',') if s.drill_ids else [] %}
+    {% set ns = namespace(n=0, dur=0) %}
+    {% for sid in id_list %}
+      {% set d = drills_by_id.get(sid|int) if sid and sid.isdigit() else None %}
+      {% if d %}{% set ns.n = ns.n + 1 %}{% set ns.dur = ns.dur + (d.duration or 0) %}{% endif %}
+    {% endfor %}
+    {% set has_pdf = s.filename and s.filename != '-' %}
+    {% set detail_url = url_for('drills.drill_session_detail', sess_id=s.id) %}
+    {% set page_abs = url_for('drills.drill_session_detail', sess_id=s.id, _external=True) %}
+    <article class="tsl-card">
+      <div class="tsl-body">
+        <h2 class="tsl-title">{{ s.title }}</h2>
+        <div class="tsl-meta">{{ ns.n }} cvičení · Vytvořeno {{ s.created_at | prague('%-d. %-m. %Y') }}{% if ns.dur %} · {{ ns.dur }} min{% endif %}{% if not has_pdf %} · <span class="tsl-badge">bez PDF</span>{% endif %}</div>
+      </div>
+      <div class="tsl-actions">
+        <a class="tsl-open" href="{{ detail_url }}">Otevřít</a>
+        <div class="tsl-menu-wrap">
+          <button type="button" class="tsl-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Další akce – {{ s.title }}">⋯</button>
+          <div class="tsl-menu" role="menu" aria-label="Akce tréninku" hidden>
+            {% if has_pdf %}
+            <a class="tsl-menu-item" role="menuitem" href="{{ url_for('download_export', filename=s.filename) }}" download>⬇️ Stáhnout PDF</a>
+            <button type="button" class="tsl-menu-item btn-share-pdf" role="menuitem" data-url="{{ url_for('download_export', filename=s.filename, _external=True) }}" data-filename="{{ s.filename }}">📎 Sdílet soubor</button>
+            {% elif is_coach %}
+            <form method="post" action="{{ url_for('export_drills_pdf') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="session_id" value="{{ s.id }}">
+              <input type="hidden" name="session_title" value="{{ s.title }}">
+              <button type="submit" class="tsl-menu-item" role="menuitem">📄 Vygenerovat PDF</button>
+            </form>
+            {% endif %}
+            <a class="tsl-menu-item" role="menuitem" href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ page_abs) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet stránku</a>
+            {% if is_coach %}
+            <div class="tsl-menu-sep" role="none"></div>
+            <form method="post" action="{{ url_for('delete_drill_session', sess_id=s.id) }}" class="form-confirm" data-message="Smazat záznam exportu? PDF bude odstraněno.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="tsl-menu-item tsl-menu-item--danger" role="menuitem">🗑 Smazat</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </article>
   {% else %}
-    <p><i>Zatím žádné exportované tréninkové jednotky</i></p>
+    <p class="tsl-empty">Zatím žádné uložené tréninky. Vyber cvičení a vytvoř první.</p>
   {% endfor %}
 </div>
 
-{% endblock %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var openMenu = null;
+  function items(m) { return Array.prototype.slice.call(m.querySelectorAll('[role="menuitem"]')); }
+  function btnOf(m) { return m.parentNode.querySelector('.tsl-menu-btn'); }
+  function close(m) { if (!m) return; m.setAttribute('hidden', ''); var b = btnOf(m); if (b) b.setAttribute('aria-expanded', 'false'); if (openMenu === m) openMenu = null; }
+  function open(m) { if (openMenu && openMenu !== m) close(openMenu); m.removeAttribute('hidden'); var b = btnOf(m); if (b) b.setAttribute('aria-expanded', 'true'); openMenu = m; var f = items(m)[0]; if (f) f.focus(); }
 
-{# moved to static/app.js #}
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.tsl-menu-btn');
+    if (btn) {
+      e.preventDefault();
+      var m = btn.parentNode.querySelector('.tsl-menu');
+      if (m.hasAttribute('hidden')) open(m); else close(m);
+      return;
+    }
+    if (openMenu && !e.target.closest('.tsl-menu-wrap')) close(openMenu);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!openMenu) return;
+    var list = items(openMenu), i = list.indexOf(document.activeElement);
+    if (e.key === 'Escape') { var b = btnOf(openMenu); close(openMenu); if (b) b.focus(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1 + list.length) % list.length].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); list[0].focus(); }
+    else if (e.key === 'End') { e.preventDefault(); list[list.length - 1].focus(); }
+  });
+})();
+</script>
+{% endblock %}

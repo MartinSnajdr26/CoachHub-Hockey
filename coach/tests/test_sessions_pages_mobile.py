@@ -72,7 +72,7 @@ class DrillSessionsMobileTest(_Fixture):
         self.assertIn('tsm-bar', h)
         self.assertIn('Náš trénink', h)
         self.assertNotIn('Cizí trénink', h)
-        self.assertIn('class="cards"', h)                # desktop list remains
+        self.assertIn('class="tsl-grid"', h)             # redesigned library grid
         self.assertIn('/drill-sessions/', h)             # open-detail link preserved
 
     def test_player_no_delete(self):
