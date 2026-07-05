@@ -132,6 +132,26 @@ Covers these reported symptoms (same root cause, shared fix):
 
 ---
 
+## BUG-9 — Attendance event cells not aligned with player rows (mobile, Docházka → Tabulka)
+
+- **Severity:** HIGH (data can appear beside the wrong player)
+- **Area:** `static/mobile.css` (`.am-grid` matrix row sizing)
+- **Status:** COMPLETE
+- **Symptom:** On a real phone, the fixed player-name column and the scrollable
+  event columns do not share row heights; attendance markers drift down the table
+  and can appear next to the wrong player.
+- **Root cause:** mobile.css gave the fixed player column a **one-sided**
+  `.am-lcell { min-height: 52px }` (to fit the 2-line name + %/position metadata),
+  but the scrollable event side (`.am-mrow`/`.am-cell`) kept the shared
+  `--am-row` (42px). Both sides read `height: var(--am-row)` from style.css, so the
+  left rows rendered 52px and the right rows 42px → 10px cumulative drift per row.
+- **Fix:** drive BOTH panes from the single shared `--am-row` variable on mobile
+  (`.am-grid { --am-row: 52px }`) and remove the one-sided min-height; center the
+  marker in the (now equal-height) event cell. Header keeps its own separate
+  `--am-hhead`. Scoped to `@media <=768px`; `style.css` NOT edited.
+
+---
+
 ## BUG-8 — Footer links covered by fixed bottom navigation (mobile, all screens)
 
 - **Severity:** MEDIUM

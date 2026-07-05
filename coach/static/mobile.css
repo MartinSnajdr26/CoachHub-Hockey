@@ -176,8 +176,16 @@
   .am-quick { flex-wrap: wrap; gap: 8px; }
   .am-chip, .pa-range { min-height: 44px; }
   .am-search, #am-search, .am-filters input[type="search"] { position: sticky; top: 56px; z-index: 5; }
-  .am-lcell { min-height: 52px; }
+  /* BUG-9: the fixed player column (.am-lcell) and the scrollable event rows
+     (.am-mrow/.am-cell) MUST share one row height, or they drift row-by-row and
+     a marker ends up beside the wrong player. All three read height:var(--am-row)
+     from style.css, so a one-sided min-height on .am-lcell broke the alignment.
+     Fix: drive both panes from the single shared --am-row. Header keeps its own
+     --am-hhead (independent), so it can stay taller without affecting data rows. */
+  .am-grid { --am-row: 52px; }
+  .am-lcell { overflow: hidden; }   /* height comes from --am-row; clip long content, never grow (names already ellipsis) */
   .am-cell, .am-hcell { min-width: 56px; }
+  .am-cell { display: flex; align-items: center; justify-content: center; }  /* center the marker in the shared-height cell */
   .am-cell .attn-select, .am-cell button { min-height: 44px; }
 
   /* Attendance event/player detail -> true full-screen modal (no edge clipping) */

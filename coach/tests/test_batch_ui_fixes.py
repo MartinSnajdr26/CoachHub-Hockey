@@ -81,9 +81,12 @@ class BatchUiSourceTest(unittest.TestCase):
 
     def test_bug7_header_height_override_only(self):
         css = _read(STATIC, 'mobile.css')
-        self.assertIn('--am-hhead: 72px', css)          # header row grows
-        # our additions must NOT alter regular player-row height (--am-row)
-        self.assertNotIn('--am-row:', css)
+        # Header height and normal-row height are controlled by SEPARATE variables
+        # (--am-hhead for the header, --am-row for data rows), so the taller header
+        # never changes normal-row height. (BUG-9 later sets --am-row to align the
+        # two panes; it is intentionally distinct from the header variable.)
+        self.assertIn('--am-hhead: 72px', css)          # header row (its own var)
+        self.assertIn('--am-row: 52px', css)            # data rows (separate var)
 
     def test_bug8_footer_clearance_scoped(self):
         css = _read(STATIC, 'mobile.css')
