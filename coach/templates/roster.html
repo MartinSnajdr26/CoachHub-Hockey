@@ -2,7 +2,7 @@
 {% block title %}Nominace na zápas{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='roster.css', v=csp_nonce) }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='roster.css', v=asset_version) }}">
 {# Mobile-only native roster (Phase 7). Desktop form below is untouched and hidden
    on mobile via body[data-page="roster"] in mobile.css. #}
 {% include 'mobile/_roster.html' %}
@@ -98,5 +98,5 @@
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='roster.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script src="{{ url_for('static', filename='roster.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
 {% endblock %}

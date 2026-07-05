@@ -81,5 +81,5 @@
 <script nonce="{{ csp_nonce }}">
   window.PK_CFG = { url: "{{ url_for('pokladna.pokladna_status') }}", csrf: "{{ csrf_token() }}", period: {{ period.id }} };
 </script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='pokladna.js', v=csp_nonce) }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='pokladna.js', v=asset_version) }}"></script>
 {% endblock %}

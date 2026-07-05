@@ -1,3 +1,4 @@
+import os
 from datetime import date, datetime, timedelta
 from flask import url_for
 from flask_login import current_user
@@ -6,7 +7,17 @@ from coach.models import Team, Drill, TrainingEvent, AuditEvent, Player, Payment
 from coach.extensions import db
 from coach.services.db_state import is_database_not_ready_error, log_db_not_ready_once
 
+# One release/asset version, bumped per deploy (env APP_VERSION overrides). Used
+# as the `?v=` cache-buster on frequently-changed application CSS/JS so a new
+# release ships a new URL the service worker fetches fresh. Keep in step with the
+# service-worker CACHE name in static/sw.js on each release.
+ASSET_VERSION = (os.environ.get('APP_VERSION') or 'v4').strip()
+
 def register_context(app):
+    @app.context_processor
+    def inject_asset_version():
+        return {'asset_version': ASSET_VERSION}
+
     @app.context_processor
     def inject_brand():
         brand = {'logo_url': None, 'primary': None, 'secondary': None, 'tertiary': None, 'team_name': None}

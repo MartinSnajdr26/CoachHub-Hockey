@@ -88,7 +88,7 @@
               <button type="submit" class="tsl-menu-item" role="menuitem">📄 Vygenerovat PDF</button>
             </form>
             {% endif %}
-            <a class="tsl-menu-item" role="menuitem" href="https://api.whatsapp.com/send?text={{ ('Tréninková jednotka: ' ~ s.title ~ ' ' ~ page_abs) | urlencode }}" target="_blank" rel="noopener noreferrer">📲 Sdílet stránku</a>
+            <a class="tsl-menu-item" role="menuitem" href="{{ session_whatsapp_url(s.title, s.created_at | prague('%-d. %-m. %Y'), ns.n, ns.dur, page_abs) }}" target="_blank" rel="noopener noreferrer">📲 Sdílet přes WhatsApp</a>
             {% if is_coach %}
             <div class="tsl-menu-sep" role="none"></div>
             <form method="post" action="{{ url_for('delete_drill_session', sess_id=s.id) }}" class="form-confirm" data-message="Smazat záznam exportu? PDF bude odstraněno.">

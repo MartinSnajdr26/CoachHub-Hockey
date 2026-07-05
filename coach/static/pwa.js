@@ -3,10 +3,29 @@
 (function () {
   'use strict';
 
-  // --- register service worker (root scope, served from /sw.js) ---
+  // --- register service worker + auto-update (root scope, served from /sw.js) ---
   if ('serviceWorker' in navigator) {
+    // Reload the page EXACTLY ONCE when a newly deployed worker takes control,
+    // so freshly deployed CSS/JS load without clearing site data or reinstalling.
+    // `refreshing` prevents a reload loop; `hadController` skips the reload on the
+    // very first install (when there was no previous controller to replace).
+    var refreshing = false;
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (refreshing) { return; }
+      if (!hadController) { hadController = true; return; }  // first install: no reload
+      refreshing = true;
+      window.location.reload();
+    });
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () { /* non-fatal */ });
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
+        // Proactively check for a new worker when the tab regains focus.
+        if (reg && typeof reg.update === 'function') {
+          document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') { try { reg.update(); } catch (e) {} }
+          });
+        }
+      }).catch(function () { /* non-fatal */ });
     });
   }
 

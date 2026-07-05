@@ -32,9 +32,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=csp_nonce) }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='help.css', v=csp_nonce) }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css', v=csp_nonce) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='help.css', v=asset_version) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css', v=asset_version) }}">
 </head>
 <body data-page="{{ ep }}" data-team-name="{{ brand.team_name or 'CoachHub' }}" style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#c44747' }}; --primary: var(--brand-primary); --secondary: var(--brand-secondary); --tertiary: var(--brand-tertiary);">
 
@@ -209,11 +209,11 @@
     {% endif %}
 
     {% block scripts %}{% endblock %}
-    <script src="{{ url_for('static', filename='app.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}"></script>
-    <script src="{{ url_for('static', filename='mobilenav.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
-    <script src="{{ url_for('static', filename='wa.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
-    <script src="{{ url_for('static', filename='help.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
-    <script src="{{ url_for('static', filename='pwa.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
+    <script src="{{ url_for('static', filename='app.js', v=asset_version) }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ url_for('static', filename='mobilenav.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+    <script src="{{ url_for('static', filename='wa.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+    <script src="{{ url_for('static', filename='help.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+    <script src="{{ url_for('static', filename='pwa.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
 
     <footer class="app-footer">
       <a href="{{ url_for('terms') }}">Podmínky použití</a>

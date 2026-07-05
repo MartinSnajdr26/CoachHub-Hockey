@@ -3,7 +3,7 @@
 {% block title %}Rozdělení do lajn{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=csp_nonce) }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='lines.css', v=asset_version) }}">
 <script nonce="{{ csp_nonce }}">try{document.body.classList.add('lines-page');}catch(e){}</script>
 {# Mobile-only (≤768px) controller/view: app bar, line tabs, player-picker sheet,
    sticky save. Renders NO slots; controls the existing #formations cards (the
@@ -221,7 +221,7 @@
 {% endblock %}
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='lines.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
-  <script src="{{ url_for('static', filename='lines2.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
-  <script src="{{ url_for('static', filename='lines_mobile.js', v=csp_nonce) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script src="{{ url_for('static', filename='lines.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script src="{{ url_for('static', filename='lines2.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script src="{{ url_for('static', filename='lines_mobile.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
 {% endblock %}

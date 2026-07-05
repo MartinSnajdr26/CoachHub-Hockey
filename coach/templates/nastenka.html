@@ -104,7 +104,7 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">window.CM_CFG = { reactUrl: "{{ url_for('communication.react', msg_id=0) }}", csrf: "{{ csrf_token() }}" };</script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='communication.js', v=csp_nonce) }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='communication.js', v=asset_version) }}"></script>
 {# Mobile-only: composer FAB + bottom-sheet (reuses #cm-composer). Hidden on desktop. #}
 {% include 'mobile/_nastenka_fab.html' %}
 {% endblock %}

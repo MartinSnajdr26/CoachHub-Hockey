@@ -80,7 +80,7 @@ class SessionsRedesignTest(unittest.TestCase):
         self.assertIn('tsl-menu', h)
         self.assertIn('Stáhnout PDF', h)
         self.assertIn('Sdílet soubor', h)
-        self.assertIn('Sdílet stránku', h)
+        self.assertIn('Sdílet přes WhatsApp', h)
         self.assertIn('🗑 Smazat', h)
         self.assertIn('aria-label="Další akce', h)       # accessible overflow button
         # folder-only session offers "Vygenerovat PDF" in its menu
@@ -100,7 +100,7 @@ class SessionsRedesignTest(unittest.TestCase):
         h = self._html()
         self.assertIn('/drill-sessions/%d' % self.sess.id, h)        # detail (Otevřít)
         self.assertIn('/exports/drills-x.pdf', h)                     # download via protected route
-        self.assertIn('api.whatsapp.com/send', h)                     # share page
+        self.assertIn('wa.me/?text=', h)                             # WhatsApp share (now a rich message)
 
     # 8. same card data regardless of viewport (single responsive grid) + mobile app bar
     def test_single_grid_and_mobile_appbar(self):

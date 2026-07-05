@@ -49,6 +49,8 @@ def create_app():
         lambda: (_dtmod.datetime.now(_dtmod.timezone.utc).astimezone(_PRAGUE_TZ)
                  if _PRAGUE_TZ else _dtmod.datetime.utcnow())
     )
+    from coach.services.session_share import session_whatsapp_url as _session_wa_url
+    app.jinja_env.globals['session_whatsapp_url'] = _session_wa_url
 
     # Blueprints registration (register individually and log failures)
     from importlib import import_module
