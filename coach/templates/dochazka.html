@@ -126,11 +126,12 @@
   window.AM_CFG = {
     isCoach: {{ 'true' if is_coach else 'false' }},
     cellUrl: "{{ url_for('attendance.attendance_cell') }}",
+    {% if is_coach %}reminderUrl: "{{ url_for('attendance.attendance_reminder') }}",{% endif %}
     csrf: "{{ csrf_token() }}"
   };
 </script>
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='attendance_matrix.js', v=csp_nonce) }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='attendance_matrix.js', v=asset_version) }}"></script>
 {% endblock %}

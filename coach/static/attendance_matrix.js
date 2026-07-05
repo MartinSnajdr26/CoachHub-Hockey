@@ -118,9 +118,19 @@
     var s = e.summary, names = e.names || {};
     function group(label, arr, cls) { return '<div class="am-grp"><h4 class="' + cls + '">' + label + ' (' + arr.length + ')</h4><div>' + (arr.length ? arr.map(esc).join(', ') : '—') + '</div></div>'; }
     function posRow(pos, lbl) { var b = e.by_position[pos] || {}; return '<tr><td>' + lbl + '</td><td>' + (b.going || 0) + '</td><td>' + (b.not_going || 0) + '</td><td>' + (b.maybe || 0) + '</td><td>' + (b.unknown || 0) + '</td></tr>'; }
+    // Coach-only WhatsApp reminder for this event's unanswered players. Server
+    // enforces the permission + team isolation and builds the message; here we
+    // only link to it (or show why it is unavailable when everyone answered).
+    var remind = '';
+    if (CFG.isCoach && CFG.reminderUrl) {
+      remind = (s.unknown || 0) > 0
+        ? '<a class="btn am-remind-btn" href="' + CFG.reminderUrl + '?event=' + encodeURIComponent(key) + '" target="_blank" rel="noopener noreferrer">📲 Připomenout přes WhatsApp</a>'
+        : '<p class="am-muted am-remind-done">Všichni hráči již mají docházku vyplněnou.</p>';
+    }
     openPanel(
       '<h3>' + (e.kind === 'match' ? '🏒 ' : '🧊 ') + esc(e.title) + '</h3>' +
       '<p class="am-muted">' + esc(e.day_full) + (e.time ? ' · ' + esc(e.time) : '') + ' · ' + (e.kind === 'match' ? 'Zápas' : 'Trénink') + (e.source === 'tymuj' ? ' · tymuj.cz' : '') + '</p>' +
+      remind +
       '<div class="am-bigpct am-pct--' + s.color + '">' + s.pct + '%</div>' + bar(s.pct, s.color) +
       '<div class="am-statgrid">' +
         '<div><b>' + s.going + '</b><span>Jde</span></div><div><b>' + s.not_going + '</b><span>Nejde</span></div>' +

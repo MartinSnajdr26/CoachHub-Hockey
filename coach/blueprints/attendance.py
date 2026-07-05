@@ -9,14 +9,17 @@ import io
 import json
 from datetime import date, timedelta
 
+import os
+
 from flask import (Blueprint, render_template, request, redirect, url_for, flash,
-                   current_app, jsonify, Response)
+                   current_app, jsonify, Response, abort)
 
 from coach.auth_utils import team_login_required, coach_required, get_team_id, get_team_role
 from coach.extensions import db
 from coach.models import Player, AttendanceEntry, AttendanceImport
 from coach.services import attendance_import as ai
 from coach.services import attendance_stats as stats
+from coach.services import attendance_reminder as reminder
 from coach.blueprints.calendar import _collect_events_for_team
 
 bp = Blueprint('attendance', __name__)
@@ -111,6 +114,52 @@ def attendance():
                            groups=groups, summary=summary, rng=rng,
                            is_coach=(get_team_role() == 'coach'),
                            source_labels=ai.SOURCE_LABELS)
+
+
+def _player_attendance_url():
+    """Absolute, production-safe URL to the player-facing attendance page.
+
+    No host is hardcoded — ``url_for`` uses the current request host. The scheme
+    is forced to https in production; in dev it mirrors the request scheme.
+    """
+    if (os.getenv('APP_ENV') or '').strip().lower() == 'production':
+        return url_for('attendance.attendance', _external=True, _scheme='https')
+    return url_for('attendance.attendance', _external=True)
+
+
+@bp.route('/attendance/reminder', methods=['GET'], endpoint='attendance_reminder')
+@team_login_required
+@coach_required
+def attendance_reminder():
+    """Coach-only: open WhatsApp with a prefilled reminder for the players who
+    have not answered a specific event. Nothing is sent automatically and no DB
+    record is created. Team isolation: the event and players are resolved from
+    the current team only, so one team can never reminder another team's event.
+    """
+    tid = get_team_id()
+    if not tid:
+        return redirect(url_for('team_auth'))
+    event_key = (request.args.get('event') or '').strip()
+    if not event_key:
+        abort(404)
+    # Resolve the event from THIS team's events only (wide window mirrors the
+    # dochazka POST handler) → prevents cross-team event access.
+    start_date = date.today() - timedelta(days=45)
+    end_date = date.today() + timedelta(days=180)
+    event = next((e for e in _collect_events_for_team(tid, start_date, end_date)
+                  if e['key'] == event_key), None)
+    if event is None:
+        abort(404)
+    players = Player.query.filter_by(team_id=tid).order_by(Player.name.asc()).all()
+    entries = AttendanceEntry.query.filter_by(team_id=tid).all()
+    names = reminder.unanswered_player_names(players, entries, event_key)
+    if not names:
+        flash('Všichni hráči již mají docházku vyplněnou.', 'info')
+        return redirect(url_for('dochazka'))
+    message = reminder.format_reminder_message(
+        event.get('title'), event['day'], event.get('time') or '',
+        names, _player_attendance_url())
+    return redirect(reminder.whatsapp_share_url(message))
 
 
 @bp.route('/attendance/set', methods=['POST'], endpoint='attendance_set')

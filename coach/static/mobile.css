@@ -202,6 +202,11 @@
   .am-panel .am-panel-kpis, .am-panel .am-detail-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
   .am-panel ul, .am-panel ol { padding-left: 0; list-style: none; }
   .am-panel li { overflow-wrap: anywhere; }
+  /* WhatsApp attendance reminder action inside the (full-screen) event panel:
+     compact full-width tap target; the panel is a modal so it never overlaps
+     the bottom nav. Desktop keeps the plain .btn styling (no rule here). */
+  .am-panel .am-remind-btn { display: block; width: 100%; box-sizing: border-box; text-align: center; min-height: 44px; margin: 12px 0 4px; }
+  .am-panel .am-remind-done { margin: 12px 0 4px; }
   .am-panel-close {
     position: sticky !important; top: 0; float: right; margin: -8px -4px 0 0;
     width: 44px; height: 44px; border-radius: 12px; z-index: 2;
