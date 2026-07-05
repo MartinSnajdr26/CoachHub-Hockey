@@ -3,7 +3,7 @@
    Authenticated HTML, POSTs and dynamic team data are never cached. */
 'use strict';
 
-var CACHE = 'coachhub-v2';
+var CACHE = 'coachhub-v3';
 var OFFLINE_URL = '/static/offline.html';
 var PRECACHE = [
   OFFLINE_URL,
