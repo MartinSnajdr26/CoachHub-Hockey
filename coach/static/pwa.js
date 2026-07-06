@@ -37,12 +37,19 @@
   var deferredPrompt = null;
 
   window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault();          // we present our own button
+    e.preventDefault();          // we present our own button (never auto-open)
     deferredPrompt = e;
-    if (!dismissed()) { showBanner(); }
+    // Prefer an in-page install card when the page has one (login / dashboard);
+    // otherwise fall back to the subtle banner. Avoids two prompts on one page.
+    if (document.querySelector('[data-pwa-install]')) { updatePwaInstallButtons(); }
+    else if (!dismissed()) { showBanner(); }
   });
 
-  window.addEventListener('appinstalled', function () { setDismissed(); removeBanner(); });
+  window.addEventListener('appinstalled', function () {
+    setDismissed(); removeBanner();
+    deferredPrompt = null;
+    forEachInstallControl(function (el) { setControlHidden(el, true); });   // hide inline cards too
+  });
 
   function removeBanner() {
     var b = document.getElementById('pwa-install'); if (b && b.parentNode) { b.parentNode.removeChild(b); }
@@ -75,4 +82,99 @@
     bar.appendChild(label); bar.appendChild(add); bar.appendChild(close);
     document.body.appendChild(bar);
   }
+
+  // --- persistent, manual install controls: [data-pwa-install] --------------
+  // Reuses the SAME deferredPrompt as the banner. Shows inline install cards on
+  // the login page and dashboard; hides them when already installed / running
+  // standalone; on iOS Safari (no beforeinstallprompt) shows manual "Add to
+  // Home Screen" steps instead of a dead button.
+
+  function isStandalone() {
+    try {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+          || window.navigator.standalone === true;
+    } catch (e) { return false; }
+  }
+  function isIOS() {
+    var ua = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(ua)) { return true; }
+    // iPadOS 13+ reports a desktop UA -> detect a touch-capable "Mac".
+    return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+  }
+  function forEachInstallControl(fn) {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pwa-install]'), fn);
+  }
+  function setControlHidden(el, hide) {
+    if (hide) { el.setAttribute('hidden', ''); } else { el.removeAttribute('hidden'); }
+  }
+
+  function updatePwaInstallButtons() {
+    var show;
+    if (isStandalone()) { show = false; }        // already installed / running as an app
+    else if (deferredPrompt) { show = true; }    // Chrome/Edge/Android: native prompt is ready
+    else if (isIOS()) { show = true; }           // iOS Safari: manual instructions
+    else { show = false; }                       // no reliable path -> hide (never a dead button)
+    forEachInstallControl(function (el) { setControlHidden(el, !show); });
+  }
+
+  function doInstall(trigger) {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function (choice) {
+        if (choice && choice.outcome === 'accepted') { deferredPrompt = null; }  // appinstalled will hide
+        updatePwaInstallButtons();               // dismissed -> keep usable while still promptable
+      }).catch(function () {});
+    } else if (isIOS()) {
+      showIosInstructions(trigger);
+    }
+  }
+
+  // Accessible iOS "Add to Home Screen" dialog (Escape/close, focus trapped/restored).
+  function showIosInstructions(trigger) {
+    if (document.getElementById('pwa-ios-help')) { return; }
+    var overlay = document.createElement('div');
+    overlay.className = 'pwa-ios-overlay'; overlay.id = 'pwa-ios-help';
+    var dialog = document.createElement('div');
+    dialog.className = 'pwa-ios-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'pwa-ios-title');
+    dialog.tabIndex = -1;
+    dialog.innerHTML =
+      '<h2 id="pwa-ios-title">Instalace na iPhone nebo iPad</h2>' +
+      '<ol><li>Klepněte v Safari na tlačítko Sdílet.</li>' +
+      '<li>Vyberte „Přidat na plochu“.</li>' +
+      '<li>Potvrďte tlačítkem „Přidat“.</li></ol>';
+    var close = document.createElement('button');
+    close.type = 'button'; close.className = 'btn btn-secondary pwa-ios-close'; close.textContent = 'Zavřít';
+    dialog.appendChild(close);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    function dismiss() {
+      if (overlay.parentNode) { overlay.parentNode.removeChild(overlay); }
+      document.removeEventListener('keydown', onKey, true);
+      if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); dismiss(); }
+      else if (e.key === 'Tab') { e.preventDefault(); close.focus(); }   // only the close button is focusable
+    }
+    close.addEventListener('click', dismiss);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) { dismiss(); } });
+    document.addEventListener('keydown', onKey, true);
+    close.focus();
+  }
+
+  // Delegated click for every install button, on any page.
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('.js-pwa-install') : null;
+    if (btn) { e.preventDefault(); doInstall(btn); }
+  });
+
+  // Initial state as soon as the DOM is ready (covers pages loaded after the
+  // beforeinstallprompt event, and iOS where the event never fires).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updatePwaInstallButtons);
+  } else { updatePwaInstallButtons(); }
 })();

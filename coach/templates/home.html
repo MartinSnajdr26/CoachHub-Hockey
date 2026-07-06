@@ -512,6 +512,16 @@
     </div>
   </section>
 
+  {# Compact "install as app" option at the very bottom of the dashboard.
+     Hidden by default; pwa.js reveals it only when installable / on iOS. #}
+  <div class="pwa-install-card pwa-install-card--compact" data-pwa-install hidden>
+    <div class="pwa-install-card__content">
+      <span class="pwa-install-card__icon" aria-hidden="true">📲</span>
+      <p>CoachHub Hockey můžete používat také jako aplikaci v telefonu nebo počítači.</p>
+    </div>
+    <button type="button" class="btn btn-secondary js-pwa-install">Nainstalovat aplikaci</button>
+  </div>
+
 </div>
 {% endblock %}
 

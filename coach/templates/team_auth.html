@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='pwa-install.css', v=asset_version) }}">
 </head>
 <body class="auth-page">
   {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -115,6 +116,19 @@
         </div>
       </div>
 
+      {# Manual "install as app" option — hidden by default; pwa.js reveals it
+         when installable (or on iOS) and hides it when already installed. #}
+      <div class="pwa-install-card" data-pwa-install hidden>
+        <div class="pwa-install-card__content">
+          <span class="pwa-install-card__icon" aria-hidden="true">📲</span>
+          <div>
+            <strong>Používejte CoachHub Hockey jako aplikaci</strong>
+            <p>Nainstalujte si aplikaci na plochu pro rychlejší přístup a pohodlnější používání.</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary js-pwa-install">Nainstalovat aplikaci</button>
+      </div>
+
       <p class="auth-foot">
         <a href="{{ url_for('public.welcome') }}">← Úvod</a> ·
         <a href="{{ url_for('about') }}">O mně</a> ·
@@ -138,5 +152,6 @@
     </aside>
   </div>
   <script src="{{ url_for('static', filename='app.js', v=asset_version) }}" nonce="{{ csp_nonce }}"></script>
+  <script src="{{ url_for('static', filename='pwa.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
 </body>
 </html>

@@ -28,10 +28,10 @@ class ServiceWorkerSourceTest(unittest.TestCase):
     def test_single_cache_declaration(self):
         self.assertEqual(len(re.findall(r'\bvar\s+CACHE\s*=', self.sw)), 1)
 
-    # 2. cache version incremented (v3 -> v4)
+    # 2. cache version incremented (each release bumps by one)
     def test_cache_version_incremented(self):
-        self.assertIn("CACHE = 'coachhub-v4'", self.sw)
-        self.assertNotIn('coachhub-v3', self.sw)
+        self.assertIn("CACHE = 'coachhub-v5'", self.sw)
+        self.assertNotIn('coachhub-v4', self.sw)
 
     # 3/4. immediate activation
     def test_skip_waiting_and_claim(self):
@@ -103,8 +103,8 @@ class ServiceWorkerRouteTest(unittest.TestCase):
     # 14. versioned asset URLs are rendered (stable per-release ?v=)
     def test_versioned_asset_urls_rendered(self):
         h = self.client.get('/').get_data(as_text=True)
-        self.assertRegex(h, r'style\.css\?v=v4')
-        self.assertRegex(h, r'app\.js\?v=v4')
+        self.assertRegex(h, r'style\.css\?v=v5')
+        self.assertRegex(h, r'app\.js\?v=v5')
         self.assertNotIn('v=csp_nonce', h)
 
     def test_manifest_served_and_valid(self):
