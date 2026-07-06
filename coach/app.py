@@ -184,14 +184,33 @@ def create_app():
             return ('Internal Server Error', 500)
 
     @app.errorhandler(429)
-    def _log_rate_limit(exc):
+    def _rate_limited(exc):
+        from flask import render_template, make_response
         try:
             from coach.auth_utils import get_team_id, get_team_role
             from coach.services.logging import log_event
             log_event('app.rate_limit', team_id=get_team_id(), role=get_team_role(), level='warning', message=str(exc))
         except Exception:
             pass
-        return exc
+        # Preserve the HTTP 429 status and derive Retry-After from Flask-Limiter's
+        # current breached limit (without enabling the X-RateLimit-* headers, which
+        # would leak the configuration). Render a CoachHub-styled page.
+        retry_after = None
+        try:
+            import time as _time
+            from coach.extensions import limiter as _lim
+            _cl = getattr(_lim, 'current_limit', None)
+            if _cl is not None and getattr(_cl, 'reset_at', None):
+                retry_after = max(1, int(_cl.reset_at - _time.time()))
+        except Exception:
+            pass
+        try:
+            resp = make_response(render_template('429.html', retry_after=retry_after), 429)
+        except Exception:
+            return exc  # never let the error page itself 500
+        if retry_after:
+            resp.headers['Retry-After'] = str(retry_after)
+        return resp
 
     @app.before_request
     def _ensure_dev_database_ready():
@@ -203,10 +222,14 @@ def create_app():
         from coach.services.owner_admin import ensure_owner_secret
         ensure_owner_secret(app)
 
+    from coach.extensions import limiter as _limiter
     @app.route('/sw.js')
+    @_limiter.exempt
     def service_worker():
         """Serve the service worker from the site root so its scope is '/'
-        (a /static/ SW could only control /static/). Public, no auth gate."""
+        (a /static/ SW could only control /static/). Public, no auth gate.
+        Exempt from rate limits: PWAs fetch/revalidate /sw.js automatically
+        (e.g. on every foreground), which is not an abuse vector."""
         from flask import send_from_directory
         resp = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
         resp.headers['Service-Worker-Allowed'] = '/'
@@ -350,6 +373,15 @@ def _noop_request_loader(req):
 
 # Build app via factory to finish setup
 app = create_app()
+
+# Trust exactly ONE proxy hop (PythonAnywhere's front-end). This makes
+# `request.remote_addr` the REAL client IP (the right-most, proxy-appended
+# X-Forwarded-For value) so the rate limiter buckets each client separately
+# instead of lumping everyone under the shared proxy IP. x_for=1 takes only the
+# hop the trusted proxy added, so a client cannot spoof its IP by prepending
+# X-Forwarded-For values. x_proto/x_host also fix https/host for external URLs.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # --- Logo upload constraints ---
 ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}

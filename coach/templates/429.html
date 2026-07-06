@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Příliš mnoho požadavků</title>
+  <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
+</head>
+<body class="lp">
+  {# Standalone, light error page. Only the (rate-limit-exempt) static stylesheet
+     is fetched, so viewing this page never consumes the limiter bucket. No
+     auto-refresh / auto-retry. #}
+  <main style="max-width:520px; margin:14vh auto; padding:0 20px; text-align:center;">
+    <div style="font-size:2.6rem; line-height:1; margin-bottom:10px;" aria-hidden="true">⏳</div>
+    <h1 style="margin:0 0 12px;">Příliš mnoho požadavků</h1>
+    <p style="color:var(--text-muted);">
+      Aplikace zaznamenala příliš mnoho požadavků v krátkém čase.
+      Počkejte prosím chvíli a zkuste to znovu.
+    </p>
+    {% if retry_after %}
+    <p style="color:var(--text-muted); font-size:0.9rem;">Zkuste to prosím za {{ retry_after }} s.</p>
+    {% endif %}
+    <p style="margin-top:22px;"><a class="btn" href="/">Zkusit znovu</a></p>
+  </main>
+</body>
+</html>

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from sqlalchemy import text
 
-from coach.extensions import db
+from coach.extensions import db, limiter
 from coach.models import AuditEvent, LeagueIntegration, Team
 from coach.services import tymuj as tymuj_svc
 from coach.services.db_state import has_table, is_database_not_ready_error, log_db_not_ready_once
@@ -32,6 +32,7 @@ def owner_required(fn):
 
 
 @bp.route('/login', methods=['GET', 'POST'], endpoint='login')
+@limiter.limit('10 per minute; 60 per hour', methods=['POST'])
 def login():
     secret = _owner_secret()
     if not secret:

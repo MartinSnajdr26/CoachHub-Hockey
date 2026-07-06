@@ -124,6 +124,7 @@ def team_logout():
 
 
 @bp.route('/team/create', methods=['POST'])
+@limiter.limit('10 per hour')   # team creation is rare; block spam/abuse
 def team_create():
     name = (request.form.get('team_name') or '').strip()
     if request.form.get('terms_accept') != 'on' or not name:

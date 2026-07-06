@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, current_app, send_from_directory
 
+from coach.extensions import limiter
+
 bp = Blueprint('public', __name__)
 
 
@@ -9,6 +11,7 @@ def welcome():
 
 
 @bp.route('/favicon.ico')
+@limiter.exempt   # browsers auto-request the favicon; not an abuse vector
 def favicon():
     # Serve a PNG as favicon for simplicity; browsers accept PNG via rel=icon
     try:
