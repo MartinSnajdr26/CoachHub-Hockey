@@ -712,6 +712,17 @@
   .dm-wk-title { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dm-wk-when { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
   .dm-wk-go { flex: none; color: var(--text-muted); font-size: 1.3rem; }
+  /* `display:flex` above (an author rule) beats the UA [hidden]{display:none},
+     so collapsed "Další události" cards would otherwise stay visible. This
+     higher-specificity rule makes the hidden attribute actually hide them. */
+  .dm-wk[hidden] { display: none; }
+  /* Secondary, understated show/hide control (not a primary CTA) */
+  .dm-week-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 10px 2px 0;
+    padding: 8px 12px; min-height: 40px; border-radius: 10px; background: transparent;
+    border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .dm-week-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .dm-week-toggle[aria-expanded="true"] { color: var(--text); }
 
   /* Latest message */
   .dm-msg { display: block; padding: 14px 16px; border-radius: 16px; text-decoration: none; background: var(--surface-2, #1a1f27); border: 1px solid var(--border); color: var(--text); }

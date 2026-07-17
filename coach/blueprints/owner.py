@@ -3,12 +3,14 @@ import platform
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
-from sqlalchemy import text
+from sqlalchemy import text, func
 
 from coach.extensions import db, limiter
-from coach.models import AuditEvent, LeagueIntegration, Team
+from coach.models import (AuditEvent, LeagueIntegration, Team, TeamKey, Player,
+                          TrainingEvent, AttendanceEntry, Drill, LineupSession)
 from coach.services import tymuj as tymuj_svc
 from coach.services.db_state import has_table, is_database_not_ready_error, log_db_not_ready_once
+from coach.services.keys import gen_readable_key, hash_team_key, verify_team_key
 from coach.services.owner_admin import get_owner_secret
 
 bp = Blueprint('owner', __name__, url_prefix='/owner')
@@ -164,6 +166,113 @@ def attendance():
     return render_template('owner_attendance.html', global_breakdown=global_breakdown,
                            per_team=per_team, imports=rows, source_labels=ai.SOURCE_LABELS,
                            recurrence=recurrence)
+
+
+@bp.route('/teams', endpoint='teams')
+@owner_required
+def teams():
+    return render_template('owner_teams.html', rows=_team_rows(), generated=None)
+
+
+@bp.route('/teams/<int:team_id>/regenerate-key', methods=['POST'], endpoint='regenerate_key')
+@owner_required
+def regenerate_key(team_id):
+    team = db.session.get(Team, team_id)
+    which = (request.form.get('role') or 'coach').strip()
+    if not team or which not in ('coach', 'player'):
+        flash('Neplatný požadavek na regeneraci klíče.', 'error')
+        return redirect(url_for('owner.teams'))
+    new_plain = _generate_unique_plain_key()
+    if not new_plain:
+        # Fail closed: uniqueness could not be confirmed, so do NOT invalidate the
+        # current key. The old key keeps working; the owner can simply retry.
+        flash('Nepodařilo se vygenerovat unikátní klíč. Původní klíč zůstává platný – zkus to znovu.', 'error')
+        return redirect(url_for('owner.teams'))
+    now = datetime.utcnow()
+    # Single active key per (team, role): deactivate the old one so it stops
+    # working, then insert the new active key (hashed – never stored in plaintext).
+    TeamKey.query.filter_by(team_id=team.id, role=which, active=True).update(
+        {TeamKey.active: False, TeamKey.rotated_at: now})
+    db.session.add(TeamKey(team_id=team.id, role=which,
+                           key_hash=hash_team_key(new_plain), active=True))
+    db.session.commit()
+    try:
+        # Audit the action WITHOUT the key itself.
+        db.session.add(AuditEvent(event='owner.team.key_regenerated',
+                                  team_id=team.id, role=which))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    generated = {'team': team, 'role': which, 'key': new_plain}
+    return render_template('owner_teams.html', rows=_team_rows(), generated=generated)
+
+
+def _generate_unique_plain_key(max_attempts=6):
+    """Return a readable key guaranteed not to collide with any active key."""
+    try:
+        active_hashes = [tk.key_hash for tk in TeamKey.query.filter_by(active=True).all()]
+    except Exception:
+        db.session.rollback()
+        active_hashes = []
+    for _ in range(max_attempts):
+        candidate = gen_readable_key()
+        if not any(verify_team_key(candidate, h) for h in active_hashes):
+            return candidate
+    return None  # uniqueness not confirmed — caller must abort the rotation (fail closed)
+
+
+def _count_by_team(model):
+    try:
+        rows = db.session.query(model.team_id, func.count()).group_by(model.team_id).all()
+        return {tid: c for tid, c in rows}
+    except Exception:
+        db.session.rollback()
+        return {}
+
+
+def _team_rows():
+    """Per-team monitoring metrics + active-key status. Never exposes key hashes."""
+    try:
+        teams = Team.query.order_by(Team.name.asc()).all()
+    except Exception as exc:
+        db.session.rollback()
+        if not is_database_not_ready_error(exc):
+            raise
+        log_db_not_ready_once(current_app, 'owner-teams-db-not-ready', exc, 'Owner teams database is not ready')
+        return []
+    players = _count_by_team(Player)
+    events = _count_by_team(TrainingEvent)
+    attendance = _count_by_team(AttendanceEntry)
+    drills = _count_by_team(Drill)
+    lineups = _count_by_team(LineupSession)
+    latest_event = {}
+    try:
+        for tid, d in (db.session.query(TrainingEvent.team_id, func.max(TrainingEvent.day))
+                       .group_by(TrainingEvent.team_id).all()):
+            latest_event[tid] = d
+    except Exception:
+        db.session.rollback()
+    active_keys = {}
+    try:
+        for tk in TeamKey.query.filter_by(active=True).all():
+            active_keys[(tk.team_id, tk.role)] = tk
+    except Exception:
+        db.session.rollback()
+    rows = []
+    for t in teams:
+        rows.append({
+            'team': t,
+            'players': players.get(t.id, 0),
+            'events': events.get(t.id, 0),
+            'attendance': attendance.get(t.id, 0),
+            'drills': drills.get(t.id, 0),
+            'lineups': lineups.get(t.id, 0),
+            'latest_event': latest_event.get(t.id),
+            # Booleans only — never hand key hashes/objects to the template.
+            'coach_key': (t.id, 'coach') in active_keys,
+            'player_key': (t.id, 'player') in active_keys,
+        })
+    return rows
 
 
 def _events(names, limit):

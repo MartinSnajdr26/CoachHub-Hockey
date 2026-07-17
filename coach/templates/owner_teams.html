@@ -1,0 +1,104 @@
+{% extends "owner_base.html" %}
+{% block title %}Owner · Teams{% endblock %}
+{% block content %}
+<h2>Teams</h2>
+<p class="muted">Owner-only overview of every team with basic usage metrics and access-key
+management. Raw keys are never shown here — a regenerated key is displayed once, immediately
+after you create it.</p>
+
+{# ---- Flash (errors) — owner_base does not render flashes ---- #}
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+    {% for cat, msg in msgs %}
+      <div class="card" style="text-align:left; border-color:{% if cat == 'error' %}var(--danger){% else %}var(--success){% endif %};">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{# ---- One-time reveal of a freshly generated key ---- #}
+{% if generated %}
+  <div class="card" style="text-align:left; border-color:var(--success);">
+    <h3 style="margin-top:0;">New team key generated. Save it now:</h3>
+    <p class="muted">Team <strong>{{ generated.team.name }}</strong> · role <strong>{{ generated.role }}</strong>.
+      This is shown only once — the previous {{ generated.role }} key no longer works.</p>
+    <p><code style="font-size:1.25rem; user-select:all; padding:6px 10px; border:1px solid var(--border, #ccc); border-radius:8px; display:inline-block;">{{ generated.key }}</code></p>
+  </div>
+{% endif %}
+
+<div class="card" style="text-align:left;">
+  <p class="muted" style="margin-top:0;">⚠ Regenerating a key immediately invalidates the current key for that role.
+    Coaches/players using the old key will need the new one.</p>
+  {% if rows %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Created</th>
+            <th>Last active</th>
+            <th>Players</th>
+            <th>Events</th>
+            <th>Latest event</th>
+            <th>Attendance</th>
+            <th>Drills</th>
+            <th>Lineups</th>
+            <th>Coach key</th>
+            <th>Player key</th>
+            <th>Regenerate key</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ r.team.id }}</td>
+              <td>{{ r.team.name }}</td>
+              <td>{{ (r.team.created_at | prague('%Y-%m-%d')) if r.team.created_at else '—' }}</td>
+              <td>{{ (r.team.last_active_at | prague('%Y-%m-%d %H:%M')) if r.team.last_active_at else '—' }}</td>
+              <td>{{ r.players }}</td>
+              <td>{{ r.events }}</td>
+              <td>{{ r.latest_event.isoformat() if r.latest_event else '—' }}</td>
+              <td>{{ r.attendance }}</td>
+              <td>{{ r.drills }}</td>
+              <td>{{ r.lineups }}</td>
+              <td>{% if r.coach_key %}<span style="color:var(--success);">active</span>{% else %}<span class="muted">none</span>{% endif %}</td>
+              <td>{% if r.player_key %}<span style="color:var(--success);">active</span>{% else %}<span class="muted">none</span>{% endif %}</td>
+              <td>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <form method="post" action="{{ url_for('owner.regenerate_key', team_id=r.team.id) }}"
+                        class="form-confirm" data-message="This will invalidate the current coach key for {{ r.team.name }} — it will stop working immediately. Continue?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="role" value="coach">
+                    <button type="submit" class="btn-sm" aria-label="Generate new coach key for {{ r.team.name }}">Coach</button>
+                  </form>
+                  <form method="post" action="{{ url_for('owner.regenerate_key', team_id=r.team.id) }}"
+                        class="form-confirm" data-message="This will invalidate the current player key for {{ r.team.name }} — it will stop working immediately. Continue?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="role" value="player">
+                    <button type="submit" class="btn-sm" aria-label="Generate new player key for {{ r.team.name }}">Player</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">No teams found.</div>
+  {% endif %}
+</div>
+
+{# Owner pages do not load app.js, so wire the shared form-confirm convention
+   here with a CSP-safe nonce'd script (mirrors static/app.js). #}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  document.querySelectorAll('form.form-confirm').forEach(function (form) {
+    form.addEventListener('submit', function (ev) {
+      var msg = form.getAttribute('data-message') || 'Continue?';
+      if (!window.confirm(msg)) { ev.preventDefault(); ev.stopPropagation(); }
+    });
+  });
+})();
+</script>
+{% endblock %}

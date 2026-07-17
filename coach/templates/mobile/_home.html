@@ -76,19 +76,27 @@
   </div>
   {% endif %}
 
-  {# ---------- SECTION 3: THIS WEEK ---------- #}
-  {% set week = up[1:6] %}
-  {% if week %}
-  <div class="dm-sec-head">Tento týden</div>
-  <div class="dm-week">
-    {% for e in week %}
-    <a class="dm-wk dm-k-{{ e.kind }}" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">
+  {# ---------- SECTION 3: UPCOMING EVENTS (compact, expand/collapse) ---------- #}
+  {# All upcoming after the hero (already capped upstream). Collapsed by default:
+     only the first event shows; the rest carry `hidden` in the markup (compact
+     even before JS, not focusable) and are revealed by the toggle button. #}
+  {% set rest = up[1:] %}
+  {% set DM_UP_DEFAULT = 1 %}
+  {% if rest %}
+  <div class="dm-sec-head">Další události</div>
+  <div class="dm-week" id="dmUpcoming">
+    {% for e in rest %}
+    {% set is_extra = loop.index0 >= DM_UP_DEFAULT %}
+    <a class="dm-wk dm-k-{{ e.kind }}{% if is_extra %} dm-wk--extra{% endif %}"{% if is_extra %} data-dm-extra hidden{% endif %} href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">
       <span class="dm-wk-badge">{{ '🥅' if e.is_game else ('🏕' if e.kind=='camp' else '🧊') }}</span>
       <span class="dm-wk-main"><span class="dm-wk-title">{{ e.title }}</span><span class="dm-wk-when">{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}</span></span>
       <span class="dm-wk-go" aria-hidden="true">›</span>
     </a>
     {% endfor %}
   </div>
+  {% if rest | length > DM_UP_DEFAULT %}
+  <button type="button" class="dm-week-toggle" id="dmUpToggle" aria-expanded="false" aria-controls="dmUpcoming">Zobrazit další události</button>
+  {% endif %}
   {% endif %}
 
   {# ---------- SECTION 4: QUICK ACTIONS ---------- #}
@@ -367,6 +375,25 @@
         else { var h = Math.floor(ms / 3600000), d = Math.floor(h / 24);
           cd.textContent = d >= 1 ? ('za ' + d + ' ' + (d === 1 ? 'den' : (d < 5 ? 'dny' : 'dní'))) : ('za ' + h + ' h'); }
       }
+    }
+  }
+
+  /* upcoming events: first event shows, the rest carry `hidden` in the markup;
+     the toggle reveals/collapses them. Cards start hidden (CSS honours the
+     [hidden] attribute) so the section is compact even before this runs. */
+  var upToggle = document.getElementById('dmUpToggle');
+  if (upToggle) {
+    var extras = Array.prototype.slice.call(root.querySelectorAll('[data-dm-extra]'));
+    if (extras.length) {
+      var setUpExpanded = function (open) {
+        extras.forEach(function (el) { el.hidden = !open; });
+        upToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        upToggle.textContent = open ? 'Skrýt další události' : 'Zobrazit další události';
+      };
+      setUpExpanded(false);  /* enforce the collapsed default */
+      upToggle.addEventListener('click', function () {
+        setUpExpanded(upToggle.getAttribute('aria-expanded') !== 'true');
+      });
     }
   }
 

@@ -1,7 +1,11 @@
 import os
 import base64
 import hashlib
+import secrets
 from hmac import compare_digest
+
+# Unambiguous alphabet for human-copyable keys (no I/O/0/1).
+_READABLE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
 
 def _scrypt(password: bytes, salt: bytes, n=2**14, r=8, p=1, dklen=32) -> bytes:
@@ -31,4 +35,18 @@ def verify_team_key(plaintext: str, encoded: str) -> bool:
 def gen_plain_key(length: int = 24) -> str:
     # URL-safe key (no padding)
     return base64.urlsafe_b64encode(os.urandom(length)).decode('ascii').rstrip('=')
+
+
+def gen_readable_key(prefix: str = 'CHH', groups: int = 3, group_len: int = 4) -> str:
+    """Cryptographically-secure, human-copyable key, e.g. CHH-XXXX-XXXX-XXXX.
+
+    Uses `secrets` over an unambiguous alphabet. Not derived from any team data.
+    Verification is format-agnostic (compares plaintext against the stored hash),
+    so this coexists with keys produced by `gen_plain_key`.
+    """
+    body = '-'.join(
+        ''.join(secrets.choice(_READABLE_ALPHABET) for _ in range(group_len))
+        for _ in range(groups)
+    )
+    return '%s-%s' % (prefix, body)
 
