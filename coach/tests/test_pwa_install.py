@@ -101,10 +101,10 @@ class PwaJsLogicTest(unittest.TestCase):
 
 class CacheVersionTest(unittest.TestCase):
     def test_cache_and_asset_version_bumped(self):
-        self.assertIn("CACHE = 'coachhub-v5'", _read(SW_JS))
-        self.assertNotIn('coachhub-v4', _read(SW_JS))
+        self.assertIn("CACHE = 'coachhub-v6'", _read(SW_JS))
+        self.assertNotIn('coachhub-v5', _read(SW_JS))
         from coach.context import ASSET_VERSION
-        self.assertEqual(ASSET_VERSION, 'v5')
+        self.assertEqual(ASSET_VERSION, 'v6')
 
 
 if __name__ == '__main__':

@@ -1,41 +1,64 @@
 {# ============================================================================
-   MOBILE-ONLY Dashboard (Phase 4). Renders ALONGSIDE the untouched desktop
-   dashboard; hidden on desktop via mobile.css. Reuses the SAME context
-   (dash, team_messages, league, is_coach_home). No desktop markup/CSS/backend
-   touched. Namespaced .dm-*. Scroll order: hero, alerts, week, latest message,
-   quick actions, stats, league, results.
+   MOBILE-ONLY Dashboard. Renders ALONGSIDE the untouched desktop dashboard;
+   hidden on desktop via mobile.css. Reuses the SAME context (dash, team_messages,
+   league, is_coach_home, team_feed_url). No desktop markup/CSS/backend touched.
+   Namespaced .dm-*. Compact "coach daily cockpit": greeting, NEJBLIŽŠÍ AKCE hero
+   (always visible), RYCHLÉ AKCE tile grid, then three independent collapsible
+   sections (Liga a forma / Další události / Týmový kalendář).
    ============================================================================ #}
 {% set coach = is_coach_home %}
 {% set up = dash.upcoming or [] %}
 {% set nextev = up[0] if up else None %}
+{% set rest = up[1:] %}
 {% set att = dash.attendance %}
-{# newest message by time (team_messages is pinned-first; take latest by date) #}
-{% set latest_msg = (team_messages | sort(attribute='created_at') | last) if team_messages else None %}
-{% set has_pinned = team_messages | selectattr('pinned') | list | length > 0 %}
 {# coach-editable events only (local; Týmuj/external events are read-only) #}
 {% set local_events = (up | selectattr('source', 'equalto', 'local') | list) %}
 
+{#- outline icon set (Tabler-style), mobile-only, namespaced. -#}
+{%- macro dmico(name) -%}
+{%- set p = {
+  'clock': '<circle cx="12" cy="12" r="8.5"/><path d="M12 8v4l2.6 1.6"/>',
+  'chevron-right': '<path d="M9 6l6 6-6 6"/>',
+  'chevron-down': '<path d="M6 9l6 6 6-6"/>',
+  'message': '<path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-4.4A8 8 0 1 1 21 11.5z"/>',
+  'clipboard': '<rect x="8" y="3.5" width="8" height="4" rx="1.4"/><path d="M8 5.5H6.5A2 2 0 0 0 4.5 7.5v11A2 2 0 0 0 6.5 20.5h11A2 2 0 0 0 19.5 18.5v-11A2 2 0 0 0 17.5 5.5H16"/><path d="M9 13.5l2 2 4-4.2"/>',
+  'formation': '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
+  'hockey': '<path d="M3 12h3.5l2.2 6 4-15 2.3 11H21"/>',
+  'coins': '<circle cx="8.5" cy="8.5" r="4.8"/><path d="M12.4 5.2A4.8 4.8 0 1 1 15 14.4"/>',
+  'users': '<circle cx="9" cy="8" r="3.2"/><path d="M3.7 19c0-2.9 2.5-4.8 5.3-4.8s5.3 1.9 5.3 4.8"/><path d="M16 5.6a3 3 0 0 1 0 5.6"/><path d="M20.3 19c0-1.9-1-3.3-2.7-4.1"/>',
+  'trophy': '<path d="M8 4.5h8v3.5a4 4 0 0 1-8 0V4.5z"/><path d="M8 5.5H5.2v.8a2.8 2.8 0 0 0 2.8 2.8M16 5.5h2.8v.8a2.8 2.8 0 0 1-2.8 2.8"/><path d="M12 12v3.5M9.2 20h5.6M10.3 20v-2h3.4v2"/>',
+  'calendar': '<rect x="3.7" y="5" width="16.6" height="15.5" rx="2"/><path d="M3.7 9.4h16.6M8 3v4M16 3v4"/>',
+  'calendar-share': '<rect x="3.7" y="5" width="16.6" height="15.5" rx="2"/><path d="M3.7 9.4h16.6M8 3v4M16 3v4M12 12.5v5M9.6 14.9l2.4-2.4 2.4 2.4"/>'
+} -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ p.get(name, '')|safe }}</svg>
+{%- endmacro -%}
+
 <div class="dm-root" style="display:none" data-today="{{ today_iso }}" data-coach="{{ '1' if coach else '0' }}">
 
+  {# ---------- GREETING ---------- #}
   <div class="dm-greet">
     <div class="dm-greet-hi">Dobrý den 👋</div>
     <div class="dm-greet-day">{{ today_label }}</div>
   </div>
 
-  {# ---------- SECTION 1: NEXT EVENT HERO ---------- #}
+  {# ---------- NEJBLIŽŠÍ AKCE — hero (always visible, never collapsible) ---------- #}
+  <div class="dm-eyebrow">Nejbližší akce</div>
   {% if nextev %}
-  <div class="dm-eyebrow">Další akce</div>
   <article class="dm-hero dm-k-{{ nextev.kind }}" data-day="{{ nextev.day.isoformat() }}" data-time="{{ nextev.time or '' }}">
     <div class="dm-hero-row">
-      <span class="dm-badge dm-badge--{{ nextev.kind }}">{{ '🥅 Zápas' if nextev.is_game else ('🏕 Soustředění' if nextev.kind=='camp' else '🧊 Trénink') }}</span>
+      <span class="dm-badge dm-badge--{{ nextev.kind }}">{{ '🥅 Zápas' if nextev.is_game else ('🏕 Soustředění' if nextev.kind=='camp' else '🏃 Trénink') }}</span>
       <span class="dm-hero-cd" data-dm-countdown>{{ nextev.label }}</span>
     </div>
     <h2 class="dm-hero-title">{{ nextev.title }}</h2>
     <div class="dm-hero-when">{{ nextev.label }}{% if nextev.time %} · {{ nextev.time }}{% endif %}</div>
+    <a class="dm-hero-cta" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">{{ 'Otevřít docházku' if coach else 'Moje docházka' }}</a>
     {% if att and att.event and att.event.key == nextev.key %}
-    <div class="dm-hero-att"><span class="dm-hero-att-pct">{{ att.pct }}%</span> potvrzeno · {{ att.going }}/{{ att.total }}</div>
+    <a class="dm-hero-att" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">
+      <span class="dm-hero-att-ic">{{ dmico('clock') }}</span>
+      <span class="dm-hero-att-tx"><span class="dm-hero-att-ok">{{ att.going }}/{{ att.total }} potvrzeno</span>{% if att.pending %} <span class="dm-hero-att-mut">· {{ att.pending }} {{ 'hráč' if att.pending == 1 else ('hráči' if att.pending < 5 else 'hráčů') }} ještě čeká</span>{% endif %}</span>
+      <span class="dm-hero-att-go" aria-hidden="true">{{ dmico('chevron-right') }}</span>
+    </a>
     {% endif %}
-    <a class="dm-hero-cta" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">{{ 'Otevřít docházku' if coach else '🙋 Moje docházka' }}</a>
   </article>
   {% else %}
   <article class="dm-hero dm-hero--empty">
@@ -45,152 +68,115 @@
   </article>
   {% endif %}
 
-  {# ---------- COACH: event management entry (create / manage) ---------- #}
-  {% if coach %}
-  <div class="dm-ev-cta">
-    <button type="button" class="dm-ev-cta-btn dm-ev-cta-btn--primary" data-dmev-open="dmEvCreateSheet">＋ Přidat zápas / trénink</button>
-    {% if local_events %}<button type="button" class="dm-ev-cta-btn" data-dmev-open="dmEvManageSheet">✏️ Spravovat</button>{% endif %}
-  </div>
-  {% endif %}
-
-  {# ---------- SECTION 2: ALERTS (max 3, only if relevant) ---------- #}
-  {% set ns = namespace(alerts=[]) %}
-  {% if coach and att and att.pending and att.pending > 0 %}
-    {% set ns.alerts = ns.alerts + [{'ic':'⏳','tone':'warn','txt':att.pending ~ ' hráčů ještě nepotvrdilo účast','url':url_for('dochazka')}] %}
-  {% endif %}
-  {% set today_ev = (up | selectattr('is_today') | list) %}
-  {% if today_ev %}
-    {% set ns.alerts = ns.alerts + [{'ic':'📍','tone':'info','txt':'Dnes: ' ~ today_ev[0].title,'url':(url_for('dochazka') if coach else url_for('attendance.attendance'))}] %}
-  {% endif %}
-  {% if has_pinned %}
-    {% set ns.alerts = ns.alerts + [{'ic':'📌','tone':'info','txt':'Připnutý vzkaz na nástěnce','url':url_for('communication.feed')}] %}
-  {% endif %}
-  {% if coach and dash.latest_lineup %}
-    {% set ns.alerts = ns.alerts + [{'ic':'🧩','tone':'info','txt':'Sestava: ' ~ (dash.latest_lineup.title or 'nová'),'url':url_for('lineup_sessions')}] %}
-  {% endif %}
-  {% if ns.alerts %}
-  <div class="dm-alerts">
-    {% for a in ns.alerts[:3] %}
-    <a class="dm-alert dm-alert--{{ a.tone }}" href="{{ a.url }}"><span class="dm-alert-ic">{{ a.ic }}</span><span class="dm-alert-tx">{{ a.txt }}</span><span class="dm-alert-go" aria-hidden="true">›</span></a>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {# ---------- SECTION 3: UPCOMING EVENTS (compact, expand/collapse) ---------- #}
-  {# All upcoming after the hero (already capped upstream). Collapsed by default:
-     only the first event shows; the rest carry `hidden` in the markup (compact
-     even before JS, not focusable) and are revealed by the toggle button. #}
-  {% set rest = up[1:] %}
-  {% set DM_UP_DEFAULT = 1 %}
-  {% if rest %}
-  <div class="dm-sec-head">Další události</div>
-  <div class="dm-week" id="dmUpcoming">
-    {% for e in rest %}
-    {% set is_extra = loop.index0 >= DM_UP_DEFAULT %}
-    <a class="dm-wk dm-k-{{ e.kind }}{% if is_extra %} dm-wk--extra{% endif %}"{% if is_extra %} data-dm-extra hidden{% endif %} href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">
-      <span class="dm-wk-badge">{{ '🥅' if e.is_game else ('🏕' if e.kind=='camp' else '🧊') }}</span>
-      <span class="dm-wk-main"><span class="dm-wk-title">{{ e.title }}</span><span class="dm-wk-when">{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}</span></span>
-      <span class="dm-wk-go" aria-hidden="true">›</span>
-    </a>
-    {% endfor %}
-  </div>
-  {% if rest | length > DM_UP_DEFAULT %}
-  <button type="button" class="dm-week-toggle" id="dmUpToggle" aria-expanded="false" aria-controls="dmUpcoming">Zobrazit další události</button>
-  {% endif %}
-  {% endif %}
-
-  {# ---------- SECTION 4: QUICK ACTIONS ---------- #}
-  <div class="dm-sec-head">Rychlé akce</div>
+  {# ---------- RYCHLÉ AKCE — tile grid (3×2) ---------- #}
+  <div class="dm-eyebrow">Rychlé akce</div>
   <div class="dm-actions">
     {% if coach %}
-    <a class="dm-act" href="{{ url_for('communication.feed') }}"><span class="dm-act-ic">💬</span>Zpráva</a>
-    <a class="dm-act" href="{{ url_for('dochazka') }}"><span class="dm-act-ic">📋</span>Docházka</a>
-    <a class="dm-act" href="{{ url_for('lines') }}"><span class="dm-act-ic">⚙️</span>Formace</a>
-    <a class="dm-act" href="{{ url_for('drills') }}"><span class="dm-act-ic">🏒</span>Cvičení</a>
-    <a class="dm-act" href="{{ url_for('pokladna.pokladna') }}"><span class="dm-act-ic">💰</span>Pokladna</a>
-    <a class="dm-act" href="{{ url_for('players') }}"><span class="dm-act-ic">👤</span>Hráči</a>
+    <a class="dm-act" href="{{ url_for('communication.feed') }}"><span class="dm-act-ic">{{ dmico('message') }}</span><span class="dm-act-l">Zpráva</span></a>
+    <a class="dm-act" href="{{ url_for('dochazka') }}"><span class="dm-act-ic">{{ dmico('clipboard') }}</span><span class="dm-act-l">Docházka</span></a>
+    <a class="dm-act" href="{{ url_for('lines') }}"><span class="dm-act-ic">{{ dmico('formation') }}</span><span class="dm-act-l">Formace</span></a>
+    <a class="dm-act" href="{{ url_for('drills') }}"><span class="dm-act-ic">{{ dmico('hockey') }}</span><span class="dm-act-l">Cvičení</span></a>
+    <a class="dm-act" href="{{ url_for('pokladna.pokladna') }}"><span class="dm-act-ic">{{ dmico('coins') }}</span><span class="dm-act-l">Pokladna</span></a>
+    <a class="dm-act" href="{{ url_for('players') }}"><span class="dm-act-ic">{{ dmico('users') }}</span><span class="dm-act-l">Hráči</span></a>
     {% else %}
-    <a class="dm-act" href="{{ url_for('communication.feed') }}"><span class="dm-act-ic">💬</span>Nástěnka</a>
-    <a class="dm-act" href="{{ url_for('attendance.attendance') }}"><span class="dm-act-ic">🙋</span>Docházka</a>
-    <a class="dm-act" href="{{ url_for('drills') }}"><span class="dm-act-ic">🏒</span>Tréninky</a>
-    <a class="dm-act" href="{{ url_for('roster') }}"><span class="dm-act-ic">📝</span>Soupiska</a>
+    <a class="dm-act" href="{{ url_for('communication.feed') }}"><span class="dm-act-ic">{{ dmico('message') }}</span><span class="dm-act-l">Nástěnka</span></a>
+    <a class="dm-act" href="{{ url_for('attendance.attendance') }}"><span class="dm-act-ic">{{ dmico('clipboard') }}</span><span class="dm-act-l">Docházka</span></a>
+    <a class="dm-act" href="{{ url_for('drills') }}"><span class="dm-act-ic">{{ dmico('hockey') }}</span><span class="dm-act-l">Tréninky</span></a>
+    <a class="dm-act" href="{{ url_for('roster') }}"><span class="dm-act-ic">{{ dmico('users') }}</span><span class="dm-act-l">Soupiska</span></a>
     {% endif %}
   </div>
 
-  {# ---------- SECTION 5: TEAM CALENDAR SUBSCRIPTION ---------- #}
-  {# Whole-team feed (not a single event). Feed URL is the bearer secret. #}
-  {% if team_feed_url %}
-  <div class="dm-sec-head">Týmový kalendář</div>
-  <div class="dm-cal">
-    <div class="dm-cal-title">📅 Připojit týmový kalendář</div>
-    <p class="dm-cal-desc">Přidejte si týmový kalendář do Google, Apple nebo Outlook kalendáře. Nové události se budou synchronizovat automaticky, ale změny se nemusí zobrazit okamžitě.</p>
-    <input class="dm-cal-url" type="text" value="{{ team_feed_url }}" readonly aria-label="Odkaz na týmový kalendář" data-dm-cal-url>
-    <div class="dm-cal-actions">
-      <button type="button" class="dm-cal-btn dm-cal-btn--primary" data-dm-cal-copy>Kopírovat odkaz</button>
-      <a class="dm-cal-btn" href="{{ team_feed_url | replace('https://','webcal://') | replace('http://','webcal://') }}">Apple / Outlook</a>
-      <button type="button" class="dm-cal-btn" data-dm-cal-help aria-expanded="false" aria-controls="dmCalHelp">Google návod</button>
-    </div>
-    <div class="dm-cal-help" id="dmCalHelp" data-dm-cal-help-box hidden>
-      <p>V Google Calendar zvolte <strong>Přidat kalendář → Z adresy URL</strong> a vložte tento odkaz.</p>
-      <p class="dm-cal-note">U Google Calendar může aktualizace trvat několik hodin.</p>
-    </div>
-  </div>
-  {% endif %}
-
-  {# ---------- SECTION 6: QUICK STATS (2x2) ---------- #}
-  <div class="dm-sec-head">Přehled</div>
-  <div class="dm-stats">
-    <div class="dm-stat"><span class="dm-stat-v">{{ att.pct if att else '—' }}{{ '%' if att }}</span><span class="dm-stat-l">Účast (další akce)</span></div>
-    <div class="dm-stat"><span class="dm-stat-v">{{ dash.players_total }}</span><span class="dm-stat-l">Hráčů</span></div>
-    <div class="dm-stat"><span class="dm-stat-v">{{ up | length }}</span><span class="dm-stat-l">Nadcházející akce</span></div>
-    {% if league and league.team_row %}
-    <div class="dm-stat"><span class="dm-stat-v">{{ league.team_row.position }}.</span><span class="dm-stat-l">Pozice v lize</span></div>
-    {% else %}
-    <div class="dm-stat"><span class="dm-stat-v">{{ dash.recent_messages_7d }}</span><span class="dm-stat-l">Zpráv (7 dní)</span></div>
-    {% endif %}
-  </div>
-
-  {# ---------- SECTION 7: LEAGUE SNAPSHOT ---------- #}
+  {# ---------- LIGA A FORMA — collapsible, OPEN by default ---------- #}
   {% if league and league.team_row %}
   {% set tr = league.team_row %}
-  <div class="dm-sec-head">Liga</div>
-  <article class="dm-league">
-    <div class="dm-league-top">
-      <span class="dm-league-pos">{{ tr.position }}.</span>
-      <span class="dm-league-team">{{ tr.team_name }}</span>
-      <span class="dm-league-pts">{{ tr.points }} b</span>
+  <section class="dm-coll" data-open="1">
+    <button type="button" class="dm-coll-hdr" aria-expanded="true">
+      <span class="dm-coll-ic">{{ dmico('trophy') }}</span>
+      <span class="dm-coll-title">Liga a forma</span>
+      <span class="dm-coll-sum">{{ tr.position }}. místo · {{ tr.points }} b</span>
+      <span class="dm-coll-chev">{{ dmico('chevron-down') }}</span>
+    </button>
+    <div class="dm-coll-body">
+      <div class="dm-lg2-top">
+        <span class="dm-lg2-pos">{{ tr.position }}.</span>
+        <span class="dm-lg2-team">{{ tr.team_name }}</span>
+        <span class="dm-lg2-pts">{{ tr.points }} b</span>
+      </div>
+      <div class="dm-lg2-meta">{{ tr.played }} zápasů · skóre {{ tr.score or (tr.goals_for ~ ':' ~ tr.goals_against) }}{% if tr.plus_minus is not none %} · {{ '%+d'|format(tr.plus_minus) }}{% endif %}</div>
+      {% if league.form_cards %}
+      <div class="dm-lg2-form">
+        <div class="dm-lg2-form-l">Forma posledních 5</div>
+        <div class="dm-lg2-form-chips">
+          {% for f in league.form_cards %}
+          <span class="dm-fbadge dm-fbadge--{{ 'win' if f.code in ('W','OW') else ('draw' if f.code == 'D' else 'loss') }}">{{ f.label }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if league.standings %}<button type="button" class="dm-lg2-link" data-dm-league>Celá tabulka →</button>{% endif %}
     </div>
-    <div class="dm-league-meta">{{ tr.played }} zápasů · skóre {{ tr.score or (tr.goals_for ~ ':' ~ tr.goals_against) }}{% if tr.plus_minus is not none %} · {{ '%+d'|format(tr.plus_minus) }}{% endif %}</div>
-    {% if dash.next_game %}<div class="dm-league-next">Příště: {{ dash.next_game.title }} · {{ dash.next_game.label }}</div>{% endif %}
-    {% if league.standings %}<button type="button" class="dm-league-btn" data-dm-league>Celá tabulka →</button>{% endif %}
-  </article>
+  </section>
   {% endif %}
 
-  {# ---------- SECTION 7b: LAST 5 GAMES FORM ---------- #}
-  {% if league and league.form_cards %}
-  {% set wins = league.form_cards | selectattr('code', 'in', ('W','OW')) | list | length %}
-  {% set nf = league.form_cards | length %}
-  <div class="dm-sec-head">Forma posledních 5 zápasů</div>
-  <div class="dm-form"{% if league.standings %} data-dm-league role="button" tabindex="0"{% endif %}>
-    <div class="dm-form-chips">
-      {% for f in league.form_cards %}
-      <span class="dm-chip dm-chip--{{ 'win' if f.code in ('W','OW') else ('draw' if f.code == 'D' else 'loss') }}" title="{{ f.code }}">{{ f.label }}</span>
-      {% endfor %}
+  {# ---------- DALŠÍ UDÁLOSTI — collapsible, CLOSED by default ---------- #}
+  {% if rest or coach %}
+  <section class="dm-coll" data-open="0">
+    <button type="button" class="dm-coll-hdr" aria-expanded="false">
+      <span class="dm-coll-ic">{{ dmico('calendar') }}</span>
+      <span class="dm-coll-title">Další události</span>
+      {% if rest %}<span class="dm-coll-sum">{{ rest | length }}</span>{% endif %}
+      <span class="dm-coll-chev">{{ dmico('chevron-down') }}</span>
+    </button>
+    <div class="dm-coll-body">
+      {% if coach %}
+      {# coach event management: create / edit-delete existing events (sheets below) #}
+      <div class="dm-ev-cta">
+        <button type="button" class="dm-ev-cta-btn dm-ev-cta-btn--primary" data-dmev-open="dmEvCreateSheet">＋ Přidat zápas / trénink</button>
+        {% if local_events %}<button type="button" class="dm-ev-cta-btn" data-dmev-open="dmEvManageSheet">✏️ Spravovat</button>{% endif %}
+      </div>
+      {% endif %}
+      {% if rest %}
+      <div class="dm-week">
+        {% for e in rest %}
+        <a class="dm-wk dm-k-{{ e.kind }}" href="{{ url_for('dochazka') if coach else url_for('attendance.attendance') }}">
+          <span class="dm-wk-badge">{{ '🥅' if e.is_game else ('🏕' if e.kind=='camp' else '🏃') }}</span>
+          <span class="dm-wk-main"><span class="dm-wk-title">{{ e.title }}</span><span class="dm-wk-when">{{ e.label }}{% if e.time %} · {{ e.time }}{% endif %}</span></span>
+          <span class="dm-wk-go" aria-hidden="true">›</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% elif not coach %}
+      <p class="dm-coll-empty">Žádné další události.</p>
+      {% endif %}
     </div>
-    <div class="dm-form-sub">{{ wins }} {{ 'výhra' if wins == 1 else ('výhry' if 1 < wins < 5 else 'výher') }} z posledních {{ nf }}</div>
-  </div>
+  </section>
   {% endif %}
 
-  {# ---------- SECTION 8: LATEST MESSAGE (moved to bottom) ---------- #}
-  {% if latest_msg and latest_msg.text %}
-  <div class="dm-sec-head">Poslední vzkaz</div>
-  <a class="dm-msg" href="{{ url_for('communication.feed') }}">
-    <div class="dm-msg-meta"><span class="dm-msg-author">{{ 'Trenér' if latest_msg.role == 'coach' else 'Hráč' }}</span><span class="dm-msg-time">{{ latest_msg.created_at | prague('%d.%m. %H:%M') }}</span></div>
-    <div class="dm-msg-text">{{ latest_msg.text | truncate(140) }}</div>
-    <div class="dm-msg-go">Otevřít nástěnku ›</div>
-  </a>
+  {# ---------- TÝMOVÝ KALENDÁŘ — collapsible, CLOSED by default ---------- #}
+  {% if team_feed_url %}
+  <section class="dm-coll" data-open="0">
+    <button type="button" class="dm-coll-hdr" aria-expanded="false">
+      <span class="dm-coll-ic">{{ dmico('calendar-share') }}</span>
+      <span class="dm-coll-title">Týmový kalendář</span>
+      <span class="dm-coll-chev">{{ dmico('chevron-down') }}</span>
+    </button>
+    <div class="dm-coll-body">
+      <p class="dm-cal-desc">Přidejte si týmový kalendář do Google, Apple nebo Outlook kalendáře. Nové události se budou synchronizovat automaticky, ale změny se nemusí zobrazit okamžitě.</p>
+      <input class="dm-cal-url" type="text" value="{{ team_feed_url }}" readonly aria-label="Odkaz na týmový kalendář" data-dm-cal-url>
+      <div class="dm-cal-actions">
+        <button type="button" class="dm-cal-btn dm-cal-btn--primary" data-dm-cal-copy>Kopírovat odkaz</button>
+        <a class="dm-cal-btn" href="{{ team_feed_url | replace('https://','webcal://') | replace('http://','webcal://') }}">Apple / Outlook</a>
+        <button type="button" class="dm-cal-btn" data-dm-cal-help aria-expanded="false" aria-controls="dmCalHelp">Google návod</button>
+      </div>
+      <div class="dm-cal-help" id="dmCalHelp" data-dm-cal-help-box hidden>
+        <p>V Google Calendar zvolte <strong>Přidat kalendář → Z adresy URL</strong> a vložte tento odkaz.</p>
+        <p class="dm-cal-note">U Google Calendar může aktualizace trvat několik hodin.</p>
+      </div>
+    </div>
+  </section>
   {% endif %}
 </div>
+
 
 {# ---- League bottom sheet (full standings + results) ---- #}
 {% if league and (league.standings or league.results) %}
@@ -398,24 +384,19 @@
     }
   }
 
-  /* upcoming events: first event shows, the rest carry `hidden` in the markup;
-     the toggle reveals/collapses them. Cards start hidden (CSS honours the
-     [hidden] attribute) so the section is compact even before this runs. */
-  var upToggle = document.getElementById('dmUpToggle');
-  if (upToggle) {
-    var extras = Array.prototype.slice.call(root.querySelectorAll('[data-dm-extra]'));
-    if (extras.length) {
-      var setUpExpanded = function (open) {
-        extras.forEach(function (el) { el.hidden = !open; });
-        upToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        upToggle.textContent = open ? 'Skrýt další události' : 'Zobrazit další události';
-      };
-      setUpExpanded(false);  /* enforce the collapsed default */
-      upToggle.addEventListener('click', function () {
-        setUpExpanded(upToggle.getAttribute('aria-expanded') !== 'true');
-      });
-    }
-  }
+  /* collapsible sections (Liga a forma / Další události / Týmový kalendář).
+     `data-open` drives everything; CSS handles body visibility + chevron
+     rotation, so the server-rendered default is correct before JS runs and
+     each section toggles independently. */
+  root.querySelectorAll('.dm-coll').forEach(function (sec) {
+    var hdr = sec.querySelector('.dm-coll-hdr');
+    if (!hdr) return;
+    hdr.addEventListener('click', function () {
+      var open = sec.getAttribute('data-open') === '1' ? '0' : '1';
+      sec.setAttribute('data-open', open);
+      hdr.setAttribute('aria-expanded', open === '1' ? 'true' : 'false');
+    });
+  });
 
   /* team calendar: copy feed URL + toggle the Google how-to */
   var calCopy = root.querySelector('[data-dm-cal-copy]');

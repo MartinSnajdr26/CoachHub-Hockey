@@ -11,7 +11,7 @@ from coach.services.db_state import is_database_not_ready_error, log_db_not_read
 # as the `?v=` cache-buster on frequently-changed application CSS/JS so a new
 # release ships a new URL the service worker fetches fresh. Keep in step with the
 # service-worker CACHE name in static/sw.js on each release.
-ASSET_VERSION = (os.environ.get('APP_VERSION') or 'v5').strip()
+ASSET_VERSION = (os.environ.get('APP_VERSION') or 'v6').strip()
 
 def register_context(app):
     @app.context_processor

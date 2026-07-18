@@ -131,7 +131,8 @@ class DashboardUiTest(_Base):
     def test_dashboard_shows_team_feed_section_not_single_event(self):
         self._login(role='coach')
         h = self.client.get('/app').get_data(as_text=True)
-        self.assertIn('Připojit týmový kalendář', h)
+        # whole-team feed section is present (redesigned header + copy control)
+        self.assertIn('Týmový kalendář', h)
         self.assertIn('/calendar/team/', h)
         self.assertIn('Kopírovat odkaz', h)
         # old single-event UI is gone

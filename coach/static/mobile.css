@@ -668,117 +668,104 @@
   .dm-root { display: block !important; }
   .dm-root { --go: var(--success, #38c172); --no: var(--danger, #e3504a); }
 
-  .dm-greet { margin: 2px 0 14px; }
-  .dm-greet-hi { font-size: clamp(1.5rem, 6vw, 1.8rem); font-weight: 800; letter-spacing: -0.01em; }
-  .dm-greet-day { color: var(--text-muted); margin-top: 2px; }
-  .dm-eyebrow, .dm-sec-head { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin: 22px 2px 10px; }
-  .dm-eyebrow { margin-top: 4px; }
+  /* Greeting */
+  .dm-greet { margin: 4px 0 6px; }
+  .dm-greet-hi { font-size: 1.5rem; font-weight: 500; letter-spacing: -0.01em; }
+  .dm-greet-day { color: var(--text-muted); margin-top: 2px; font-size: 0.88rem; }
 
-  /* Hero */
-  .dm-hero { position: relative; overflow: hidden; background: var(--card, #161b22); border: 1px solid var(--border-strong, #2a323d);
-    border-radius: 20px; padding: 18px 16px; box-shadow: 0 8px 26px rgba(0,0,0,.34); }
-  .dm-hero::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--primary); }
-  .dm-hero.dm-k-match::before { background: var(--tertiary, #c44747); }
-  .dm-hero--empty { text-align: center; }
-  .dm-hero--empty::before { display: none; }
+  /* Small uppercase section labels (NEJBLIŽŠÍ AKCE / RYCHLÉ AKCE) */
+  .dm-eyebrow { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--text-muted); margin: 18px 2px 9px; }
+
+  /* Hero — always-visible next event card */
+  .dm-hero { position: relative; overflow: hidden; background: var(--surface-2, #19293b);
+    border: 0.5px solid var(--border); border-left: 3px solid var(--primary); border-radius: 12px; padding: 13px 14px; }
+  .dm-hero.dm-k-match { border-left-color: var(--tertiary, #c44747); }
+  .dm-hero--empty { text-align: center; border-left: 0.5px solid var(--border); padding: 24px 14px; }
   .dm-hero-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .dm-hero-cd { color: var(--primary); font-weight: 800; font-size: 0.9rem; }
-  .dm-hero-title { margin: 12px 0 0; font-size: clamp(1.4rem, 6vw, 1.8rem); font-weight: 800; line-height: 1.18; overflow-wrap: anywhere; }
-  .dm-hero-when { margin-top: 6px; color: var(--text-muted); font-weight: 600; }
-  .dm-hero-att { margin-top: 10px; color: var(--text-muted); }
-  .dm-hero-att-pct { color: var(--go); font-weight: 800; font-size: 1.15rem; }
-  .dm-hero-cta { display: flex; align-items: center; justify-content: center; min-height: 52px; margin-top: 16px; border-radius: 14px;
-    background: var(--primary); color: var(--on-primary, #1a1606); font-weight: 800; font-size: 1.02rem; text-decoration: none; }
-  .dm-empty-emoji { font-size: 2.4rem; }
-  .dm-badge { font-size: 0.74rem; font-weight: 800; padding: 4px 11px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary); }
-  .dm-badge--match { background: color-mix(in srgb, var(--tertiary, #c44747) 24%, transparent); color: color-mix(in srgb, var(--tertiary, #c44747) 82%, #fff); }
+  .dm-hero-cd { color: var(--text-muted); font-weight: 400; font-size: 0.8rem; }
+  .dm-hero-title { margin: 10px 0 0; font-size: 17px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+  .dm-hero-when { margin-top: 4px; color: var(--text-muted); font-size: 13px; }
+  .dm-hero-cta { display: flex; align-items: center; justify-content: center; min-height: 46px; margin-top: 13px; border-radius: 10px;
+    background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); font-weight: 500; font-size: 0.95rem; text-decoration: none; }
+  .dm-empty-emoji { font-size: 2.2rem; }
+  .dm-badge { display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 500; padding: 3px 10px; border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); }
+  .dm-badge--match { background: color-mix(in srgb, var(--tertiary, #c44747) 22%, transparent); color: color-mix(in srgb, var(--tertiary, #c44747) 82%, #fff); }
 
-  /* Alerts */
-  .dm-alerts { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-  .dm-alert { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 10px 14px; border-radius: 14px; text-decoration: none;
-    background: var(--surface-2, #1a1f27); border: 1px solid var(--border); color: var(--text); }
-  .dm-alert--warn { border-color: color-mix(in srgb, var(--warning, #e0a418) 45%, transparent); background: color-mix(in srgb, var(--warning, #e0a418) 10%, var(--surface-2)); }
-  .dm-alert-ic { flex: none; font-size: 1.15rem; }
-  .dm-alert-tx { flex: 1 1 auto; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
-  .dm-alert-go { flex: none; color: var(--text-muted); font-size: 1.3rem; }
+  /* Inline attendance confirmation row (inside the hero) */
+  .dm-hero-att { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 11px;
+    border-top: 0.5px solid var(--border); text-decoration: none; color: var(--text-muted); }
+  .dm-hero-att-ic, .dm-hero-att-go { flex: none; display: inline-flex; color: var(--text-muted); }
+  .dm-hero-att-ic svg, .dm-hero-att-go svg { width: 16px; height: 16px; }
+  .dm-hero-att-tx { flex: 1 1 auto; min-width: 0; font-size: 0.82rem; line-height: 1.35; overflow-wrap: anywhere; }
+  .dm-hero-att-ok { color: var(--success); font-weight: 500; }
+  .dm-hero-att-mut { color: var(--text-muted); }
 
-  /* This week */
-  .dm-week { display: flex; flex-direction: column; gap: 10px; }
-  .dm-wk { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; text-decoration: none;
-    background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-left: 3px solid var(--primary); color: var(--text); }
-  .dm-wk.dm-k-match { border-left-color: var(--tertiary, #c44747); }
-  .dm-wk-badge { flex: none; font-size: 1.2rem; }
-  .dm-wk-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-  .dm-wk-title { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dm-wk-when { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
-  .dm-wk-go { flex: none; color: var(--text-muted); font-size: 1.3rem; }
-  /* `display:flex` above (an author rule) beats the UA [hidden]{display:none},
-     so collapsed "Další události" cards would otherwise stay visible. This
-     higher-specificity rule makes the hidden attribute actually hide them. */
-  .dm-wk[hidden] { display: none; }
-  /* Secondary, understated show/hide control (not a primary CTA) */
-  .dm-week-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 10px 2px 0;
-    padding: 8px 12px; min-height: 40px; border-radius: 10px; background: transparent;
-    border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem; font-weight: 700;
-    cursor: pointer; -webkit-appearance: none; appearance: none; }
-  .dm-week-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  .dm-week-toggle[aria-expanded="true"] { color: var(--text); }
+  /* Quick actions — compact 3-col tile grid */
+  .dm-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+  .dm-act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-height: 66px; padding: 10px 6px;
+    border-radius: 10px; text-decoration: none; background: var(--surface-2, #19293b); border: 0.5px solid var(--border); color: var(--text); }
+  .dm-act-ic { display: inline-flex; color: var(--text-muted); }
+  .dm-act-ic svg { width: 20px; height: 20px; }
+  .dm-act-l { font-size: 11px; font-weight: 400; text-align: center; color: var(--text); }
 
-  /* Team calendar subscription card */
-  .dm-cal { background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
-  .dm-cal-title { font-weight: 800; font-size: 1.02rem; }
-  .dm-cal-desc { color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 6px; }
-  .dm-cal-url { width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--card, #161b22); color: var(--text); font-size: 0.82rem; overflow-x: auto; -webkit-appearance: none; appearance: none; }
+  /* Collapsible sections (generic) */
+  .dm-coll { margin-top: 10px; background: var(--surface-2, #19293b); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .dm-coll-hdr { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 14px;
+    background: transparent; border: 0; color: var(--text); text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .dm-coll-ic { flex: none; display: inline-flex; color: var(--text-muted); }
+  .dm-coll-ic svg { width: 18px; height: 18px; }
+  .dm-coll-title { flex: 1 1 auto; min-width: 0; font-size: 0.95rem; font-weight: 500; }
+  .dm-coll-sum { flex: none; font-size: 0.82rem; color: var(--text-muted); }
+  .dm-coll-chev { flex: none; display: inline-flex; color: var(--text-muted); transition: transform 0.15s ease; }
+  .dm-coll-chev svg { width: 18px; height: 18px; }
+  .dm-coll[data-open="1"] .dm-coll-chev { transform: rotate(180deg); }
+  .dm-coll-body { padding: 0 14px 14px; }
+  .dm-coll[data-open="0"] .dm-coll-body { display: none; }
+  .dm-coll-empty { color: var(--text-muted); font-size: 0.88rem; padding: 2px 0; }
+
+  /* Týmový kalendář — feed URL + controls inside the collapsible body */
+  .dm-cal-desc { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0 0 12px; }
+  .dm-cal-url { width: 100%; padding: 10px 12px; border-radius: 8px; border: 0.5px solid var(--border);
+    background: var(--card, #161b22); color: var(--text); font-size: 0.8rem; overflow-x: auto; -webkit-appearance: none; appearance: none; }
   .dm-cal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .dm-cal-btn { flex: 1 1 auto; min-width: 0; text-align: center; min-height: 44px; display: inline-flex; align-items: center;
-    justify-content: center; padding: 8px 12px; border-radius: 10px; background: transparent; border: 1px solid var(--border);
-    color: var(--text); font-size: 0.85rem; font-weight: 700; text-decoration: none; cursor: pointer; -webkit-appearance: none; appearance: none; }
-  .dm-cal-btn--primary { background: var(--primary); color: var(--on-primary, #1a1606); border-color: transparent; }
+    justify-content: center; padding: 8px 12px; border-radius: 8px; background: transparent; border: 0.5px solid var(--border);
+    color: var(--text); font-size: 0.84rem; font-weight: 500; text-decoration: none; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .dm-cal-btn--primary { background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); border-color: transparent; }
   .dm-cal-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  .dm-cal-help { margin-top: 12px; color: var(--text-muted); font-size: 0.86rem; line-height: 1.5; }
+  .dm-cal-help { margin-top: 12px; color: var(--text-muted); font-size: 0.84rem; line-height: 1.5; }
   .dm-cal-help strong { color: var(--text); }
-  .dm-cal-note { margin-top: 6px; font-size: 0.82rem; }
+  .dm-cal-note { margin-top: 6px; font-size: 0.8rem; }
 
-  /* Latest message */
-  .dm-msg { display: block; padding: 14px 16px; border-radius: 16px; text-decoration: none; background: var(--surface-2, #1a1f27); border: 1px solid var(--border); color: var(--text); }
-  .dm-msg-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .dm-msg-author { font-weight: 800; }
-  .dm-msg-time { color: var(--text-muted); font-size: 0.82rem; }
-  .dm-msg-text { margin-top: 6px; line-height: 1.5; overflow-wrap: anywhere; }
-  .dm-msg-go { margin-top: 8px; color: var(--primary); font-weight: 700; font-size: 0.9rem; }
+  /* Liga a forma — expanded body */
+  .dm-lg2-top { display: flex; align-items: baseline; gap: 8px; }
+  .dm-lg2-pos { flex: none; font-weight: 500; font-size: 1.05rem; color: var(--primary); }
+  .dm-lg2-team { flex: 1 1 auto; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dm-lg2-pts { flex: none; font-weight: 500; color: var(--primary); }
+  .dm-lg2-meta { margin-top: 6px; color: var(--text-muted); font-size: 0.85rem; }
+  .dm-lg2-form { margin-top: 14px; }
+  .dm-lg2-form-l { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; }
+  .dm-lg2-form-chips { display: flex; gap: 6px; }
+  .dm-fbadge { flex: none; width: 26px; height: 26px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; font-size: 0.8rem; }
+  .dm-fbadge--win { background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); }
+  .dm-fbadge--loss { background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
+  .dm-fbadge--draw { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); }
+  .dm-lg2-link { display: block; width: 100%; margin-top: 14px; padding: 8px; background: transparent; border: 0;
+    color: var(--primary); font-weight: 500; font-size: 0.9rem; text-align: center; cursor: pointer; -webkit-appearance: none; appearance: none; }
 
-  /* Quick actions */
-  .dm-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-  .dm-act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 84px; padding: 10px 6px;
-    border-radius: 16px; text-decoration: none; background: var(--surface-2, #1a1f27); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 0.85rem; text-align: center; }
-  .dm-act-ic { font-size: 1.5rem; }
-
-  /* Quick stats 2x2 */
-  .dm-stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
-  .dm-stat { background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
-  .dm-stat-v { display: block; font-size: 1.8rem; font-weight: 800; line-height: 1; }
-  .dm-stat-l { display: block; margin-top: 5px; font-size: 0.8rem; color: var(--text-muted); }
-
-  /* League snapshot */
-  .dm-league { background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
-  .dm-league-top { display: flex; align-items: baseline; gap: 10px; }
-  .dm-league-pos { flex: none; font-weight: 900; font-size: 1.3rem; color: var(--primary); }
-  .dm-league-team { flex: 1 1 auto; min-width: 0; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dm-league-pts { flex: none; font-weight: 900; color: var(--primary); }
-  .dm-league-meta { margin-top: 6px; color: var(--text-muted); font-size: 0.9rem; }
-  .dm-league-next { margin-top: 4px; color: var(--text-muted); font-size: 0.9rem; overflow-wrap: anywhere; }
-  .dm-league-btn, .dm-results-btn { margin-top: 12px; width: 100%; min-height: 46px; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--surface-3, #232a34); color: var(--text); font-weight: 800; font-size: 0.9rem; cursor: pointer; }
-
-  /* Last 5 games form (Sofascore/FotMob-style chips) */
-  .dm-form { background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
-  .dm-form-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-  .dm-chip { flex: none; width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.9rem; }
-  .dm-chip--win { background: var(--go); color: #06210f; }
-  .dm-chip--loss { background: var(--no); color: #fff; }
-  .dm-chip--draw { background: var(--warning, #e0a418); color: #2a1d00; }
-  .dm-form-sub { margin-top: 10px; color: var(--text-muted); font-size: 0.9rem; }
+  /* Další události — event rows inside the collapsible body */
+  .dm-week { display: flex; flex-direction: column; }
+  .dm-wk { display: flex; align-items: center; gap: 12px; padding: 12px 2px; text-decoration: none;
+    border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .dm-wk:last-child { border-bottom: 0; padding-bottom: 2px; }
+  .dm-wk-badge { flex: none; font-size: 1.05rem; }
+  .dm-wk-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .dm-wk-title { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dm-wk-when { color: var(--text-muted); font-size: 0.82rem; margin-top: 2px; }
+  .dm-wk-go { flex: none; color: var(--text-muted); font-size: 1.2rem; }
+  /* .dm-ev-cta trigger styling lives with the event sheets further down. */
 
   /* League bottom sheet */
   #dmLeagueSheet { display: none; position: fixed; inset: 0; z-index: 1500; }
