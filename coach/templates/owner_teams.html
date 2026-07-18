@@ -46,6 +46,7 @@ after you create it.</p>
             <th>Coach key</th>
             <th>Player key</th>
             <th>Regenerate key</th>
+            <th>Calendar feed</th>
           </tr>
         </thead>
         <tbody>
@@ -78,6 +79,13 @@ after you create it.</p>
                     <button type="submit" class="btn-sm" aria-label="Generate new player key for {{ r.team.name }}">Player</button>
                   </form>
                 </div>
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('owner.regenerate_calendar_feed', team_id=r.team.id) }}"
+                      class="form-confirm" data-message="Tímto zneplatníte předchozí odkaz na týmový kalendář pro {{ r.team.name }}. Uživatelé se starým odkazem si budou muset kalendář připojit znovu. Pokračovat?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-sm" aria-label="Vygenerovat nový odkaz kalendáře pro {{ r.team.name }}">Vygenerovat nový odkaz kalendáře</button>
+                </form>
               </td>
             </tr>
           {% endfor %}

@@ -207,6 +207,29 @@ def regenerate_key(team_id):
     return render_template('owner_teams.html', rows=_team_rows(), generated=generated)
 
 
+@bp.route('/teams/<int:team_id>/regenerate-calendar-feed', methods=['POST'], endpoint='regenerate_calendar_feed')
+@owner_required
+def regenerate_calendar_feed(team_id):
+    """Rotate the team's calendar FEED token (separate from login keys). The old
+    feed URL 404s afterwards; TeamKey login keys are untouched."""
+    from coach.services import calendar_feed
+    team = db.session.get(Team, team_id)
+    if not team:
+        flash('Tým nenalezen.', 'error')
+        return redirect(url_for('owner.teams'))
+    row = calendar_feed.rotate_token(team.id)
+    if not row:
+        flash('Nepodařilo se vygenerovat nový odkaz kalendáře. Zkus to znovu.', 'error')
+        return redirect(url_for('owner.teams'))
+    try:
+        db.session.add(AuditEvent(event='owner.team.calendar_feed_rotated', team_id=team.id))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    flash('Byl vygenerován nový odkaz na týmový kalendář pro %s. Předchozí odkaz už neplatí.' % team.name, 'success')
+    return redirect(url_for('owner.teams'))
+
+
 def _generate_unique_plain_key(max_attempts=6):
     """Return a readable key guaranteed not to collide with any active key."""
     try:

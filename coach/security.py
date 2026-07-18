@@ -59,6 +59,11 @@ def register_security(app):
             return
         if p.startswith('/owner'):
             return
+        # Public team calendar feed: the URL token is the bearer secret, so the
+        # feed must be reachable without a team session. The route itself 404s on
+        # an invalid/rotated token, so this exposes no cross-team data.
+        if p.startswith('/calendar/team/'):
+            return
         if p in ('/', '/favicon.ico', '/sw.js', '/team/auth', '/team/login', '/team/create', '/terms', '/privacy', '/about'):
             return
         # Everything else goes to team auth

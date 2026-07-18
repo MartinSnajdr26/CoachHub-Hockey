@@ -198,8 +198,22 @@ class PaymentStatus(db.Model):
     __table_args__ = (db.UniqueConstraint('period_id', 'player_id', name='uq_payment_status'),)
 
 
+class TeamCalendarFeedToken(db.Model):
+    """Bearer token for a team's read-only .ics subscription feed.
+
+    One active token per team (older ones kept inactive for audit). The token
+    string itself is the secret in the feed URL, looked up directly, so it is
+    stored plaintext (see calendar_feed service for rationale)."""
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    token = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    rotated_at = db.Column(db.DateTime, nullable=True)
+
+
 __all__ = [
     'db', 'Player', 'Roster', 'LineAssignment', 'Drill', 'TrainingSession',
     'LineupSession', 'Team', 'AuditEvent', 'TrainingEvent', 'AttendanceEntry', 'TeamKey', 'TeamLoginAttempt',
-    'LeagueIntegration', 'AttendanceImport', 'PaymentPeriod', 'PaymentStatus'
+    'LeagueIntegration', 'AttendanceImport', 'PaymentPeriod', 'PaymentStatus', 'TeamCalendarFeedToken'
 ]

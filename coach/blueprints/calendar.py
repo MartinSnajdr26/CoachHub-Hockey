@@ -1,12 +1,57 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+import os
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, abort
 from coach.auth_utils import team_login_required, get_team_id, coach_required, get_team_role
 from coach.extensions import db
 from datetime import date, datetime, timedelta
 import calendar as calmod
 from coach.models import TrainingEvent, AuditEvent, Player, AttendanceEntry, LineupSession, Drill
 from coach.services import tymuj as tymuj_svc
+from coach.services import calendar_export
+from coach.services import calendar_feed
 
 bp = Blueprint('calendar', __name__)
+
+# Team calendar feed spans today .. +6 months.
+_FEED_HORIZON_DAYS = 183
+
+
+def _prod_external(endpoint, **values):
+    """Absolute URL; https forced in production, host from the request otherwise."""
+    if (os.getenv('APP_ENV') or '').strip().lower() == 'production':
+        return url_for(endpoint, _external=True, _scheme='https', **values)
+    return url_for(endpoint, _external=True, **values)
+
+
+def team_feed_url_for(token):
+    """Absolute HTTPS-in-prod .ics feed URL for a token (used by the UI)."""
+    return _prod_external('calendar.team_feed', token=token)
+
+
+@bp.route('/calendar/team/<token>.ics', endpoint='team_feed')
+def team_feed(token):
+    """Public, read-only team calendar subscription feed.
+
+    No login: the URL token IS the bearer secret. An invalid/rotated token
+    returns a plain 404 and never reveals whether a team exists. Only the
+    token's own team's future events are included — no cross-team leakage.
+    """
+    tid = calendar_feed.team_for_token(token)
+    if not tid:
+        abort(404)
+    today = date.today()
+    events = (TrainingEvent.query
+              .filter(TrainingEvent.team_id == tid,
+                      TrainingEvent.day >= today,
+                      TrainingEvent.day <= today + timedelta(days=_FEED_HORIZON_DAYS))
+              .order_by(TrainingEvent.day.asc(), TrainingEvent.time.asc())
+              .all())
+    # Feed is not session-authenticated -> use the general player attendance page.
+    attendance_url = _prod_external('attendance.attendance')
+    ics = calendar_export.build_feed(events, attendance_url, cal_name='CoachHub')
+    resp = Response(ics)
+    resp.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'inline; filename="coachhub-team.ics"'
+    return resp
 
 
 @bp.route('/app', endpoint='home')
@@ -168,6 +213,19 @@ def home():
     except Exception:
         league = None
 
+    # Team calendar subscription: lazily create/reuse this team's feed token so
+    # the Dashboard can show the "Připojit týmový kalendář" link. Never break the
+    # page if the feed table is missing (e.g. migration not yet applied).
+    team_feed_url = None
+    try:
+        if tid:
+            tok = calendar_feed.get_or_create_active_token(tid)
+            if tok:
+                team_feed_url = team_feed_url_for(tok.token)
+    except Exception:
+        db.session.rollback()
+        team_feed_url = None
+
     return render_template('home.html',
                            league=league,
                            cal_year=y, cal_month=month_num, month_title=month_title, weeks=weeks,
@@ -179,6 +237,7 @@ def home():
                            today_iso=today.isoformat(),
                            team_messages=view_messages,
                            dash=dash,
+                           team_feed_url=team_feed_url,
                            is_coach_home=is_coach_home)
 
 

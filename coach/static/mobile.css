@@ -724,6 +724,22 @@
   .dm-week-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .dm-week-toggle[aria-expanded="true"] { color: var(--text); }
 
+  /* Team calendar subscription card */
+  .dm-cal { background: var(--surface-2, #1a1f27); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+  .dm-cal-title { font-weight: 800; font-size: 1.02rem; }
+  .dm-cal-desc { color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 6px; }
+  .dm-cal-url { width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card, #161b22); color: var(--text); font-size: 0.82rem; overflow-x: auto; -webkit-appearance: none; appearance: none; }
+  .dm-cal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .dm-cal-btn { flex: 1 1 auto; min-width: 0; text-align: center; min-height: 44px; display: inline-flex; align-items: center;
+    justify-content: center; padding: 8px 12px; border-radius: 10px; background: transparent; border: 1px solid var(--border);
+    color: var(--text); font-size: 0.85rem; font-weight: 700; text-decoration: none; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .dm-cal-btn--primary { background: var(--primary); color: var(--on-primary, #1a1606); border-color: transparent; }
+  .dm-cal-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .dm-cal-help { margin-top: 12px; color: var(--text-muted); font-size: 0.86rem; line-height: 1.5; }
+  .dm-cal-help strong { color: var(--text); }
+  .dm-cal-note { margin-top: 6px; font-size: 0.82rem; }
+
   /* Latest message */
   .dm-msg { display: block; padding: 14px 16px; border-radius: 16px; text-decoration: none; background: var(--surface-2, #1a1f27); border: 1px solid var(--border); color: var(--text); }
   .dm-msg-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

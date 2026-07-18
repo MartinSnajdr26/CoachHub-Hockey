@@ -117,6 +117,26 @@
     {% endif %}
   </div>
 
+  {# ---------- SECTION 5: TEAM CALENDAR SUBSCRIPTION ---------- #}
+  {# Whole-team feed (not a single event). Feed URL is the bearer secret. #}
+  {% if team_feed_url %}
+  <div class="dm-sec-head">Týmový kalendář</div>
+  <div class="dm-cal">
+    <div class="dm-cal-title">📅 Připojit týmový kalendář</div>
+    <p class="dm-cal-desc">Přidejte si týmový kalendář do Google, Apple nebo Outlook kalendáře. Nové události se budou synchronizovat automaticky, ale změny se nemusí zobrazit okamžitě.</p>
+    <input class="dm-cal-url" type="text" value="{{ team_feed_url }}" readonly aria-label="Odkaz na týmový kalendář" data-dm-cal-url>
+    <div class="dm-cal-actions">
+      <button type="button" class="dm-cal-btn dm-cal-btn--primary" data-dm-cal-copy>Kopírovat odkaz</button>
+      <a class="dm-cal-btn" href="{{ team_feed_url | replace('https://','webcal://') | replace('http://','webcal://') }}">Apple / Outlook</a>
+      <button type="button" class="dm-cal-btn" data-dm-cal-help aria-expanded="false" aria-controls="dmCalHelp">Google návod</button>
+    </div>
+    <div class="dm-cal-help" id="dmCalHelp" data-dm-cal-help-box hidden>
+      <p>V Google Calendar zvolte <strong>Přidat kalendář → Z adresy URL</strong> a vložte tento odkaz.</p>
+      <p class="dm-cal-note">U Google Calendar může aktualizace trvat několik hodin.</p>
+    </div>
+  </div>
+  {% endif %}
+
   {# ---------- SECTION 6: QUICK STATS (2x2) ---------- #}
   <div class="dm-sec-head">Přehled</div>
   <div class="dm-stats">
@@ -395,6 +415,30 @@
         setUpExpanded(upToggle.getAttribute('aria-expanded') !== 'true');
       });
     }
+  }
+
+  /* team calendar: copy feed URL + toggle the Google how-to */
+  var calCopy = root.querySelector('[data-dm-cal-copy]');
+  var calUrl = root.querySelector('[data-dm-cal-url]');
+  if (calCopy && calUrl) {
+    calCopy.addEventListener('click', function () {
+      var done = function () { calCopy.textContent = 'Zkopírováno ✓';
+        setTimeout(function () { calCopy.textContent = 'Kopírovat odkaz'; }, 1800); };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(calUrl.value).then(done, function () { calUrl.select(); });
+        } else { calUrl.select(); document.execCommand('copy'); done(); }
+      } catch (e) { calUrl.select(); }
+    });
+  }
+  var calHelpBtn = root.querySelector('[data-dm-cal-help]');
+  var calHelpBox = root.querySelector('[data-dm-cal-help-box]');
+  if (calHelpBtn && calHelpBox) {
+    calHelpBtn.addEventListener('click', function () {
+      var open = calHelpBox.hidden;
+      calHelpBox.hidden = !open;
+      calHelpBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
   }
 
   /* league bottom sheet */
