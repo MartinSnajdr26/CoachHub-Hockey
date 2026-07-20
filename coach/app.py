@@ -21,6 +21,9 @@ def create_app():
     register_security(app)
     from coach.context import register_context
     register_context(app)
+    # Central per-request performance + slow-request logging (audit Phase 2).
+    from coach.services.request_timing import register_request_timing
+    register_request_timing(app)
 
     # ---- Prague-time DISPLAY filter (DST-safe) ----
     # DB stores timestamps as naive UTC (datetime.utcnow). User-facing displays
@@ -172,6 +175,17 @@ def create_app():
                 except Exception:
                     pass
             return exc
+        # Full traceback to the server (PythonAnywhere) error log. The catch-all
+        # handler below returns a 500 page, so Flask treats the error as handled
+        # and skips its own traceback logging — without this line production
+        # exceptions leave only a short audit row and are hard to diagnose. This
+        # is the ONLY traceback logger, so no duplicate stack traces are emitted.
+        try:
+            from flask import request as _rq
+            app.logger.exception('Unhandled exception on %s %s',
+                                 getattr(_rq, 'method', '?'), getattr(_rq, 'path', '?'))
+        except Exception:
+            pass
         try:
             from coach.auth_utils import get_team_id, get_team_role
             from coach.services.logging import log_event
@@ -281,6 +295,18 @@ else:
     db_url = f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# --- Engine options: safe under concurrency, portable to future backends ---
+# pool_pre_ping avoids handing out a pooled connection that went stale while the
+# PythonAnywhere worker idled. For SQLite we also raise the busy timeout so
+# concurrent writers WAIT (up to 30 s) for the write lock instead of failing
+# immediately with "database is locked" — the main cause of save errors under
+# concurrency. WAL is intentionally NOT enabled (unsafe assumption on
+# PythonAnywhere storage). connect_args apply ONLY to sqlite, so a future
+# Postgres/MySQL DB_URL is unaffected.
+_engine_options = {'pool_pre_ping': True}
+if db_url.startswith('sqlite'):
+    _engine_options['connect_args'] = {'timeout': 30}
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = _engine_options
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # Protected export directory (not served by /static)

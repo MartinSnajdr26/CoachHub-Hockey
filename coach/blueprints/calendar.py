@@ -446,10 +446,21 @@ def calendar_add():
             flash(msg, 'success' if not capped else 'info')
         return redirect(url_for('home', year=d.year, month=d.month))
 
-    ev = TrainingEvent(team_id=tid, day=d, time=time_s[:10], title=title[:200], kind=kind,
-                       source='coachhub_manual')
-    db.session.add(ev)
-    db.session.commit()
+    time_val = time_s[:10]
+    title_val = title[:200]
+    # Idempotency for double-submit / resubmit (audit Phase 5): an identical manual
+    # event already on this day is the same logical action, not a new event, so a
+    # duplicate POST does not create a second row. This only collapses exact
+    # duplicates (same team/day/time/title/kind/manual source) — different values
+    # are unaffected, so it is NOT a global uniqueness rule.
+    existing = (TrainingEvent.query
+                .filter_by(team_id=tid, day=d, time=time_val, title=title_val,
+                           kind=kind, source='coachhub_manual')
+                .first())
+    if existing is None:
+        db.session.add(TrainingEvent(team_id=tid, day=d, time=time_val, title=title_val,
+                                     kind=kind, source='coachhub_manual'))
+        db.session.commit()
     flash('Trénink byl přidán do kalendáře.', 'success')
     return redirect(url_for('home', year=d.year, month=d.month))
 

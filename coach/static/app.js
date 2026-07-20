@@ -614,3 +614,67 @@
     });
   });
 })();
+
+/* ---- Reusable double-submit guard (audit Phase 5) ----------------------------
+   Stops accidental double POSTs (double-click / impatient re-submit) from
+   creating duplicate records and from piling duplicate requests on the single
+   PythonAnywhere worker.
+   - Document-level, bubble phase, so it runs AFTER form-level handlers: a
+     cancelled `form.form-confirm` or any AJAX form that called preventDefault is
+     skipped (ev.defaultPrevented is already true).
+   - Opt out with `data-no-busy` on a <form> for intentionally repeatable actions.
+   - The submit button is disabled on a `setTimeout(…, 0)` so the browser has
+     already serialized the form (the clicked button's name/value is still sent).
+   - bfcache (Back/Forward) restore via pageshow.persisted so a cached page never
+     keeps a permanently-disabled button. Native required-field validation never
+     fires `submit`, so there is nothing to restore in that case.
+--------------------------------------------------------------------------------*/
+(function(){
+  var DEFAULT_BUSY = 'Ukládám…';
+  function submitButton(form){
+    return form.querySelector(
+      'button[type="submit"]:not([disabled]), input[type="submit"]:not([disabled]), button:not([type]):not([disabled])'
+    );
+  }
+  function markBusy(form){
+    var btn = submitButton(form);
+    if(!btn) return;
+    var isInput = (btn.tagName === 'INPUT');
+    btn.setAttribute('data-prev-label', isInput ? btn.value : btn.innerHTML);
+    var busy = btn.getAttribute('data-busy-label') || DEFAULT_BUSY;
+    setTimeout(function(){
+      try{
+        btn.setAttribute('aria-busy', 'true');
+        btn.classList.add('is-submitting');
+        btn.disabled = true;
+        if(isInput){ btn.value = busy; } else { btn.textContent = busy; }
+      }catch(e){}
+    }, 0);
+  }
+  function restore(form){
+    try{ form.__chSubmitting = false; }catch(e){}
+    var btn = form.querySelector('[data-prev-label]');
+    if(!btn) return;
+    var prev = btn.getAttribute('data-prev-label');
+    try{
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.classList.remove('is-submitting');
+      if(btn.tagName === 'INPUT'){ btn.value = prev; } else { btn.innerHTML = prev; }
+    }catch(e){}
+    btn.removeAttribute('data-prev-label');
+  }
+  document.addEventListener('submit', function(ev){
+    var form = ev.target;
+    if(!form || form.nodeName !== 'FORM') return;
+    if(ev.defaultPrevented) return;                 // AJAX / confirm-cancelled
+    if(form.hasAttribute('data-no-busy')) return;   // opt-out: repeatable action
+    if(form.__chSubmitting){ ev.preventDefault(); return; }  // block the duplicate
+    form.__chSubmitting = true;
+    markBusy(form);
+  }, false);
+  window.addEventListener('pageshow', function(e){
+    if(!e.persisted) return;
+    Array.prototype.forEach.call(document.querySelectorAll('form'), restore);
+  });
+})();

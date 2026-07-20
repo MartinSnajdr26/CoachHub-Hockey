@@ -595,6 +595,13 @@
   var calCard = document.getElementById('dash-calendar');
   if(!calCard || !window.fetch || !window.DOMParser || !window.history) return;
 
+  // One AbortController for THIS calendar component only. Rapid Prev/Today/Next
+  // clicks otherwise pile overlapping full-dashboard loads onto the single
+  // PythonAnywhere worker, and a slow older response could overwrite a newer
+  // month. We cancel the previous in-flight request before starting the next and
+  // treat an AbortError as "superseded" (not a failure), so we never fall back
+  // to a full page navigation on cancellation.
+  var calAbort = null;
   function swap(href, push){
     var wrap = calCard.querySelector('.calendar-wrap');
     if(!wrap){ window.location.href = href; return; }
@@ -602,9 +609,14 @@
     var ov = calCard.querySelector('.cal-overlay'); if(ov && ov.parentNode){ ov.parentNode.removeChild(ov); }
     var sheet = document.getElementById('calFormSheet'); if(sheet){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
 
+    if(calAbort){ try { calAbort.abort(); } catch(e){} }
+    var controller = (window.AbortController ? new AbortController() : null);
+    calAbort = controller;
+
     calCard.classList.add('cal-loading');
     calCard.setAttribute('aria-busy', 'true');
-    fetch(href, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+    fetch(href, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin',
+                  signal: controller ? controller.signal : undefined })
       .then(function(r){ if(!r.ok) throw 0; return r.text(); })
       .then(function(html){
         var doc = new DOMParser().parseFromString(html, 'text/html');
@@ -622,10 +634,16 @@
           curBtns.forEach(function(b, i){ b.setAttribute('href', newBtns[i].getAttribute('href')); });
         }
         if(push){ try { history.pushState({ cal: 1 }, '', href); } catch(e){} }
+        calAbort = null;
         calCard.classList.remove('cal-loading');
         calCard.removeAttribute('aria-busy');
       })
-      .catch(function(){ window.location.href = href; });
+      .catch(function(err){
+        // Superseded by a newer navigation — leave the newer request's UI alone.
+        if(err && err.name === 'AbortError'){ return; }
+        calAbort = null;
+        window.location.href = href;
+      });
   }
 
   calCard.addEventListener('click', function(ev){
