@@ -1,5 +1,11 @@
 from coach.extensions import db
 from datetime import datetime
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
+
+# Portable large-text type: plain TEXT on SQLite (dev/tests), MEDIUMTEXT on
+# MySQL (up to 16 MB). Needed because Drill.image_data holds base64 snapshots
+# that exceed MySQL's 64 KB TEXT limit; on SQLite this compiles to normal TEXT.
+_LARGE_TEXT = db.Text().with_variant(MEDIUMTEXT(), 'mysql')
 
 
 class Player(db.Model):
@@ -34,8 +40,8 @@ class Drill(db.Model):
     description = db.Column(db.Text, nullable=True)
     duration = db.Column(db.Integer, nullable=True)  # minutes
     category = db.Column(db.String(50), nullable=True)
-    image_data = db.Column(db.Text, nullable=True)   # base64 image
-    path_data = db.Column(db.Text, nullable=True)    # JSON
+    image_data = db.Column(_LARGE_TEXT, nullable=True)   # base64 image (MEDIUMTEXT on MySQL)
+    path_data = db.Column(_LARGE_TEXT, nullable=True)    # JSON (MEDIUMTEXT on MySQL)
 
 
 class TrainingSession(db.Model):

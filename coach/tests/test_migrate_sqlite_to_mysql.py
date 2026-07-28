@@ -471,6 +471,104 @@ class RefusalAndDryRunTests(_E2EBase):
 
 
 # --------------------------------------------------------------------------- #
+# Drill MEDIUMTEXT fix (oversized image_data / path_data)
+# --------------------------------------------------------------------------- #
+
+class DrillMediumTextTests(unittest.TestCase):
+    """The dry run blocked on drill.image_data (~381 KB) and drill.path_data
+    (~117 KB) exceeding MySQL TEXT (64 KB). The portable model type must be
+    MEDIUMTEXT on MySQL and plain TEXT on SQLite, and the utility must accept
+    the real payloads against MEDIUMTEXT while still rejecting genuine overflow.
+    """
+
+    # Actual production dry-run maxima.
+    IMAGE_MAX = 381_410
+    PATH_MAX = 117_486
+    MEDIUMTEXT_CAP = 16_777_215
+    TEXT_CAP = 65_535
+
+    def test_model_compiles_mediumtext_on_mysql_text_on_sqlite(self):
+        from sqlalchemy.dialects import mysql, sqlite
+        import coach.models as models
+        for col in ("image_data", "path_data"):
+            c = models.Drill.__table__.c[col]
+            self.assertEqual(c.type.compile(dialect=mysql.dialect()), "MEDIUMTEXT")
+            self.assertEqual(c.type.compile(dialect=sqlite.dialect()), "TEXT")
+            self.assertTrue(c.nullable)  # nullability preserved
+
+    def test_new_migration_is_single_head(self):
+        self.assertEqual(M.expected_head(), "e2f3a4b5c6d7")
+
+    def test_mediumtext_capacity_recognized(self):
+        from sqlalchemy.dialects.mysql import MEDIUMTEXT
+        self.assertEqual(M.target_capacity(MEDIUMTEXT()), ("bytes", self.MEDIUMTEXT_CAP))
+
+    def _scan_drill(self, image_val, path_val, target_types):
+        md = M.load_metadata()
+        T = {t.name: t for t in md.tables.values()}
+        tmp = tempfile.mkdtemp()
+        _, eng = _new_sqlite(tmp, "drill.db")
+        T["team"].metadata.create_all(eng, tables=[T["team"], T["drill"]])
+        with eng.begin() as c:
+            c.execute(insert(T["team"]), {"id": 1, "name": "t"})
+            c.execute(insert(T["drill"]), {
+                "id": 1, "team_id": 1, "name": "d",
+                "image_data": image_val, "path_data": path_val})
+        findings = M.scan_length_overflows(eng, T["drill"], target_types)
+        return {f["column"]: f for f in findings}
+
+    def test_oversized_values_fit_mediumtext(self):
+        from sqlalchemy.dialects.mysql import MEDIUMTEXT
+        tt = {"image_data": MEDIUMTEXT(), "path_data": MEDIUMTEXT()}
+        found = self._scan_drill("x" * self.IMAGE_MAX, "y" * self.PATH_MAX, tt)
+        self.assertEqual(found["image_data"]["max_source"], self.IMAGE_MAX)
+        self.assertEqual(found["image_data"]["capacity"], self.MEDIUMTEXT_CAP)
+        self.assertFalse(found["image_data"]["overflow"])
+        self.assertEqual(found["path_data"]["max_source"], self.PATH_MAX)
+        self.assertFalse(found["path_data"]["overflow"])
+
+    def test_same_values_still_overflow_plain_text(self):
+        # Protection is NOT special-cased away: against MySQL TEXT the very same
+        # production payloads are (correctly) flagged as overflow.
+        from sqlalchemy.dialects.mysql import TEXT as MYSQL_TEXT
+        tt = {"image_data": MYSQL_TEXT(), "path_data": MYSQL_TEXT()}
+        found = self._scan_drill("x" * self.IMAGE_MAX, "y" * self.PATH_MAX, tt)
+        self.assertTrue(found["image_data"]["overflow"])
+        self.assertTrue(found["path_data"]["overflow"])
+        self.assertEqual(found["image_data"]["capacity"], self.TEXT_CAP)
+
+    def test_value_above_mediumtext_capacity_still_rejected(self):
+        # A value one byte over MEDIUMTEXT is still rejected (generic > capacity
+        # rule, not a hard-coded column exception).
+        from sqlalchemy.dialects.mysql import MEDIUMTEXT
+        tt = {"image_data": MEDIUMTEXT(), "path_data": MEDIUMTEXT()}
+        found = self._scan_drill("x" * (self.MEDIUMTEXT_CAP + 1), "y", tt)
+        self.assertTrue(found["image_data"]["overflow"])
+        self.assertFalse(found["path_data"]["overflow"])
+
+    def test_drill_roundtrip_unchanged_on_sqlite(self):
+        # Existing drill functionality: large base64 + JSON strings store and read
+        # back verbatim on SQLite (TEXT), behaviour unchanged.
+        md = M.load_metadata()
+        T = {t.name: t for t in md.tables.values()}
+        tmp = tempfile.mkdtemp()
+        _, eng = _new_sqlite(tmp, "rt.db")
+        T["team"].metadata.create_all(eng, tables=[T["team"], T["drill"]])
+        img = "data:image/png;base64," + "A" * self.IMAGE_MAX
+        pth = '{"paths": [' + "0," * 20000 + "0]}"
+        with eng.begin() as c:
+            c.execute(insert(T["team"]), {"id": 1, "name": "t"})
+            c.execute(insert(T["drill"]), {
+                "id": 1, "team_id": 1, "name": "Bruslení",
+                "image_data": img, "path_data": pth})
+        with eng.connect() as c:
+            row = c.execute(select(T["drill"].c.image_data,
+                                   T["drill"].c.path_data)).one()
+        self.assertEqual(row[0], img)
+        self.assertEqual(row[1], pth)
+
+
+# --------------------------------------------------------------------------- #
 # Optional live MySQL integration (skipped unless explicitly enabled)
 # --------------------------------------------------------------------------- #
 

@@ -41,7 +41,7 @@ Resolved FK-safe insert order (parents first, deterministic):
 
 | # | Risk | Handling |
 |---|------|----------|
-| 1 | **`TEXT` capacity.** `drill.image_data` / `drill.path_data` (base64 images), `league_integration.data_json`, `audit_event.meta`, `attendance_import.warnings`, `training_session.drill_ids` are `Text`. MySQL `TEXT` caps at 65,535 **bytes**; a large base64 image can overflow. | `--dry-run` scans actual source byte-lengths vs the **inspected** target column capacity and reports `OVERFLOW`; execution is unsafe if any overflow exists. If flagged, widen the target column to `MEDIUMTEXT`/`LONGTEXT` via an Alembic revision before executing. |
+| 1 | **`TEXT` capacity.** `drill.image_data` / `drill.path_data` (base64 images), `league_integration.data_json`, `audit_event.meta`, `attendance_import.warnings`, `training_session.drill_ids` are `Text`. MySQL `TEXT` caps at 65,535 **bytes**; a large base64 image can overflow. | **Confirmed by the production dry run** (`drill.image_data` ≈ 381 KB, `drill.path_data` ≈ 117 KB). **Fixed:** both columns are now `MEDIUMTEXT` (≈ 16 MB) on MySQL via Alembic revision `e2f3a4b5c6d7` (plain `TEXT` on SQLite). Run `flask db upgrade` on the target **before** copying. `--dry-run` still scans source byte-lengths vs the **inspected** target capacity and reports `OVERFLOW`; any value above `MEDIUMTEXT` remains blocked. |
 | 2 | **Collation case/accent folding.** `utf8mb4_unicode_ci` is case- and accent-insensitive; SQLite's default is binary (case-sensitive). Values distinct in SQLite (e.g. `Sparta` vs `sparta`) can collide on a UNIQUE index in MySQL (`team.name`, `team_calendar_feed_token.token`, `league_integration.team_id`). | A collision surfaces as a duplicate-key error during `--execute`, which rolls back that table and stops. If the pilot has such near-duplicates, resolve them in SQLite first (or use a `_bin` collation on those columns). |
 | 3 | **Booleans.** SQLite stores `0/1`; MySQL uses `TINYINT(1)`. | Type-driven normalization coerces to Python `bool`; typed Core inserts store `0/1`. |
 | 4 | **Datetimes / dates.** Stored as **naive UTC** strings in SQLite. | Read via typed columns and normalized to `datetime`/`date`; naive is preserved (MySQL `DATETIME` is tz-naive — do **not** switch to a tz type). |
@@ -97,6 +97,27 @@ Run from the **repo root** (`/home/martin-snajdr/python`) with the venv active.
 
 All commands run in a **PythonAnywhere Bash console** (not the web app).
 
+> **Run the utility with module syntax** — `python -m coach.scripts.migrate_sqlite_to_mysql …`.
+> Direct file execution (`python coach/scripts/migrate_sqlite_to_mysql.py`) fails
+> from the repo root with `ModuleNotFoundError: No module named 'coach'`.
+
+### Required sequence (includes the Drill MEDIUMTEXT fix)
+
+1. `git pull origin main`
+2. `pip install -r requirements.txt`
+3. Set `MYSQL_TARGET_URL` (Section B.2).
+4. Upgrade the target schema:
+   `DB_URL="$MYSQL_TARGET_URL" FLASK_APP=coach.app:app flask db upgrade`
+   (and advance the source SQLite stamp: `FLASK_APP=coach.app:app flask db upgrade`).
+5. Verify the head:
+   `FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current` → `e2f3a4b5c6d7`.
+6. Re-run the dry run (module syntax):
+   `python -m coach.scripts.migrate_sqlite_to_mysql --dry-run`.
+7. **Proceed to `--execute` only if there are no `OVERFLOW` findings** and
+   `SAFE TO EXECUTE: YES`.
+
+The detailed steps follow.
+
 ## B.1 Pull and install
 
 ```bash
@@ -137,15 +158,28 @@ export MYSQL_TARGET_URL="mysql+pymysql://martinsnajdr:${DBPASS}@martinsnajdr.mys
 unset DBPASS
 ```
 
-Confirm the target schema is at the expected Alembic head (creates it if the
-MySQL DB was freshly provisioned — safe on an empty schema):
+Bring **both** databases to the current Alembic head `e2f3a4b5c6d7` (which widens
+`drill.image_data` / `drill.path_data` to `MEDIUMTEXT` on MySQL — see risk #1).
+The migration utility requires source **and** target to be at the same head.
+
+Upgrade the **target MySQL** schema (widens the Drill columns in place; safe on
+the empty pre-provisioned schema):
 
 ```bash
 FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db upgrade
-FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current   # -> d1f2a3b4c5e6
+FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current   # -> e2f3a4b5c6d7
 ```
 
-> Setting `DB_URL` inline for that one command does **not** switch the running
+Also advance the **source SQLite** stamp to the same head. On SQLite this
+revision is a **no-op** (TEXT is unbounded) — it only updates `alembic_version`
+so the utility's source/target revision check passes:
+
+```bash
+FLASK_APP=coach.app:app flask db upgrade                              # uses .env DB_URL (the SQLite source)
+FLASK_APP=coach.app:app flask db current   # -> e2f3a4b5c6d7
+```
+
+> Setting `DB_URL` inline for the target command does **not** switch the running
 > web app to MySQL — cutover is a separate, explicit step (Section C).
 
 ## B.3 Fresh backup (immediately before migrating)
@@ -190,7 +224,7 @@ Record the printed backup path, SHA-256 and row counts.
 ## B.4 Dry run (no writes)
 
 ```bash
-python coach/scripts/migrate_sqlite_to_mysql.py --dry-run
+python -m coach.scripts.migrate_sqlite_to_mysql --dry-run
 ```
 
 Review every safety check, the source row counts, the type/length findings and
@@ -198,6 +232,11 @@ Review every safety check, the source row counts, the type/length findings and
 to block production writes for it — unless the script reports the source is
 changing during inspection (counts shifting), in which case pause writes and
 re-run. A non-zero exit means unsafe: stop and resolve the flagged item.
+
+After the target upgrade (B.2, head `e2f3a4b5c6d7`), the previously-reported
+`drill.image_data` / `drill.path_data` overflow findings must be gone — their
+target capacity is now `MEDIUMTEXT` (16,777,215 bytes). If any `OVERFLOW` is
+still reported, do **not** run `--execute`; the schema upgrade did not apply.
 
 ## B.5 Maintenance window and execution
 
@@ -215,7 +254,7 @@ Before `--execute`:
 Then execute:
 
 ```bash
-python coach/scripts/migrate_sqlite_to_mysql.py --execute
+python -m coach.scripts.migrate_sqlite_to_mysql --execute
 ```
 
 `--execute` refuses to run if any target application table already has rows.
@@ -226,7 +265,7 @@ automatically.
 Then run validation explicitly:
 
 ```bash
-python coach/scripts/migrate_sqlite_to_mysql.py --validate-only
+python -m coach.scripts.migrate_sqlite_to_mysql --validate-only
 ```
 
 Both must end with `VALIDATION: PASS`. The summary line per table is:
@@ -325,9 +364,9 @@ mysql -h martinsnajdr.mysql.eu.pythonanywhere-services.com \
 
 | Purpose | Command |
 |---------|---------|
-| Dry run (no writes) | `python coach/scripts/migrate_sqlite_to_mysql.py --dry-run` |
-| Execute (empty target only) | `python coach/scripts/migrate_sqlite_to_mysql.py --execute` |
-| Validate only | `python coach/scripts/migrate_sqlite_to_mysql.py --validate-only` |
+| Dry run (no writes) | `python -m coach.scripts.migrate_sqlite_to_mysql --dry-run` |
+| Execute (empty target only) | `python -m coach.scripts.migrate_sqlite_to_mysql --execute` |
+| Validate only | `python -m coach.scripts.migrate_sqlite_to_mysql --validate-only` |
 | Custom batch size | `... --execute --batch-size 500` |
 
 Required environment: `SQLITE_SOURCE_URL`, `MYSQL_TARGET_URL` (both must be set;
