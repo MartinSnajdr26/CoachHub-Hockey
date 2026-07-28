@@ -46,7 +46,7 @@ import sys
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
-from sqlalchemy import create_engine, func, inspect, select, text
+from sqlalchemy import create_engine, event, func, inspect, select, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.types import (
     Boolean,
@@ -453,9 +453,29 @@ def reseed_autoincrements(target_engine: Engine, metadata):
 # Connections & preflight (Phase 3)
 # --------------------------------------------------------------------------- #
 
+def _force_strict_sql_mode(dbapi_conn, _rec):  # noqa: ANN001
+    """Connection hook: force STRICT sql_mode on a MySQL connection.
+
+    With STRICT_ALL_TABLES the server NEVER silently coerces bad data — most
+    importantly, an explicit ``NULL`` into a ``NOT NULL`` column raises an error
+    (rolling back that table) instead of being turned into ``''``. This preserves
+    NULL fidelity generically for every column, not just training_event.source.
+    """
+    cur = dbapi_conn.cursor()
+    try:
+        cur.execute("SET SESSION sql_mode = 'STRICT_ALL_TABLES'")
+    finally:
+        cur.close()
+
+
 def build_engine(url: str) -> Engine:
-    """Create an Engine. SQLite-only connect args are never applied to MySQL."""
-    return create_engine(url, future=True)
+    """Create an Engine. SQLite-only connect args are never applied to MySQL.
+
+    MySQL targets get the STRICT sql_mode connection hook (see above)."""
+    engine = create_engine(url, future=True)
+    if make_url(url).get_backend_name() == "mysql":
+        event.listen(engine, "connect", _force_strict_sql_mode)
+    return engine
 
 
 def sqlite_file_path(url: str):
@@ -713,10 +733,48 @@ def fk_orphan_count(engine, table):
     return orphans
 
 
+def _rows_by_pk(engine, table):
+    """{pk_tuple: {col: canonical_value}} — for diagnostics only, never printed."""
+    pks = pk_columns(table)
+    colnames = list(table.columns.keys())
+    out = {}
+    with engine.connect() as conn:
+        for row in conn.execute(select(*[table.c[n] for n in colnames])):
+            m = row._mapping
+            out[tuple(m[p] for p in pks)] = {n: _canonical(m[n]) for n in colnames}
+    return out, pks, colnames
+
+
+def first_content_mismatch(source_engine, target_engine, table):
+    """First differing PK between source/target (by sorted PK), plus which
+    columns differ. Returns (pk_tuple, pk_cols, differing_cols) or None.
+    Reports PK values and column NAMES only — never the differing cell values.
+    """
+    s, pks, colnames = _rows_by_pk(source_engine, table)
+    t, _, _ = _rows_by_pk(target_engine, table)
+    for key in sorted(set(s) | set(t), key=lambda k: [_canonical(v) for v in k]):
+        if key not in s:
+            return key, pks, ["<row missing in source>"]
+        if key not in t:
+            return key, pks, ["<row missing in target>"]
+        diffs = [c for c in colnames if s[key][c] != t[key][c]]
+        if diffs:
+            return key, pks, diffs
+    return None
+
+
+def _column_types(insp, name):
+    """{col: (type_str, nullable)} from a live inspector."""
+    return {c["name"]: (str(c["type"]), bool(c["nullable"]))
+            for c in insp.get_columns(name)}
+
+
 def validate(source_engine, target_engine, metadata):
     """Compare every application table. Returns (rows, all_ok).
 
     ``rows`` is a list of per-table result dicts suitable for the summary table.
+    Failing tables carry a ``diagnostics`` dict (column NULL-count diffs, first
+    mismatching PK, and source/target column types) — never any row values.
     """
     src_insp = inspect(source_engine)
     tgt_insp = inspect(target_engine)
@@ -764,6 +822,27 @@ def validate(source_engine, target_engine, metadata):
             and content_match
         )
         all_ok = all_ok and ok
+
+        diagnostics = None
+        if not ok:
+            null_diffs = {c: (s_nulls.get(c, 0), t_nulls.get(c, 0))
+                          for c in sorted(set(s_nulls) | set(t_nulls))
+                          if s_nulls.get(c) != t_nulls.get(c)}
+            mismatch = None
+            if not (pk_set_match and content_match):
+                try:
+                    mismatch = first_content_mismatch(source_engine, target_engine, tbl)
+                except Exception:  # noqa: BLE001
+                    mismatch = None
+            diagnostics = {
+                "null_diffs": null_diffs,
+                "first_mismatch_pk": (dict(zip(mismatch[1], mismatch[0]))
+                                      if mismatch else None),
+                "mismatch_columns": (mismatch[2] if mismatch else []),
+                "source_types": _column_types(src_insp, name),
+                "target_types": _column_types(tgt_insp, name),
+            }
+
         results.append(
             {
                 "table": name,
@@ -775,6 +854,7 @@ def validate(source_engine, target_engine, metadata):
                 "cols_ok": cols_ok,
                 "content_match": content_match,
                 "status": "OK" if ok else "FAIL",
+                "diagnostics": diagnostics,
             }
         )
     return results, all_ok
@@ -790,6 +870,26 @@ def print_validation_summary(results):
             f"{str(r['pk_match']):<8} | {str(r['nulls_match']):<11} | "
             f"{r['fk_orphans']:>10} | {r['status']}"
         )
+
+    # Per-table diagnostics for failures (column names, counts, PKs, types only —
+    # never any row/cell values).
+    for r in results:
+        d = r.get("diagnostics")
+        if r["status"] != "FAIL" or not d:
+            continue
+        log("")
+        log(f"DIAGNOSTICS: {r['table']}")
+        if d["null_diffs"]:
+            log("  NULL-count mismatch (column: source_db -> target_db  [types]):")
+            for col, (sn, tn) in d["null_diffs"].items():
+                st = d["source_types"].get(col, ("?", "?"))
+                tt = d["target_types"].get(col, ("?", "?"))
+                log(f"    {col}: {sn} -> {tn}   "
+                    f"[src {st[0]} nullable={st[1]} | tgt {tt[0]} nullable={tt[1]}]")
+        if d["first_mismatch_pk"] is not None:
+            pk = ", ".join(f"{k}={v}" for k, v in d["first_mismatch_pk"].items())
+            cols = ", ".join(d["mismatch_columns"]) or "-"
+            log(f"  first mismatching PK: {pk}   (differing columns: {cols})")
 
 
 # --------------------------------------------------------------------------- #

@@ -24,6 +24,7 @@ from sqlalchemy import (
     String,
     Table,
     create_engine,
+    func,
     insert,
     select,
     text,
@@ -496,8 +497,14 @@ class DrillMediumTextTests(unittest.TestCase):
             self.assertEqual(c.type.compile(dialect=sqlite.dialect()), "TEXT")
             self.assertTrue(c.nullable)  # nullability preserved
 
-    def test_new_migration_is_single_head(self):
-        self.assertEqual(M.expected_head(), "e2f3a4b5c6d7")
+    def test_mediumtext_migration_in_chain(self):
+        # The MEDIUMTEXT revision is a proper ancestor of the current head.
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+        cfg = Config()
+        cfg.set_main_option("script_location", M.migrations_dir())
+        revs = {s.revision for s in ScriptDirectory.from_config(cfg).walk_revisions()}
+        self.assertIn("e2f3a4b5c6d7", revs)
 
     def test_mediumtext_capacity_recognized(self):
         from sqlalchemy.dialects.mysql import MEDIUMTEXT
@@ -566,6 +573,139 @@ class DrillMediumTextTests(unittest.TestCase):
                                    T["drill"].c.path_data)).one()
         self.assertEqual(row[0], img)
         self.assertEqual(row[1], pth)
+
+
+# --------------------------------------------------------------------------- #
+# NULL fidelity — training_event.source (None must NOT become "")
+# --------------------------------------------------------------------------- #
+
+class NullFidelityTests(unittest.TestCase):
+    """Production validation found training_event.source NULLs turning into ''.
+    NULL and empty string must round-trip as distinct values, and validation must
+    flag it if they ever diverge.
+    """
+
+    def _pair(self):
+        md = M.load_metadata()
+        T = {t.name: t for t in md.tables.values()}
+        tmp = tempfile.mkdtemp()
+        _, src = _new_sqlite(tmp, "src.db")
+        _, tgt = _new_sqlite(tmp, "tgt.db")
+        md.create_all(src)
+        md.create_all(tgt)
+        return md, T, src, tgt
+
+    def _seed_events(self, engine, T):
+        d = date(2026, 7, 20)
+        with engine.begin() as c:
+            for i, source in enumerate((None, "", "coachhub_manual"), start=1):
+                c.execute(insert(T["training_event"]), {
+                    "id": i, "team_id": None, "day": d, "title": "Trénink",
+                    "source": source})
+
+    def test_none_preserved_for_nullable_string_column(self):
+        # The generic normalizer never turns None into "".
+        self.assertIsNone(M.normalize_value(None, String(20)))
+        self.assertEqual(M.normalize_value("", String(20)), "")
+        self.assertEqual(M.normalize_value("coachhub_manual", String(20)),
+                         "coachhub_manual")
+
+    def test_none_and_empty_string_not_equal_in_digest(self):
+        # The content-digest canonicaliser keeps NULL and "" distinct.
+        self.assertNotEqual(M._canonical(None), M._canonical(""))
+
+    def test_source_three_states_roundtrip(self):
+        md, T, src, tgt = self._pair()
+        self._seed_events(src, T)
+        M.copy_table(src, tgt, T["training_event"], batch_size=10)
+        with tgt.connect() as c:
+            got = [r[0] for r in c.execute(
+                select(T["training_event"].c.source)
+                .order_by(T["training_event"].c.id))]
+        self.assertEqual(got, [None, "", "coachhub_manual"])  # all three preserved
+        # NULL and '' counted separately.
+        with tgt.connect() as c:
+            nulls = c.execute(select(func.count()).select_from(T["training_event"])
+                              .where(T["training_event"].c.source.is_(None))).scalar()
+            empties = c.execute(select(func.count()).select_from(T["training_event"])
+                                .where(T["training_event"].c.source == "")).scalar()
+        self.assertEqual((nulls, empties), (1, 1))
+
+    def test_validation_passes_on_faithful_copy(self):
+        md, T, src, tgt = self._pair()
+        self._seed_events(src, T)
+        for tbl in M.dependency_order(md):
+            M.copy_table(src, tgt, tbl, batch_size=10)
+        results, ok = M.validate(src, tgt, md)
+        self.assertTrue(ok, msg=str([r for r in results if r["status"] != "OK"]))
+
+    def test_validation_detects_null_vs_empty_mismatch(self):
+        md, T, src, tgt = self._pair()
+        self._seed_events(src, T)
+        for tbl in M.dependency_order(md):
+            M.copy_table(src, tgt, tbl, batch_size=10)
+        # Simulate the production bug: NULL coerced to '' on the target.
+        with tgt.begin() as c:
+            c.execute(T["training_event"].update()
+                      .where(T["training_event"].c.source.is_(None))
+                      .values(source=""))
+        results, ok = M.validate(src, tgt, md)
+        self.assertFalse(ok)
+        row = [r for r in results if r["table"] == "training_event"][0]
+        self.assertEqual(row["status"], "FAIL")
+        self.assertFalse(row["nulls_match"])
+        self.assertFalse(row["content_match"])
+        # Diagnostics report column, source/target NULL counts and first PK.
+        diag = row["diagnostics"]
+        self.assertIn("source", diag["null_diffs"])
+        self.assertEqual(diag["null_diffs"]["source"], (1, 0))
+        self.assertEqual(diag["first_mismatch_pk"], {"id": 1})
+        self.assertIn("source", diag["mismatch_columns"])
+
+    def test_other_type_normalization_unchanged(self):
+        # Regression guard: None stays None across representative column types.
+        for coltype in (String(20), DateTime(), Boolean(), Date()):
+            self.assertIsNone(M.normalize_value(None, coltype))
+        self.assertIs(M.normalize_value(1, Boolean()), True)
+        self.assertEqual(M.normalize_value("2026-07-20", Date()), date(2026, 7, 20))
+
+
+class StrictSqlModeTests(unittest.TestCase):
+    def test_hook_sets_strict_sql_mode(self):
+        # The connection hook issues STRICT_ALL_TABLES so NULL -> NOT NULL is an
+        # error, never a silent '' coercion.
+        executed = []
+
+        class _Cur:
+            def execute(self, q):
+                executed.append(q)
+
+            def close(self):
+                pass
+
+        class _Conn:
+            def cursor(self):
+                return _Cur()
+
+        M._force_strict_sql_mode(_Conn(), None)
+        self.assertTrue(any("STRICT_ALL_TABLES" in q for q in executed))
+
+    def test_mysql_engine_gets_strict_mode_listener(self):
+        # Drive build_engine's MySQL branch without needing the pymysql driver:
+        # substitute create_engine with a SQLite engine factory.
+        from sqlalchemy import event
+        real = M.create_engine
+        M.create_engine = lambda url, **kw: real("sqlite://", future=True)
+        try:
+            eng = M.build_engine("mysql+pymysql://u:p@h/db?charset=utf8mb4")
+        finally:
+            M.create_engine = real
+        self.assertTrue(event.contains(eng, "connect", M._force_strict_sql_mode))
+
+    def test_sqlite_engine_has_no_strict_mode_listener(self):
+        from sqlalchemy import event
+        eng = M.build_engine("sqlite:///:memory:")
+        self.assertFalse(event.contains(eng, "connect", M._force_strict_sql_mode))
 
 
 # --------------------------------------------------------------------------- #

@@ -115,7 +115,10 @@ class TrainingEvent(db.Model):
     # Recurrence (Calendar 2.0): occurrences of one series share series_id.
     series_id = db.Column(db.String(36), nullable=True, index=True)
     recurrence_rule = db.Column(db.String(80), nullable=True)   # e.g. 'weekly:MO,WE'
-    source = db.Column(db.String(20), nullable=False, default='coachhub_manual')  # manual|recurring|tymuj|system
+    # Nullable: legacy rows created before this column existed carry SQL NULL,
+    # which must be preserved verbatim on MySQL (not coerced to ''). New rows get
+    # the Python-side default. See migration f3a4b5c6d7e8.
+    source = db.Column(db.String(20), nullable=True, default='coachhub_manual')  # manual|recurring|tymuj|system
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
