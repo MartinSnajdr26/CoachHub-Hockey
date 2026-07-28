@@ -30,8 +30,8 @@ class ServiceWorkerSourceTest(unittest.TestCase):
 
     # 2. cache version incremented (each release bumps by one)
     def test_cache_version_incremented(self):
-        self.assertIn("CACHE = 'coachhub-v6'", self.sw)
-        self.assertNotIn('coachhub-v5', self.sw)
+        self.assertIn("CACHE = 'coachhub-v7'", self.sw)
+        self.assertNotIn('coachhub-v6', self.sw)
 
     # 3/4. immediate activation
     def test_skip_waiting_and_claim(self):

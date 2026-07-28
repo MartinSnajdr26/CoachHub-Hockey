@@ -101,8 +101,10 @@ class PwaJsLogicTest(unittest.TestCase):
 
 class CacheVersionTest(unittest.TestCase):
     def test_cache_and_asset_version_bumped(self):
-        self.assertIn("CACHE = 'coachhub-v6'", _read(SW_JS))
-        self.assertNotIn('coachhub-v5', _read(SW_JS))
+        self.assertIn("CACHE = 'coachhub-v7'", _read(SW_JS))
+        self.assertNotIn('coachhub-v6', _read(SW_JS))
+        # Service-worker CACHE and the ?v= asset version are decoupled: this change
+        # bumped only the SW cache (new favicon filenames), asset_version is unchanged.
         from coach.context import ASSET_VERSION
         self.assertEqual(ASSET_VERSION, 'v6')
 

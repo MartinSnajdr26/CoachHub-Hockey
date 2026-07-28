@@ -14,8 +14,10 @@ def welcome():
 @limiter.exempt   # browsers auto-request the favicon; not an abuse vector
 def favicon():
     # Serve the CoachHub Hockey app icon (NOT any team/club logo) as the favicon.
-    # Browsers accept PNG via rel=icon; this must never be a per-team logo.
+    # This is a real multi-size .ico (16/32/48) so legacy /favicon.ico requests get a
+    # proper icon; must never be a per-team logo.
     try:
-        return send_from_directory(current_app.static_folder, 'icon-192.png')
+        return send_from_directory(
+            current_app.static_folder, 'favicon.ico', mimetype='image/x-icon')
     except Exception:
         return ('', 404)

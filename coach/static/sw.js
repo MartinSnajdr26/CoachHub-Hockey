@@ -13,12 +13,13 @@
      activated worker's fresh assets load without a manual reinstall. */
 'use strict';
 
-var CACHE = 'coachhub-v6';
+var CACHE = 'coachhub-v7';
 var OFFLINE_URL = '/static/offline.html';
 var PRECACHE = [
   OFFLINE_URL,
-  '/static/icon-192.png',
-  '/static/icon-512.png',
+  '/static/favicon.ico',
+  '/static/favicon-32.png',
+  '/static/favicon-192.png',
   '/static/manifest.webmanifest'
 ];
 
