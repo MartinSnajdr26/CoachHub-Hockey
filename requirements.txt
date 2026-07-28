@@ -23,6 +23,7 @@ ordered-set==4.1.0
 packaging==25.0
 pillow==11.3.0
 Pygments==2.19.2
+PyMySQL==1.1.1
 python-dotenv==1.1.1
 redis==6.4.0
 rich==13.9.4
