@@ -709,6 +709,127 @@ class StrictSqlModeTests(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
+# Datetime microsecond precision — MySQL DATETIME(6) (production rounding bug)
+# --------------------------------------------------------------------------- #
+
+class DateTimePrecisionTests(unittest.TestCase):
+    """MySQL default DATETIME(0) dropped/rounded fractional seconds
+    (e.g. .769460 -> next second). Model datetime columns must be DATETIME(6) on
+    MySQL and plain DATETIME on SQLite, and the copy must round-trip microseconds
+    exactly. Validation must flag any lost precision.
+    """
+
+    # Real production maxima from the validation report.
+    US_KEEP = datetime(2025, 9, 4, 18, 33, 2, 447979)     # must stay .447979
+    US_ROUND = datetime(2026, 7, 24, 18, 18, 36, 769460)  # must NOT become :37
+    US_ZERO = datetime(2025, 9, 4, 18, 33, 2, 0)          # .000000 unchanged
+
+    def _pair(self):
+        md = M.load_metadata()
+        T = {t.name: t for t in md.tables.values()}
+        tmp = tempfile.mkdtemp()
+        _, src = _new_sqlite(tmp, "src.db")
+        _, tgt = _new_sqlite(tmp, "tgt.db")
+        md.create_all(src)
+        md.create_all(tgt)
+        return md, T, src, tgt
+
+    def test_model_compiles_datetime6_on_mysql_datetime_on_sqlite(self):
+        from sqlalchemy.dialects import mysql, sqlite
+        import coach.models as models
+        checked = 0
+        for tbl in models.db.metadata.tables.values():
+            for col in tbl.columns:
+                # every DateTime-family model column
+                if col.type.__class__.__name__ == "DateTime" or \
+                        "DATETIME" in col.type.compile(dialect=mysql.dialect()).upper():
+                    self.assertEqual(
+                        col.type.compile(dialect=mysql.dialect()), "DATETIME(6)",
+                        f"{tbl.name}.{col.name} not DATETIME(6) on MySQL")
+                    self.assertEqual(
+                        col.type.compile(dialect=sqlite.dialect()), "DATETIME",
+                        f"{tbl.name}.{col.name} not DATETIME on SQLite")
+                    checked += 1
+        self.assertGreaterEqual(checked, 19)  # all application datetime columns
+
+    def test_microseconds_roundtrip_exact(self):
+        md, T, src, tgt = self._pair()
+        with src.begin() as c:
+            c.execute(insert(T["team"]), [
+                {"id": 1, "name": "A", "created_at": self.US_KEEP,
+                 "last_active_at": self.US_ROUND},
+                {"id": 2, "name": "B", "created_at": self.US_ZERO,
+                 "last_active_at": None},
+            ])
+        M.copy_table(src, tgt, T["team"], batch_size=10)
+        with tgt.connect() as c:
+            rows = list(c.execute(
+                select(T["team"].c.created_at, T["team"].c.last_active_at)
+                .order_by(T["team"].c.id)))
+        # exact microseconds preserved
+        self.assertEqual(rows[0][0], self.US_KEEP)
+        self.assertEqual(rows[0][0].microsecond, 447979)
+        # .769460 must NOT round up to the next second
+        self.assertEqual(rows[0][1], self.US_ROUND)
+        self.assertEqual((rows[0][1].second, rows[0][1].microsecond), (36, 769460))
+        # zero microseconds unchanged; NULL stays NULL
+        self.assertEqual(rows[1][0], self.US_ZERO)
+        self.assertIsNone(rows[1][1])
+
+    def test_normalize_preserves_microseconds(self):
+        from sqlalchemy import DateTime as SADateTime
+        self.assertEqual(M.normalize_value(self.US_KEEP, SADateTime()), self.US_KEEP)
+        # string form (safety-net parser) keeps microseconds too
+        self.assertEqual(
+            M.normalize_value("2025-09-04 18:33:02.447979", SADateTime()),
+            self.US_KEEP)
+
+    def test_migration_is_single_head(self):
+        self.assertEqual(M.expected_head(), "a4b5c6d7e8f9")
+
+    def test_downgrade_warns_about_precision_loss(self):
+        import os
+        path = os.path.join(M.migrations_dir(), "versions",
+                            "a4b5c6d7e8f9_datetime_microsecond_precision.py")
+        with open(path, encoding="utf-8") as fh:
+            src_text = fh.read()
+        down = src_text.split("def downgrade")[1]
+        self.assertIn("WARNING", down)
+        self.assertTrue("fractional" in down.lower() or "microsecond" in down.lower())
+        self.assertIn("ROUND", down.upper())
+
+    def test_validation_detects_lost_microseconds(self):
+        md, T, src, tgt = self._pair()
+        with src.begin() as c:
+            c.execute(insert(T["team"]),
+                      {"id": 1, "name": "A", "created_at": self.US_KEEP})
+        for tbl in M.dependency_order(md):
+            M.copy_table(src, tgt, tbl, batch_size=10)
+        # Simulate MySQL DATETIME(0): truncate microseconds on the target.
+        with tgt.begin() as c:
+            c.execute(T["team"].update().where(T["team"].c.id == 1)
+                      .values(created_at=self.US_KEEP.replace(microsecond=0)))
+        results, ok = M.validate(src, tgt, md)
+        self.assertFalse(ok)
+        row = [r for r in results if r["table"] == "team"][0]
+        self.assertEqual(row["status"], "FAIL")
+        self.assertFalse(row["content_match"])
+        self.assertEqual(row["diagnostics"]["first_mismatch_pk"], {"id": 1})
+        self.assertIn("created_at", row["diagnostics"]["mismatch_columns"])
+
+    def test_validation_passes_with_exact_values(self):
+        md, T, src, tgt = self._pair()
+        with src.begin() as c:
+            c.execute(insert(T["team"]),
+                      {"id": 1, "name": "A", "created_at": self.US_KEEP,
+                       "last_active_at": self.US_ROUND})
+        for tbl in M.dependency_order(md):
+            M.copy_table(src, tgt, tbl, batch_size=10)
+        results, ok = M.validate(src, tgt, md)
+        self.assertTrue(ok, msg=str([r for r in results if r["status"] != "OK"]))
+
+
+# --------------------------------------------------------------------------- #
 # Optional live MySQL integration (skipped unless explicitly enabled)
 # --------------------------------------------------------------------------- #
 

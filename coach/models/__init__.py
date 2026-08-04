@@ -1,11 +1,19 @@
 from coach.extensions import db
 from datetime import datetime
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.dialects.mysql import MEDIUMTEXT, DATETIME as _MYSQL_DATETIME
 
 # Portable large-text type: plain TEXT on SQLite (dev/tests), MEDIUMTEXT on
 # MySQL (up to 16 MB). Needed because Drill.image_data holds base64 snapshots
 # that exceed MySQL's 64 KB TEXT limit; on SQLite this compiles to normal TEXT.
 _LARGE_TEXT = db.Text().with_variant(MEDIUMTEXT(), 'mysql')
+
+# Portable microsecond-precise datetime: plain DATETIME on SQLite (which already
+# stores full microseconds), DATETIME(6) on MySQL. MySQL's default DATETIME has
+# ZERO fractional precision and silently ROUNDS fractional seconds (e.g.
+# .769460 -> next second), corrupting exact timestamps on import. fsp=6 makes the
+# round-trip exact. Timezone behaviour is unchanged (naive UTC, as before).
+# See migration a4b5c6d7e8f9.
+_DT6 = db.DateTime().with_variant(_MYSQL_DATETIME(fsp=6), 'mysql')
 
 
 class Player(db.Model):
@@ -50,7 +58,7 @@ class TrainingSession(db.Model):
     title = db.Column(db.String(200), nullable=False)
     filename = db.Column(db.String(300), nullable=False)
     drill_ids = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
 
 
 class LineupSession(db.Model):
@@ -58,7 +66,7 @@ class LineupSession(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
     title = db.Column(db.String(200), nullable=False)
     filename = db.Column(db.String(300), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
 
 
 class Team(db.Model):
@@ -68,8 +76,8 @@ class Team(db.Model):
     secondary_color = db.Column(db.String(20), nullable=True)
     logo_path = db.Column(db.String(255), nullable=True)
     tymuj_ics_url = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_active_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
+    last_active_at = db.Column(_DT6, nullable=True)
 
     # legacy users removed in team-only mode
 
@@ -81,7 +89,7 @@ class AuditEvent(db.Model):
     role = db.Column(db.String(10), nullable=True)
     ip_truncated = db.Column(db.String(50), nullable=True)
     meta = db.Column(db.Text, nullable=True)  # JSON string payload
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
 
 
 # User model removed in team-only mode
@@ -91,7 +99,7 @@ class TeamLoginAttempt(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
     ip_truncated = db.Column(db.String(50), nullable=False, index=True)
-    window_start = db.Column(db.DateTime, nullable=True)
+    window_start = db.Column(_DT6, nullable=True)
     attempts = db.Column(db.Integer, default=0)
 
 
@@ -101,8 +109,8 @@ class TeamKey(db.Model):
     role = db.Column(db.String(10), nullable=False)  # 'coach' | 'player'
     key_hash = db.Column(db.String(255), nullable=False)
     active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    rotated_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
+    rotated_at = db.Column(_DT6, nullable=True)
 
 
 class TrainingEvent(db.Model):
@@ -119,7 +127,7 @@ class TrainingEvent(db.Model):
     # which must be preserved verbatim on MySQL (not coerced to ''). New rows get
     # the Python-side default. See migration f3a4b5c6d7e8.
     source = db.Column(db.String(20), nullable=True, default='coachhub_manual')  # manual|recurring|tymuj|system
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
 
 
 class LeagueIntegration(db.Model):
@@ -136,10 +144,10 @@ class LeagueIntegration(db.Model):
     highlight_team = db.Column(db.String(120), nullable=True)  # coach-entered name
     resolved_team = db.Column(db.String(120), nullable=True)   # confirmed exact name
     data_json = db.Column(db.Text, nullable=True)              # cached normalized data
-    last_updated = db.Column(db.DateTime, nullable=True)       # last successful parse
+    last_updated = db.Column(_DT6, nullable=True)       # last successful parse
     last_error = db.Column(db.String(400), nullable=True)
-    last_attempt = db.Column(db.DateTime, nullable=True)       # for rate limiting
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_attempt = db.Column(_DT6, nullable=True)       # for rate limiting
+    created_at = db.Column(_DT6, default=datetime.utcnow)
 
 
 class AttendanceEntry(db.Model):
@@ -158,9 +166,9 @@ class AttendanceEntry(db.Model):
     source = db.Column(db.String(20), nullable=False, default='system', index=True)
     source_detail = db.Column(db.String(60), nullable=True)   # e.g. import batch id
     updated_by_role = db.Column(db.String(10), nullable=True)  # 'coach' | 'player' | None
-    imported_at = db.Column(db.DateTime, nullable=True)
+    imported_at = db.Column(_DT6, nullable=True)
     note = db.Column(db.String(300), nullable=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(_DT6, default=datetime.utcnow)
 
     player = db.relationship('Player')
 
@@ -170,7 +178,7 @@ class AttendanceImport(db.Model):
     file is parsed in memory and never persisted)."""
     id = db.Column(db.Integer, primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
     created_by_role = db.Column(db.String(10), nullable=True)
     source = db.Column(db.String(20), nullable=False, default='tymuj_import')
     file_type = db.Column(db.String(10), nullable=True)        # csv | xlsx
@@ -192,7 +200,7 @@ class PaymentPeriod(db.Model):
     year = db.Column(db.Integer, nullable=False)
     month = db.Column(db.Integer, nullable=False)         # 1-12
     amount = db.Column(db.Integer, nullable=False, default=0)  # CZK
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(_DT6, default=datetime.utcnow)
     __table_args__ = (db.UniqueConstraint('team_id', 'year', 'month', name='uq_payment_period'),)
 
 
@@ -203,7 +211,7 @@ class PaymentStatus(db.Model):
     period_id = db.Column(db.Integer, db.ForeignKey('payment_period.id'), nullable=False, index=True)
     player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False, index=True)
     status = db.Column(db.String(12), nullable=False, default='unpaid')  # paid|partial|unpaid
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(_DT6, default=datetime.utcnow)
     __table_args__ = (db.UniqueConstraint('period_id', 'player_id', name='uq_payment_status'),)
 
 
@@ -217,8 +225,8 @@ class TeamCalendarFeedToken(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
     token = db.Column(db.String(80), nullable=False, unique=True, index=True)
     active = db.Column(db.Boolean, nullable=False, default=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    rotated_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(_DT6, nullable=False, default=datetime.utcnow)
+    rotated_at = db.Column(_DT6, nullable=True)
 
 
 __all__ = [

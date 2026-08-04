@@ -44,7 +44,7 @@ Resolved FK-safe insert order (parents first, deterministic):
 | 1 | **`TEXT` capacity.** `drill.image_data` / `drill.path_data` (base64 images), `league_integration.data_json`, `audit_event.meta`, `attendance_import.warnings`, `training_session.drill_ids` are `Text`. MySQL `TEXT` caps at 65,535 **bytes**; a large base64 image can overflow. | **Confirmed by the production dry run** (`drill.image_data` ≈ 381 KB, `drill.path_data` ≈ 117 KB). **Fixed:** both columns are now `MEDIUMTEXT` (≈ 16 MB) on MySQL via Alembic revision `e2f3a4b5c6d7` (plain `TEXT` on SQLite). Run `flask db upgrade` on the target **before** copying. `--dry-run` still scans source byte-lengths vs the **inspected** target capacity and reports `OVERFLOW`; any value above `MEDIUMTEXT` remains blocked. |
 | 2 | **Collation case/accent folding.** `utf8mb4_unicode_ci` is case- and accent-insensitive; SQLite's default is binary (case-sensitive). Values distinct in SQLite (e.g. `Sparta` vs `sparta`) can collide on a UNIQUE index in MySQL (`team.name`, `team_calendar_feed_token.token`, `league_integration.team_id`). | A collision surfaces as a duplicate-key error during `--execute`, which rolls back that table and stops. If the pilot has such near-duplicates, resolve them in SQLite first (or use a `_bin` collation on those columns). |
 | 3 | **Booleans.** SQLite stores `0/1`; MySQL uses `TINYINT(1)`. | Type-driven normalization coerces to Python `bool`; typed Core inserts store `0/1`. |
-| 4 | **Datetimes / dates.** Stored as **naive UTC** strings in SQLite. | Read via typed columns and normalized to `datetime`/`date`; naive is preserved (MySQL `DATETIME` is tz-naive — do **not** switch to a tz type). |
+| 4 | **Datetime microsecond precision.** **Found in production validation:** MySQL's default `DATETIME` is `DATETIME(0)` (zero fractional seconds), so it **dropped microseconds and ROUNDED** some values to the next second — e.g. `team.last_active_at` `…18:18:36.769460` → `…18:18:37`, `audit_event.created_at` `…02.806430` → `…03`. Row counts/PKs/NULLs/FKs matched; only datetime **content digests** failed. STRICT sql_mode does **not** catch this (rounding to lower fsp is documented, not an error). | **Fixed:** all **19** application datetime columns are now `DATETIME(6)` on MySQL (plain `DATETIME` on SQLite, which already stores microseconds) via Alembic revision `a4b5c6d7e8f9`. The two columns with a `CURRENT_TIMESTAMP` server default (`team_key.created_at`, `audit_event.created_at`) also become `CURRENT_TIMESTAMP(6)`. Timezone behaviour is unchanged (naive UTC — do **not** switch to a tz type). The utility never rounds/truncates datetimes; the content digest compares exact microseconds. |
 | 5 | **NULL vs empty string.** **Found in production validation:** `training_event.source` was `NOT NULL` but the live SQLite data holds 42 legacy `NULL`s. MySQL's non-strict `sql_mode` silently coerced each inserted `NULL` → `''` (the type's implicit default), failing NULL/content validation. | **Fixed two ways:** (a) `training_event.source` is now **nullable** (Alembic `f3a4b5c6d7e8`) so `NULL` round-trips; (b) the utility forces **`STRICT_ALL_TABLES`** on the MySQL target, so any future `NULL`→`NOT NULL` (or truncation) **errors and rolls back** instead of silently coercing. The utility itself always inserts SQL `NULL` (never drops the key, never converts to `''`); `''` and `NULL` stay distinct. |
 | 6 | **Reserved-ish identifiers** (`year`, `month`, `time`, `day`, `status`, `source`, `kind`, `event`, table `team_key`). | SQLAlchemy Core quotes identifiers; the schema was created by Alembic from the same metadata, so names already match. |
 | 7 | **AUTO_INCREMENT continuation.** | After load, each integer PK's `AUTO_INCREMENT` is reseeded to `max(pk)+1`. |
@@ -101,22 +101,25 @@ All commands run in a **PythonAnywhere Bash console** (not the web app).
 > Direct file execution (`python coach/scripts/migrate_sqlite_to_mysql.py`) fails
 > from the repo root with `ModuleNotFoundError: No module named 'coach'`.
 
-### Required sequence (includes the Drill MEDIUMTEXT + NULL-fidelity fixes)
+### Required sequence (MEDIUMTEXT + NULL-fidelity + DATETIME(6) fixes)
 
-Current Alembic head: **`f3a4b5c6d7e8`** (adds `training_event.source` nullability
-on top of the Drill `MEDIUMTEXT` widening).
+Current Alembic head: **`a4b5c6d7e8f9`** (widens all datetime columns to
+`DATETIME(6)`, on top of `training_event.source` nullability and the Drill
+`MEDIUMTEXT` widening).
 
-1. `git pull origin main`
+1. **Commit and push** the fix locally, then `git pull origin main` on PythonAnywhere.
 2. `pip install -r requirements.txt`
 3. Set `MYSQL_TARGET_URL` (Section B.2).
-4. **Recreate the target MySQL schema** (see box below) — required if any earlier
-   migration run happened, because the old schema had `training_event.source
-   NOT NULL` and may already hold coerced `''` values.
-5. Upgrade **both** databases to the head:
+4. **Recreate the empty target MySQL database** (see box below), with charset
+   `utf8mb4` / `utf8mb4_unicode_ci`. Required whenever an earlier migration run
+   happened: the old schema stored `DATETIME(0)` (rounded microseconds) and
+   `training_event.source NOT NULL` (coerced `''`), so those rows must not be
+   reused — start from an empty, corrected schema.
+5. Upgrade **both** databases to the head (applies `DATETIME(6)` on MySQL):
    `DB_URL="$MYSQL_TARGET_URL" FLASK_APP=coach.app:app flask db upgrade`
    and `FLASK_APP=coach.app:app flask db upgrade` (source SQLite stamp).
 6. Verify the head:
-   `FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current` → `f3a4b5c6d7e8`.
+   `FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current` → `a4b5c6d7e8f9`.
 7. Dry run: `python -m coach.scripts.migrate_sqlite_to_mysql --dry-run`.
 8. Execute: `python -m coach.scripts.migrate_sqlite_to_mysql --execute`.
 9. Validate: `python -m coach.scripts.migrate_sqlite_to_mysql --validate-only`.
@@ -135,7 +138,7 @@ EXECUTE: YES`, and the target is empty.
 > # Drop and recreate the application schema on MySQL, then rebuild via Alembic.
 > # (Drops only the app tables + alembic_version — never the SQLite source.)
 > DB_URL="$MYSQL_TARGET_URL" FLASK_APP=coach.app:app flask db downgrade base   # or DROP the tables
-> DB_URL="$MYSQL_TARGET_URL" FLASK_APP=coach.app:app flask db upgrade          # -> f3a4b5c6d7e8
+> DB_URL="$MYSQL_TARGET_URL" FLASK_APP=coach.app:app flask db upgrade          # -> a4b5c6d7e8f9
 > ```
 >
 > If you prefer, drop and re-create the `martinsnajdr$coachhub` database (or its
@@ -185,7 +188,7 @@ export MYSQL_TARGET_URL="mysql+pymysql://martinsnajdr:${DBPASS}@martinsnajdr.mys
 unset DBPASS
 ```
 
-Bring **both** databases to the current Alembic head `f3a4b5c6d7e8` (which widens
+Bring **both** databases to the current Alembic head `a4b5c6d7e8f9` (which widens
 `drill.image_data` / `drill.path_data` to `MEDIUMTEXT` on MySQL — see risk #1).
 The migration utility requires source **and** target to be at the same head.
 
@@ -194,7 +197,7 @@ the empty pre-provisioned schema):
 
 ```bash
 FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db upgrade
-FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current   # -> f3a4b5c6d7e8
+FLASK_APP=coach.app:app DB_URL="$MYSQL_TARGET_URL" flask db current   # -> a4b5c6d7e8f9
 ```
 
 Also advance the **source SQLite** stamp to the same head. On SQLite this
@@ -203,7 +206,7 @@ so the utility's source/target revision check passes:
 
 ```bash
 FLASK_APP=coach.app:app flask db upgrade                              # uses .env DB_URL (the SQLite source)
-FLASK_APP=coach.app:app flask db current   # -> f3a4b5c6d7e8
+FLASK_APP=coach.app:app flask db current   # -> a4b5c6d7e8f9
 ```
 
 > Setting `DB_URL` inline for the target command does **not** switch the running
@@ -260,7 +263,7 @@ to block production writes for it — unless the script reports the source is
 changing during inspection (counts shifting), in which case pause writes and
 re-run. A non-zero exit means unsafe: stop and resolve the flagged item.
 
-After the target upgrade (B.2, head `f3a4b5c6d7e8`), the previously-reported
+After the target upgrade (B.2, head `a4b5c6d7e8f9`), the previously-reported
 `drill.image_data` / `drill.path_data` overflow findings must be gone — their
 target capacity is now `MEDIUMTEXT` (16,777,215 bytes). If any `OVERFLOW` is
 still reported, do **not** run `--execute`; the schema upgrade did not apply.
