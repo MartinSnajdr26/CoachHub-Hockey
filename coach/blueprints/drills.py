@@ -8,9 +8,25 @@ import base64
 import io
 import os
 import uuid
-from sqlalchemy import or_
+from sqlalchemy import or_, case
 
 bp = Blueprint('drills', __name__)
+
+
+def _drill_ordering():
+    """Portable ORDER BY for drill listings: uncategorised drills first, then
+    category A-Z, then name A-Z.
+
+    Uses an explicit CASE rather than ``.nullsfirst()``: SQLAlchemy compiles that
+    to PostgreSQL-style ``NULLS FIRST``, which MySQL 8 rejects with error 1064
+    (it 500'd /drills and /drills/select in production). The CASE compiles on
+    every dialect and never relies on the backend's default NULL ordering.
+    """
+    return (
+        case((Drill.category.is_(None), 0), else_=1).asc(),
+        Drill.category.asc(),
+        Drill.name.asc(),
+    )
 
 
 def _parse_optional_int(value, min_value=None, max_value=None):
@@ -127,7 +143,7 @@ def drills():
     drill_q = Drill.query
     if tid:
         drill_q = drill_q.filter(Drill.team_id == tid)
-    drill_list = drill_q.order_by(Drill.category.asc().nullsfirst(), Drill.name.asc()).all()
+    drill_list = drill_q.order_by(*_drill_ordering()).all()
     return render_template('drills_categories.html', categories=categories, total=total, drills=drill_list)
 
 
@@ -195,7 +211,7 @@ def drills_select():
     if q:
         like = f"%{q}%"
         qry = qry.filter((Drill.name.ilike(like)) | (Drill.description.ilike(like)) | (Drill.category.ilike(like)))
-    drills = qry.order_by(Drill.category.asc().nullsfirst(), Drill.name.asc()).all()
+    drills = qry.order_by(*_drill_ordering()).all()
     default_title = f"Tréninková jednotka {datetime.now().strftime('%Y-%m-%d')}"
     return render_template('drills_select.html', drills=drills, query=q, default_title=default_title)
 
