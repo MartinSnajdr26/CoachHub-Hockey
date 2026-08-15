@@ -1,6 +1,7 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, abort
-from coach.auth_utils import team_login_required, get_team_id, coach_required, get_team_role
+from coach.auth_utils import (team_login_required, get_team_id, coach_required,
+                              get_team_role, get_player_id)
 from coach.extensions import db
 from datetime import date, datetime, timedelta
 import calendar as calmod
@@ -13,6 +14,28 @@ bp = Blueprint('calendar', __name__)
 
 # Team calendar feed spans today .. +6 months.
 _FEED_HORIZON_DAYS = 183
+
+# Coach team attendance currently ships TABLE-FIRST: the mobile "Akce" and
+# "Hráči" views and their three-way switcher are kept in the codebase but
+# switched off in the UI, so a coach lands straight in the matrix. Flip this to
+# True to bring the switcher (and both views) back — no other change needed.
+ATTENDANCE_VIEW_SWITCHER = False
+
+
+def _verified_player_name(team_id):
+    """Display name of the passkey-verified player in this session, or None.
+
+    Resolved SERVER-SIDE from the session's opaque player_id against the roster —
+    never from a query string, form field, or anything the client can set. The
+    name is presentation data only; authentication stays `passkey -> player_id`.
+    Returns None for coaches, for shared-key sessions, and (failing safely) when
+    the player record no longer exists or belongs to another team.
+    """
+    pid = get_player_id()
+    if not pid or not team_id:
+        return None
+    player = Player.query.filter_by(id=pid, team_id=team_id).first()
+    return player.name if player else None
 
 
 def _prod_external(endpoint, **values):
@@ -238,6 +261,7 @@ def home():
                            team_messages=view_messages,
                            dash=dash,
                            team_feed_url=team_feed_url,
+                           player_name=_verified_player_name(get_team_id()),
                            is_coach_home=is_coach_home)
 
 
@@ -364,6 +388,7 @@ def dochazka():
     tymuj_status = tymuj_svc.get_status(tid)
     return render_template('dochazka.html', view=view,
                            filters={'range': rng, 'etype': etype},
+                           view_switcher=ATTENDANCE_VIEW_SWITCHER,
                            is_coach=(get_team_role() == 'coach'), tymuj_status=tymuj_status)
 
 

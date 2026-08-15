@@ -31,11 +31,12 @@
       if (e.key === 'Escape' && sheet.classList.contains('open')) { close(); }
     });
     // tapping a destination closes the sheet (navigation proceeds)
-    sheet.querySelectorAll('.msheet-grid a, .att-choices a').forEach(function (a) {
+    sheet.querySelectorAll('.msheet-grid a, .att-choices a, .notif-list a').forEach(function (a) {
       a.addEventListener('click', function () { close(); });
     });
   }
 
   wireSheet('mnavMore', 'mSheet');        // Team & settings
   wireSheet('mnavDochazka', 'attSheet');  // Attendance: Player vs Team
+  wireSheet('mnavBell', 'notifSheet');    // Notifications (desktop bell is nav-only)
 })();

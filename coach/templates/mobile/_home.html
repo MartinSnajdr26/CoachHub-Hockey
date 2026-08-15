@@ -37,7 +37,7 @@
 
   {# ---------- GREETING ---------- #}
   <div class="dm-greet">
-    <div class="dm-greet-hi">Dobrý den 👋</div>
+    <div class="dm-greet-hi">Dobrý den{% if player_name %}, {{ player_name }}{% endif %} 👋</div>
     <div class="dm-greet-day">{{ today_label }}</div>
   </div>
 

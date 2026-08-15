@@ -117,6 +117,20 @@ class IdentityTestBase(unittest.TestCase):
         with c.session_transaction() as s:
             return s.get(key)
 
+    def resume_cookie(self, client=None):
+        """Raw onboarding resume token this browser is holding, or None."""
+        c = client or self.client
+        return c.get_cookie('chh_onboarding', domain='localhost') and \
+            c.get_cookie('chh_onboarding', domain='localhost').value
+
+    def drop_session_keep_cookie(self, client=None):
+        """Simulate closing the browser: the Flask session is gone, the
+        persistent resume cookie survives."""
+        c = client or self.client
+        c.delete_cookie('session', domain='localhost')
+        with c.session_transaction() as s:
+            s.clear()
+
     # -- full ceremonies ---------------------------------------------------
     def register_passkey(self, client=None, authenticator=None, origin=ORIGIN):
         """Drive /passkey/register/{options,verify} with a software authenticator."""
@@ -518,14 +532,29 @@ class ClaimBindingTest(IdentityTestBase):
         self.assertEqual(PasskeyCredential.query.count(), 0)
 
     def test_claim_from_another_team_is_invisible(self):
-        """A claim token is looked up scoped by team, so a session on team B
-        cannot resolve team A's request even with the same cookie value."""
+        """A session on team B must not resolve team A's request, even holding
+        the same token. (The token now lives in the resume cookie rather than
+        the session, but the team-scoped lookup is unchanged.)"""
         self.login_player_key()
         self.claim(self.alice_id)
-        token = self.session_value('onboarding_claim_token')
+        token = self.resume_cookie()
         self.assertIsNotNone(token)
         self.assertIsNone(ident.find_by_claim_token(self.other_tid, token))
         self.assertIsNotNone(ident.find_by_claim_token(self.tid, token))
+
+    def test_other_teams_session_holding_the_cookie_sees_no_claim(self):
+        """View-level form of the same property: team B's onboarding page must
+        not surface team A's pending claim just because the cookie is present."""
+        self.login_player_key()
+        self.claim(self.alice_id)
+        token = self.resume_cookie()
+
+        crossover = app.test_client()
+        crossover.set_cookie('chh_onboarding', token, domain='localhost')
+        self.key_login(self.other_tid, 'player', PLAYER_KEY_B, crossover)
+        html = crossover.get('/player/onboarding').get_data(as_text=True)
+        self.assertNotIn('Čeká na schválení trenérem', html)
+        self.assertIn('Kdo jsi?', html)          # ...it just offers its own roster
 
 
 # =========================================================================
@@ -985,10 +1014,16 @@ class LegacyAndAccessGateTest(IdentityTestBase):
         r = anon.post('/passkey/login/verify', json={})
         self.assertEqual(r.status_code, 400)          # reached the view, rejected input
 
-    def test_registration_endpoints_require_a_session(self):
+    def test_registration_endpoints_refuse_without_a_claim(self):
+        """Registration is reachable without a session (a returning browser has
+        only its resume cookie) but refuses outright without a live approved
+        claim — so anonymity still mints nothing."""
         anon = app.test_client()
         r = anon.post('/passkey/register/options')
-        self.assertEqual(r.status_code, 302)          # bounced to team auth
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.get_json()['error'], 'not_found')
+        r = anon.post('/passkey/register/verify', json={'credential': {}})
+        self.assertEqual(r.status_code, 403)
         self.assertEqual(PasskeyCredential.query.count(), 0)
 
     def test_coach_access_page_is_coach_only(self):

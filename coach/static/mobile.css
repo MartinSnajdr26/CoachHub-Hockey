@@ -53,6 +53,46 @@
   .mnav a.is-active { color: var(--primary, #d4c76f); }
   .mnav a.is-active .mnav-ic { transform: translateY(-1px); }
 
+  /* ---------- Notification bell in the top bar (mobile only) ----------
+     The desktop bell sits in .header-bottom, hidden above, so this is the only
+     way to notifications on a phone. `flex: none` + min-width:0 on the
+     shrinkable siblings keeps it from widening the header on a 320px screen. */
+  .mnav-bell {
+    display: inline-flex !important; flex: none;
+    align-items: center; justify-content: center; position: relative;
+    width: 44px; height: 44px; padding: 0; margin-left: 2px;
+    background: transparent; border: 0; border-radius: 12px;
+    color: var(--text, #e7e9ee); cursor: pointer;
+  }
+  .mnav-bell:active { background: var(--surface-2, #1a1f27); }
+  .mnav-bell-ic { font-size: 1.3rem; line-height: 1; }
+  .mnav-bell-badge {
+    position: absolute; top: 4px; right: 3px; min-width: 17px; height: 17px; padding: 0 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--danger, #e3504a); color: #fff;
+    font-size: 0.66rem; font-weight: 800; line-height: 1;
+  }
+  /* .app-mark is `flex: none` in style.css, so at phone widths the wordmark
+     TEXT pushed the top bar past the viewport (pre-existing: the bar already
+     clipped at 320-360px) and left no room for the bell. The team brand on the
+     left already names the team, so drop the duplicate text and keep the logo
+     mark. Mobile-only — style.css is untouched. */
+  .header-top .brand, .header-top .app-mark { min-width: 0; }
+  .header-top .app-brand { display: none; }
+  .header-top .app-mark { flex: none; }
+  .header-top .app-mark img { height: 34px; }
+
+  /* Notification list inside the sheet */
+  .notif-list { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 8px; }
+  .notif-list a {
+    display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2, #1a1f27);
+    color: var(--text); text-decoration: none; font-weight: 600; font-size: 0.92rem;
+  }
+  .notif-ic { flex: none; font-size: 1.25rem; line-height: 1; }
+  .notif-tx { min-width: 0; overflow-wrap: anywhere; }
+  .notif-empty { color: var(--text-muted); padding: 18px 4px; text-align: center; }
+
   /* ---------- Full-screen Team / More sheet ---------- */
   .msheet { position: fixed; inset: 0; z-index: 1300; display: none; }
   .msheet.open { display: block; }
@@ -94,7 +134,8 @@
 
   /* ---------- Dashboard: compact, content higher, actions prominent ---------- */
   .dash-hero { padding: 14px 16px; margin-bottom: 12px; }
-  .dash-hero h1, .dash-hero .hero-title { font-size: 1.5rem; }
+  /* Also carries the verified player's name — keep a long one inside the card. */
+  .dash-hero h1, .dash-hero .hero-title { font-size: clamp(1.2rem, 5.2vw, 1.5rem); overflow-wrap: anywhere; }
   .dash-grid, .dash-grid--main, .dash-grid--secondary, .dash-stats { gap: 12px !important; margin-bottom: 12px; }
   .dash-grid, .dash-grid--main, .dash-grid--secondary { grid-template-columns: 1fr !important; }
   .card { margin-bottom: 0; }
@@ -400,7 +441,15 @@
 .pkm-root, #pkmAmountSheet, #pkmHistorySheet { display: none; }
 
 @media (max-width: 768px) {
-  .pk-wrap { display: none !important; }
+  /* Hide the desktop wrapper ONLY on the page .pkm-root actually replaces.
+     `.pk-wrap` is not unique to Pokladna — player_onboarding.html and
+     team_player_access.html use the same class for their own (fully
+     responsive, mobile-first) layouts and have NO mobile replacement, so an
+     unscoped `.pk-wrap { display: none }` blanked those pages on phones:
+     header, empty main, footer. The sibling combinator ties the hide to the
+     presence of the mobile Pokladna component, which only pokladna.html
+     includes — see playerauth.css for the .pk-* onboarding layout. */
+  .pkm-root ~ .pk-wrap { display: none !important; }
   .pkm-root { display: block !important; }
   .pkm-root { --paid: var(--success, #38c172); --part: var(--warning, #e0a418); --un: var(--danger, #e3504a); }
 
@@ -518,8 +567,9 @@
 
 /* ============================================================================
    PHASE 3 — Mobile Team Attendance (.tam-*). Mobile-only, rendered alongside
-   the untouched desktop matrix (.am-wrap). Default = event-first "Akce" view;
-   the desktop matrix is reused only as the "Tabulka" advanced view.
+   the untouched desktop matrix (.am-wrap). CURRENT UI is table-first: the coach
+   lands straight in the matrix and the "Akce"/"Hráči" views are not rendered.
+   Their styles below are kept intact for when ATTENDANCE_VIEW_SWITCHER is on.
    ============================================================================ */
 .tam-root, #tamPlayerSheet { display: none; }
 
@@ -529,10 +579,23 @@
   .tam-root { display: block !important; }
   .tam-root { --go: var(--success, #38c172); --mb: var(--warning, #e0a418); --no: var(--danger, #e3504a); --un: var(--text-muted, #9aa0ab); }
 
-  /* Tabulka view: reveal ONLY the matrix grid (not desktop KPIs/filters) */
-  body.tam-show-matrix .am-wrap { display: block !important; padding: 0; margin: 0; background: transparent; border: 0; box-shadow: none; max-width: 100%; }
-  body.tam-show-matrix .am-wrap > :not(.am-grid) { display: none !important; }
-  body.tam-show-matrix .am-grid { max-width: 100%; }
+  /* Tabulka view: reveal ONLY the matrix grid (not desktop KPIs/filters).
+     Two ways in, same result:
+       .tam-root--table-only ~ .am-wrap  table-first UI (current). Pure CSS via
+                                         the sibling combinator, so the matrix is
+                                         there on first paint with no JS and no
+                                         tab to press.
+       body.tam-show-matrix              the JS switcher, used only when
+                                         ATTENDANCE_VIEW_SWITCHER is back on. */
+  body.tam-show-matrix .am-wrap,
+  .tam-root--table-only ~ .am-wrap { display: block !important; padding: 0; margin: 0; background: transparent; border: 0; box-shadow: none; max-width: 100%; }
+  body.tam-show-matrix .am-wrap > :not(.am-grid),
+  .tam-root--table-only ~ .am-wrap > :not(.am-grid) { display: none !important; }
+  body.tam-show-matrix .am-grid,
+  .tam-root--table-only ~ .am-wrap .am-grid { max-width: 100%; }
+
+  /* Table-first: no switcher, so the hint sits directly above the matrix. */
+  .tam-root--table-only .tam-tab-note { margin-bottom: 4px; }
 
   /* App bar */
   .tam-bar { padding: 4px 0 10px; }
@@ -670,7 +733,10 @@
 
   /* Greeting */
   .dm-greet { margin: 4px 0 6px; }
-  .dm-greet-hi { font-size: 1.5rem; font-weight: 500; letter-spacing: -0.01em; }
+  /* Now carries the verified player's name, so it must survive a long one on a
+     narrow phone instead of pushing the layout sideways. */
+  .dm-greet-hi { font-size: clamp(1.2rem, 5.2vw, 1.5rem); font-weight: 500; letter-spacing: -0.01em;
+                 overflow-wrap: anywhere; line-height: 1.25; }
   .dm-greet-day { color: var(--text-muted); margin-top: 2px; font-size: 0.88rem; }
 
   /* Small uppercase section labels (NEJBLIŽŠÍ AKCE / RYCHLÉ AKCE) */

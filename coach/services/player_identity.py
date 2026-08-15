@@ -76,22 +76,57 @@ def find_by_claim_token(team_id: int, token: str):
             .order_by(PlayerRegistrationRequest.created_at.desc()).first())
 
 
+def find_by_token(token: str):
+    """Resolve a claim from the token ALONE — no team_id needed.
+
+    This is what makes onboarding resumable after the session is gone: a
+    returning browser has only its cookie, so team_id cannot come from a
+    session. The token carries 256 bits of entropy from `secrets`, so the hash
+    identifies one row on its own; the ROW then supplies team_id and player_id
+    and the caller must use those rather than anything the client sent.
+    """
+    if not token:
+        return None
+    return (PlayerRegistrationRequest.query
+            .filter_by(claim_token_hash=hash_claim_token(token))
+            .order_by(PlayerRegistrationRequest.created_at.desc()).first())
+
+
+def activation_candidate_by_token(token: str):
+    """The request this browser may create a passkey for, resolved from the
+    token alone. Team scoping is implied by the row, never asserted by caller."""
+    req = find_by_token(token)
+    if req is None:
+        return None, 'not_found'
+    if req.status != PlayerRegistrationRequest.STATUS_APPROVED:
+        return None, 'not_approved'
+    if is_expired(req):
+        return None, 'expired'
+    return req, None
+
+
 # ------------------------------------------------------------- transitions
-def create_request(team_id: int, player_id: int, token: str):
-    """Create a PENDING claim. Returns (request, error_code).
+def create_request(team_id: int, player_id: int, token: str, prior_token: str = None):
+    """Create a PENDING claim bound to `token`. Returns (request, error_code).
 
     The player must belong to the onboarding team — a posted player_id from
     another team is refused here, not merely hidden in the UI.
+
+    `token` is always FRESH: each claim mints its own token so one hash maps to
+    exactly one row and a browser can never hold two resumable claims. Any live
+    claim still held under `prior_token` (the browser's previous resume cookie)
+    is superseded first, so a user who changes their mind does not leave two
+    competing pending rows for the coach to guess at. Superseding is deliberately
+    not team-scoped: the browser gets one claim, whichever team it was for.
     """
     player = Player.query.filter_by(id=player_id, team_id=team_id).first()
     if not player:
         return None, 'unknown_player'
 
     now = _now()
-    # Supersede this browser's own earlier live claim so a user who changes their
-    # mind does not leave two competing pending rows for the coach to guess at.
-    prior = find_by_claim_token(team_id, token)
-    if prior is not None and prior.status == PlayerRegistrationRequest.STATUS_PENDING:
+    prior = find_by_token(prior_token) if prior_token else None
+    if prior is not None and prior.status in (PlayerRegistrationRequest.STATUS_PENDING,
+                                              PlayerRegistrationRequest.STATUS_APPROVED):
         prior.status = PlayerRegistrationRequest.STATUS_REJECTED
         prior.rejected_at = now
         prior.claimed_name = None

@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
+from flask import (Blueprint, render_template, request, redirect, url_for, flash,
+                   make_response, session, current_app)
 from datetime import datetime
 from coach.extensions import db, limiter
 from coach.models import Team, TeamKey, AuditEvent
@@ -124,11 +125,18 @@ def team_login():
 
 @bp.route('/team/logout')
 def team_logout():
-    # Drop the WHOLE identity set (team, role, player_id, auth method, pending
-    # claim token, WebAuthn challenges) — not just the three legacy keys.
+    # Drop the WHOLE identity set (team, role, player_id, auth method,
+    # WebAuthn challenges) — not just the three legacy keys.
     from coach.auth_utils import reset_identity_session
+    from coach.services import onboarding_resume as resume
     reset_identity_session()
-    return redirect(url_for('teamauth.team_auth'))
+    # Explicit logout means "forget this browser", so the onboarding resume
+    # cookie goes too. Merely CLOSING the browser must not do this — that is the
+    # entire point of the cookie — but a deliberate logout should not leave a
+    # resumable claim behind on a possibly shared device. The request itself
+    # stays pending server-side, so the player can start again with the player
+    # key and the coach still sees one claim.
+    return resume.clear(make_response(redirect(url_for('teamauth.team_auth'))))
 
 
 @bp.route('/team/create', methods=['POST'])

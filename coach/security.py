@@ -32,6 +32,22 @@ ONBOARDING_PATHS = frozenset({
 
 ONBOARDING_REDIRECT = '/player/onboarding'
 
+# Reachable with NO team session, because the persistent onboarding resume
+# cookie (services/onboarding_resume) may be the only thing the returning
+# browser still has: the player is allowed to close the app while waiting for
+# coach approval. Letting the request through is safe because each of these
+# handlers independently resolves the resume cookie and refuses without a live,
+# approved claim of its own — none of them reads team data from the session, and
+# none of them can establish an app session. Doing it here (rather than a DB
+# lookup in this hook) keeps the gate free of per-request queries.
+RESUMABLE_PATHS = frozenset({
+    '/player/onboarding',
+    '/player/onboarding/cancel',
+    '/passkey/register/options',
+    '/passkey/register/verify',
+    '/team/logout',
+})
+
 
 def is_public_path(path: str) -> bool:
     return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
@@ -103,6 +119,11 @@ def register_security(app):
             from coach.auth_utils import is_onboarding_only_session
             if is_onboarding_only_session() and p not in ONBOARDING_PATHS:
                 return redirect(ONBOARDING_REDIRECT)
+            return
+        # No session at all. The onboarding-resume endpoints still get through:
+        # they authorise themselves from the resume cookie and can only ever
+        # continue one already-created registration request.
+        if p in RESUMABLE_PATHS:
             return
         # Everything else goes to team auth
         return redirect('/team/auth')

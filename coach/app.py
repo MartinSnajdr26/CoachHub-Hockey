@@ -375,6 +375,23 @@ app.config['TERMS_VERSION'] = os.getenv('TERMS_VERSION', 'v1.0')
 app.config['WEBAUTHN_RP_ID'] = (os.getenv('WEBAUTHN_RP_ID') or '').strip()
 app.config['WEBAUTHN_RP_NAME'] = (os.getenv('WEBAUTHN_RP_NAME') or 'CoachHub Hockey').strip()
 app.config['WEBAUTHN_ORIGIN'] = (os.getenv('WEBAUTHN_ORIGIN') or '').strip()
+# --- Resumable player onboarding ---
+# The claim token that proves "this browser created that registration request"
+# lives in its OWN long-lived HttpOnly cookie rather than the Flask session, so
+# a player can close the app while waiting for coach approval and still finish
+# afterwards. Secure/HttpOnly/SameSite policy is taken from the session cookie
+# settings above (see services/onboarding_resume.py), so dev stays testable over
+# http without weakening production. Host-only: no Domain is ever set.
+app.config['PLAYER_ONBOARDING_COOKIE_NAME'] = (
+    os.getenv('PLAYER_ONBOARDING_COOKIE_NAME') or 'chh_onboarding').strip()
+# Capped to the request lifetime (pending TTL + activation TTL) so the cookie can
+# never outlive every request it could unlock.
+try:
+    _onb_days = int(os.getenv('PLAYER_ONBOARDING_COOKIE_DAYS', '14'))
+except Exception:
+    _onb_days = 14
+app.config['PLAYER_ONBOARDING_COOKIE_MAX_AGE'] = int(
+    timedelta(days=max(1, min(_onb_days, 30))).total_seconds())
 # Persistent session lifetime (for team sessions)
 try:
     _sess_days = int(os.getenv('SESSION_LIFETIME_DAYS', '30'))

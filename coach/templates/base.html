@@ -59,6 +59,21 @@
               <span class="app-brand-sub">Team Management Platform</span>
             </span>
         </a>
+        {% if (current_user.is_authenticated or team_session_login) and not onboarding_only %}
+        {# Mobile-only notification bell. The desktop bell lives in the
+           .header-bottom nav, which is display:none below 768px, so
+           notifications were unreachable on phones entirely — the bottom nav
+           and the Tým sheet have no entry for them either. Same data as the
+           desktop bell (the global `notifications` context processor); opens a
+           .msheet like the other mobile nav sheets. Inline display:none keeps
+           desktop byte-identical; mobile.css reveals it. #}
+        <button type="button" class="mnav-bell" id="mnavBell" style="display:none"
+                aria-haspopup="dialog" aria-controls="notifSheet" aria-expanded="false"
+                aria-label="Notifikace">
+          <span class="mnav-bell-ic" aria-hidden="true">🔔</span>
+          {% if notifications_count %}<span class="mnav-bell-badge">{{ notifications_count }}</span>{% endif %}
+        </button>
+        {% endif %}
     </header>
 
     <!-- Navigation -->
@@ -193,6 +208,23 @@
           {% if is_coach %}<a href="{{ url_for('players.import_tymuj') }}"><span class="msheet-ic">⬇️</span> Import z Týmuj</a>{% endif %}
           {% if owner_admin_authenticated %}<a href="{{ url_for('owner.dashboard') }}"><span class="msheet-ic">⚙</span> Owner</a>{% endif %}
           <a class="msheet-wide is-danger" href="{{ url_for('team_logout') }}"><span class="msheet-ic">↩</span> Odhlásit</a>
+        </div>
+      </div>
+    </div>
+
+    {# Mobile notifications, opened from the .header-top bell. Mirrors the
+       desktop .nav-bell-menu contents; read-only links, no state change. #}
+    <div class="msheet" id="notifSheet" role="dialog" aria-modal="true" aria-label="Notifikace" style="display:none">
+      <div class="msheet-backdrop" data-msheet-close></div>
+      <div class="msheet-panel">
+        <div class="msheet-grip"></div>
+        <div class="msheet-head"><h2>Notifikace</h2><button type="button" class="msheet-close" data-msheet-close aria-label="Zavřít">✕</button></div>
+        <div class="notif-list">
+          {% for n in notifications %}
+            <a href="{{ n.url }}"><span class="notif-ic" aria-hidden="true">{{ n.icon }}</span><span class="notif-tx">{{ n.text }}</span></a>
+          {% else %}
+            <div class="notif-empty">Žádné nové notifikace.</div>
+          {% endfor %}
         </div>
       </div>
     </div>

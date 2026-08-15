@@ -9,11 +9,18 @@
 
   <div class="pk-head">
     <h1>Ověření hráče</h1>
+    {% if resume_only|default(false) %}
+    <p>
+      Našli jsme tvoji rozepsanou žádost o přístup z tohoto prohlížeče.
+      Můžeš rovnou pokračovat — týmový klíč znovu zadávat nemusíš.
+    </p>
+    {% else %}
     <p>
       Týmový klíč tě pustil jen do týmu — neurčuje, kdo jsi. Vyber svoje jméno,
       trenér výběr potvrdí a pak si vytvoříš passkey. Od té chvíle se přihlašuješ
       jen passkey a měníš docházku pouze sobě.
     </p>
+    {% endif %}
   </div>
 
   {# The JSON endpoints authenticate with this token via the X-CSRFToken header. #}
@@ -32,6 +39,13 @@
       <p>
         Požádal(a) jsi o přístup jako <strong>{{ claimed_player.name if claimed_player else 'vybraný hráč' }}</strong>.
         Dokud trenér žádost neschválí, nemáš práva tohoto hráče.
+      </p>
+      {# The claim is held by a persistent cookie, not by this page or the
+         session, so there is nothing to keep open while waiting. #}
+      <p class="pk-msg pk-msg--ok">
+        Žádost byla odeslána. <strong>Nemusíš tuto stránku nechávat otevřenou</strong> —
+        klidně CoachHub zavři. Až trenér žádost schválí, vrať se do CoachHubu
+        v tomhle prohlížeči na tomhle zařízení a ověření dokončíš.
       </p>
       <p class="pk-sub">Žádost platí do {{ req.expires_at|prague }}.</p>
       <div class="pk-req-actions" style="margin-left:0;">
@@ -80,7 +94,10 @@
     </div>
   {% endif %}
 
-  {% if not already_verified and state not in ['pending', 'approved'] %}
+  {# Roster picker only for a real shared-key session. A resume cookie proves
+     ownership of ONE request; it must never expose the roster or let its holder
+     claim a different player. #}
+  {% if not resume_only|default(false) and not already_verified and state not in ['pending', 'approved'] %}
   <div class="pk-section">
     <h2>Kdo jsi?</h2>
     <p class="pk-sub" style="margin-bottom:10px;">Vyber sebe ze soupisky. Výběr sám o sobě nic neodemkne — musí ho schválit trenér.</p>
@@ -126,11 +143,19 @@
   {# The main navigation is inert for a shared-key session (every app link would
      bounce back here), so the way out lives on the page itself. #}
   <div class="pk-section">
+    {% if resume_only|default(false) %}
+    <p class="pk-sub">
+      Tohle není tvoje žádost, nebo chceš začít znovu? Tímhle ji z prohlížeče
+      odstraníš a vrátíš se na přihlášení.
+    </p>
+    <a class="pk-btn" href="{{ url_for('team_logout') }}">↩ Zpět na přihlášení</a>
+    {% else %}
     <p class="pk-sub">
       Máš už passkey z jiného zařízení?
       <a href="{{ url_for('team_logout') }}">Odhlas se</a> a přihlas se passkey.
     </p>
     <a class="pk-btn" href="{{ url_for('team_logout') }}">↩ Odhlásit</a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

@@ -2,10 +2,16 @@
    MOBILE-ONLY Team Attendance (Phase 3). Renders ALONGSIDE the untouched
    desktop matrix (.am-wrap); hidden on desktop via mobile.css. Reuses the SAME
    data (the embedded #am-data view JSON) and the SAME cell endpoint
-   (attendance.attendance_cell). Default = event-first "Akce" view; the desktop
-   matrix is reused as the optional "Tabulka" advanced view. Namespaced .tam-*.
+   (attendance.attendance_cell). Namespaced .tam-*.
+
+   CURRENT UI: table-first. `view_switcher` (calendar.ATTENDANCE_VIEW_SWITCHER)
+   is False, so the Akce/Hráči views and their switcher are not rendered and the
+   coach lands straight in the matrix — which on mobile is the desktop .am-wrap
+   revealed by `.tam-root--table-only ~ .am-wrap` in mobile.css. The markup and
+   JS for both views are retained below, unchanged, behind the flag: setting it
+   back to True restores the original three-way behaviour exactly.
    ============================================================================ #}
-<div class="tam-root" style="display:none"
+<div class="tam-root{{ '' if view_switcher else ' tam-root--table-only' }}" style="display:none"
      data-cell-url="{{ url_for('attendance.attendance_cell') }}"
      data-csrf="{{ csrf_token() }}"
      data-coach="{{ '1' if is_coach else '0' }}">
@@ -21,6 +27,7 @@
     {% endfor %}
   </div>
 
+  {% if view_switcher %}
   {# view switch #}
   <div class="tam-seg" role="tablist" aria-label="Zobrazení">
     <button type="button" class="tam-seg-btn is-active" data-tam-view="akce" role="tab" aria-selected="true">Akce</button>
@@ -68,8 +75,24 @@
   <section class="tam-view" data-view="tabulka" hidden>
     <div class="tam-tab-note">Pokročilá tabulka · posuň ji do stran ⟷</div>
   </section>
+  {% else %}
+  {# Table-first: the matrix below IS the view, so only the scroll hint remains.
+     When there is no matrix to scroll, the desktop `.empty` block is hidden by
+     `.tam-root--table-only ~ .am-wrap > :not(.am-grid)`, so mobile renders its
+     own empty state here instead of a hint pointing at nothing. #}
+  {% if view.events and view.players %}
+  <div class="tam-tab-note">Tabulka docházky · posuň ji do stran ⟷</div>
+  {% else %}
+  <div class="tam-empty">
+    <div class="tam-empty-emoji">📅</div>
+    <h2>Žádné události</h2>
+    <p>Pro zvolené období tu nic není. Zkus jiný filtr nahoře.</p>
+  </div>
+  {% endif %}
+  {% endif %}
 </div>
 
+{% if view_switcher %}
 {# ---- Player detail bottom sheet (filled by JS) ---- #}
 <div class="tam-sheet" id="tamPlayerSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Detail hráče">
   <div class="tam-sheet-scrim" data-tam-close></div>
@@ -213,3 +236,4 @@ function tamInit() {
 }
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', tamInit); } else { tamInit(); }
 </script>
+{% endif %}

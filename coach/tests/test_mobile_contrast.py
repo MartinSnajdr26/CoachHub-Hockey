@@ -46,7 +46,11 @@ class MobileContrastRenderTest(unittest.TestCase):
         self.assertIn('class="plm-search"', self.client.get('/players').get_data(as_text=True))
         self.assertIn('name="name"', self.client.get('/players').get_data(as_text=True))     # new-player name field
         self.assertIn('class="rom-search"', self.client.get('/roster').get_data(as_text=True))
-        self.assertIn('class="tam-search"', self.client.get('/dochazka').get_data(as_text=True))
+        # /dochazka is table-first: `.tam-search` belonged to the deactivated
+        # "Hráči" view (calendar.ATTENDANCE_VIEW_SWITCHER), so the search input
+        # this page still renders is the matrix one. The `.tam-search` CSS rule
+        # is kept and is still asserted by MobileContrastCssTest below.
+        self.assertIn('id="am-player-search"', self.client.get('/dochazka').get_data(as_text=True))
         h = self.client.get('/attendance/import').get_data(as_text=True)
         self.assertIn('type="file"', h)                          # import upload input
         self.assertIn('aim-bar', h)                              # mobile scope hook present

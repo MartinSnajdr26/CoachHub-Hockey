@@ -27,7 +27,10 @@
   <section class="dash-hero">
     <div class="hero-main">
       <p class="hero-eyebrow">{{ today_weekday }} · {{ today_label }}</p>
-      <h1 class="hero-title">Vítej zpět 👋</h1>
+      {# player_name is resolved server-side from the session's verified
+         player_id (see calendar._verified_player_name); it is None for coaches,
+         and for a stale player record, which falls back to the generic text. #}
+      <h1 class="hero-title">Vítej zpět{% if player_name %}, {{ player_name }}{% endif %} 👋</h1>
       <p class="hero-sub">Tady je dnešní přehled tvého týmu.</p>
       {% if dash.next_practice %}
         <div class="hero-countdown" data-countdown="{{ dash.next_practice.day.isoformat() }}T{{ dash.next_practice.time or '18:00' }}">
