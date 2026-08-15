@@ -82,13 +82,23 @@ def delete_player(player_id):
         return resp
     player = Player.query.get(player_id)
     team_id = get_team_id()
-    if player and team_id and player.team_id == team_id:
-        from coach.models import Roster, LineAssignment, AttendanceEntry
-        Roster.query.filter_by(team_id=team_id, player_id=player.id).delete()
-        LineAssignment.query.filter_by(team_id=team_id, player_id=player.id).delete()
-        AttendanceEntry.query.filter_by(team_id=team_id, player_id=player.id).delete()
-        db.session.delete(player)
-        db.session.commit()
+    if not (player and team_id and player.team_id == team_id):
+        flash('Není povoleno smazat hráče jiného týmu.', 'error')
+        return redirect(url_for('players'))
+    from coach.models import Roster, LineAssignment, AttendanceEntry, PaymentStatus
+    # EVERY table with a FK to player.id must be cleared first, otherwise the
+    # DELETE violates the constraint and the request 500s (InnoDB/MySQL enforces
+    # foreign keys; SQLite dev silently leaves orphans instead). PaymentStatus
+    # (Pokladna) was missing here, so deleting any player who had a payment row
+    # failed — on desktop and mobile alike, they post to this same route.
+    # Scoped by player_id alone, not team_id+player_id: team ownership is already
+    # verified above, and legacy rows may carry a NULL team_id, which the
+    # team_id filter would skip and leave dangling.
+    for model in (Roster, LineAssignment, AttendanceEntry, PaymentStatus):
+        model.query.filter_by(player_id=player.id).delete()
+    db.session.delete(player)
+    db.session.commit()
+    flash('Hráč byl smazán.', 'success')
     return redirect(url_for('players'))
 
 
