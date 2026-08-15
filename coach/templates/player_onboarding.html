@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Ověření hráče{% endblock %}
+
+{% block content %}
+{# One responsive screen for both layouts: .pk-* styles are mobile-first and the
+   media query in playerauth.css widens them above 768px. No desktop-only or
+   mobile-only markup, so the flow is identical on phone and desktop. #}
+<div class="pk-wrap">
+
+  <div class="pk-head">
+    <h1>Ověření hráče</h1>
+    <p>
+      Týmový klíč tě pustil jen do týmu — neurčuje, kdo jsi. Vyber svoje jméno,
+      trenér výběr potvrdí a pak si vytvoříš passkey. Od té chvíle se přihlašuješ
+      jen passkey a měníš docházku pouze sobě.
+    </p>
+  </div>
+
+  {# The JSON endpoints authenticate with this token via the X-CSRFToken header. #}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {% if already_verified %}
+    <div class="pk-state pk-state--approved">
+      <div class="pk-state-title">✅ Jsi ověřený hráč</div>
+      <p>Tvoje identita je potvrzená. Docházku si měníš na své stránce.</p>
+      <p><a class="pk-btn pk-btn--primary" href="{{ url_for('attendance.attendance') }}">Moje docházka</a></p>
+    </div>
+
+  {% elif state == 'pending' %}
+    <div class="pk-state pk-state--pending">
+      <div class="pk-state-title">⏳ Čeká na schválení trenérem</div>
+      <p>
+        Požádal(a) jsi o přístup jako <strong>{{ claimed_player.name if claimed_player else 'vybraný hráč' }}</strong>.
+        Dokud trenér žádost neschválí, nemáš práva tohoto hráče.
+      </p>
+      <p class="pk-sub">Žádost platí do {{ req.expires_at|prague }}.</p>
+      <div class="pk-req-actions" style="margin-left:0;">
+        <a class="pk-btn" href="{{ url_for('playerauth.onboarding') }}">🔄 Zkontrolovat stav</a>
+        <form method="POST" action="{{ url_for('playerauth.onboarding_cancel') }}" class="form-confirm" data-message="Zrušit žádost o přístup?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="pk-btn pk-btn--no">Zrušit žádost</button>
+        </form>
+      </div>
+    </div>
+
+  {% elif state == 'approved' %}
+    <div class="pk-state pk-state--approved">
+      <div class="pk-state-title">✅ Trenér přístup schválil</div>
+      <p>Dokonči ověření vytvořením passkey na tomhle zařízení (otisk, Face ID nebo PIN).</p>
+      {% if not secure_context %}
+        <p class="pk-msg pk-msg--err">Passkeys vyžadují HTTPS. Otevři CoachHub přes zabezpečené připojení.</p>
+      {% else %}
+        <button type="button" class="pk-btn pk-btn--primary"
+                data-pk-register
+                data-pk-msg="pkMsg"
+                data-options-url="{{ url_for('playerauth.register_options') }}"
+                data-verify-url="{{ url_for('playerauth.register_verify') }}">
+          🔐 Vytvořit passkey
+        </button>
+        <div id="pkMsg" class="pk-msg" role="status" aria-live="polite"></div>
+      {% endif %}
+    </div>
+
+  {% elif state == 'rejected' %}
+    <div class="pk-state pk-state--rejected">
+      <div class="pk-state-title">❌ Žádost byla zamítnuta</div>
+      <p>Trenér tuhle žádost neschválil. Pokud šlo o omyl, vyber svoje jméno znovu a domluv se s trenérem.</p>
+    </div>
+
+  {% elif state == 'expired' %}
+    <div class="pk-state pk-state--expired">
+      <div class="pk-state-title">⌛ Žádost vypršela</div>
+      <p>Žádost už není platná. Vyber svoje jméno znovu.</p>
+    </div>
+
+  {% elif state == 'activated' %}
+    <div class="pk-state pk-state--approved">
+      <div class="pk-state-title">✅ Passkey je aktivní</div>
+      <p>Příště se přihlas rovnou passkey na úvodní stránce — týmový klíč už nepotřebuješ.</p>
+    </div>
+  {% endif %}
+
+  {% if not already_verified and state not in ['pending', 'approved'] %}
+  <div class="pk-section">
+    <h2>Kdo jsi?</h2>
+    <p class="pk-sub" style="margin-bottom:10px;">Vyber sebe ze soupisky. Výběr sám o sobě nic neodemkne — musí ho schválit trenér.</p>
+
+    {% if players %}
+      <input type="search" class="pk-search" id="pkSearch" placeholder="Hledat jméno…" autocomplete="off">
+      <div class="pk-list" id="pkList">
+        {% for p in players %}
+        <form method="POST" action="{{ url_for('playerauth.onboarding_claim') }}" class="pk-row form-confirm"
+              data-name="{{ p.name|lower }}"
+              data-message="Opravdu jsi {{ p.name }}? Žádost uvidí trenér.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="player_id" value="{{ p.id }}">
+          <span class="pk-av">{{ p.name.split()[0][0] }}{{ p.name.split()[-1][0] if p.name.split()|length > 1 else '' }}</span>
+          <span class="pk-row-main">
+            <span class="pk-name">{{ p.name }}</span>
+            <span class="pk-sub">
+              {{ {'F':'Útočník','D':'Obránce','G':'Brankář'}.get(p.position, p.position) }}
+              {%- if p.id in players_with_access %} · už má aktivní přístup{% endif %}
+            </span>
+          </span>
+          {% if p.id in players_with_access %}
+            {# Existing credentials are never overwritten: this is an explicit
+               request for an ADDITIONAL device and needs approval again. #}
+            <button type="submit" class="pk-pick">Další zařízení</button>
+          {% else %}
+            <button type="submit" class="pk-pick">To jsem já</button>
+          {% endif %}
+        </form>
+        {% endfor %}
+      </div>
+      <div class="pk-empty" id="pkNoResult" hidden>Nikdo neodpovídá hledání.</div>
+    {% else %}
+      {# Empty roster: explain, don't crash and don't fall through into the app. #}
+      <div class="pk-empty">
+        <p><strong>Zatím tu nejsou žádní hráči k registraci.</strong></p>
+        <p>Požádej trenéra, aby tě přidal do soupisky, a pak to zkus znovu.</p>
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# The main navigation is inert for a shared-key session (every app link would
+     bounce back here), so the way out lives on the page itself. #}
+  <div class="pk-section">
+    <p class="pk-sub">
+      Máš už passkey z jiného zařízení?
+      <a href="{{ url_for('team_logout') }}">Odhlas se</a> a přihlas se passkey.
+    </p>
+    <a class="pk-btn" href="{{ url_for('team_logout') }}">↩ Odhlásit</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='passkey.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var search = document.getElementById('pkSearch');
+  var none = document.getElementById('pkNoResult');
+  if (!search) { return; }
+  search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase(), shown = 0;
+    document.querySelectorAll('#pkList .pk-row').forEach(function (row) {
+      var ok = !q || (row.getAttribute('data-name') || '').indexOf(q) >= 0;
+      row.style.display = ok ? '' : 'none';
+      if (ok) { shown++; }
+    });
+    if (none) { none.hidden = shown !== 0; }
+  });
+})();
+</script>
+{% endblock %}

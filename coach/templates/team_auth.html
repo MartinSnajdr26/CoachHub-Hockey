@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='pwa-install.css', v=asset_version) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='playerauth.css', v=asset_version) }}">
 </head>
 <body class="auth-page">
   {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -71,6 +72,21 @@
             </label>
             <button type="submit" class="btn-block btn-lg">Přihlásit se</button>
           </form>
+
+          {# Returning verified players sign in here — no team, no role, no key.
+             The button hides itself if the browser has no WebAuthn support. #}
+          <div class="pk-login">
+            <button type="button" class="pk-login-btn"
+                    data-pk-login
+                    data-pk-msg="pkLoginMsg"
+                    data-options-url="{{ url_for('playerauth.login_options') }}"
+                    data-verify-url="{{ url_for('playerauth.login_verify') }}">
+              🔐 Přihlásit se passkey
+            </button>
+            <div id="pkLoginMsg" class="pk-msg" role="status" aria-live="polite"></div>
+            <p class="pk-login-hint">Pro hráče s ověřenou identitou. Týmový klíč už nepotřebuješ.</p>
+          </div>
+
           <p class="auth-help">Nemáš klíč? Vyžádej si ho od trenéra týmu. Pokud ho nikdo nezná, napiš na
             <a href="mailto:martinsnajdr@coachhubhockey.com">martinsnajdr@coachhubhockey.com</a>.</p>
         </div>
@@ -153,5 +169,6 @@
   </div>
   <script src="{{ url_for('static', filename='app.js', v=asset_version) }}" nonce="{{ csp_nonce }}"></script>
   <script src="{{ url_for('static', filename='pwa.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
+  <script src="{{ url_for('static', filename='passkey.js', v=asset_version) }}" nonce="{{ csp_nonce }}" defer></script>
 </body>
 </html>

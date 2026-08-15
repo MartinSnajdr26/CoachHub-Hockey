@@ -215,6 +215,94 @@ class PaymentStatus(db.Model):
     __table_args__ = (db.UniqueConstraint('period_id', 'player_id', name='uq_payment_status'),)
 
 
+class PlayerRegistrationRequest(db.Model):
+    """A player's pending claim on a roster identity, awaiting coach approval.
+
+    The shared player key proves only "I can reach this team's onboarding". It
+    must never by itself establish `player_id`. A user picks a roster entry here
+    and the row stays PENDING until a coach of THAT team approves it, so picking
+    a name grants nothing on its own.
+
+    `claimed_name` is TEMPORARY: it exists only so the coach can recognise which
+    roster identity is being claimed. It is cleared the moment the request
+    reaches a terminal state (activated or rejected) — the durable link is the
+    opaque `player_id`, never the name.
+
+    `claim_token_hash` binds the request to the browser that created it
+    (sha256 of a random token held in that browser's session). Without it,
+    anyone holding the shared player key could finish someone else's approved
+    registration and mint a passkey for their identity.
+    """
+    __tablename__ = 'player_registration_request'
+
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_ACTIVATED = 'activated'
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False, index=True)
+    # Temporary display-only copy of the roster name. NULL after activation/rejection.
+    claimed_name = db.Column(db.String(100), nullable=True)
+    status = db.Column(db.String(12), nullable=False, default=STATUS_PENDING, index=True)
+    # sha256 hex of the per-browser claim token (64 chars). Never the token itself.
+    claim_token_hash = db.Column(db.String(64), nullable=False, index=True)
+    created_at = db.Column(_DT6, nullable=False, default=datetime.utcnow)
+    expires_at = db.Column(_DT6, nullable=False)
+    approved_at = db.Column(_DT6, nullable=True)
+    rejected_at = db.Column(_DT6, nullable=True)
+    activated_at = db.Column(_DT6, nullable=True)
+
+    player = db.relationship('Player')
+
+    __table_args__ = (
+        db.Index('ix_prr_team_status', 'team_id', 'status'),
+    )
+
+
+class PasskeyCredential(db.Model):
+    """One WebAuthn credential (passkey) bound to an opaque internal player_id.
+
+    The permanent authentication identity is (team_id, role, player_id) — never
+    the player's name. One player may hold several active credentials (multiple
+    devices, replaced phone), so there is no unique constraint on player_id.
+
+    Only `status == 'active'` may authenticate. Revocation sets status='revoked'
+    plus `revoked_at` rather than deleting the row, so a lost device's credential
+    can never silently come back.
+    """
+    __tablename__ = 'passkey_credential'
+
+    STATUS_PENDING = 'pending'
+    STATUS_ACTIVE = 'active'
+    STATUS_REVOKED = 'revoked'
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False, index=True)
+    role = db.Column(db.String(10), nullable=False, default='player')
+    # base64url, globally unique -> the lookup key at authentication time.
+    credential_id = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    public_key = db.Column(db.Text, nullable=False)          # base64url COSE key
+    sign_count = db.Column(db.Integer, nullable=False, default=0)
+    # Opaque random per-player handle (base64url). NOT the name, NOT the raw id.
+    user_handle = db.Column(db.String(64), nullable=False, index=True)
+    transports = db.Column(db.String(120), nullable=True)
+    device_type = db.Column(db.String(20), nullable=True)     # single_device | multi_device
+    backed_up = db.Column(db.Boolean, nullable=False, default=False)
+    status = db.Column(db.String(12), nullable=False, default=STATUS_ACTIVE, index=True)
+    created_at = db.Column(_DT6, nullable=False, default=datetime.utcnow)
+    last_used_at = db.Column(_DT6, nullable=True)
+    revoked_at = db.Column(_DT6, nullable=True)
+
+    player = db.relationship('Player')
+
+    __table_args__ = (
+        db.Index('ix_passkey_team_player_status', 'team_id', 'player_id', 'status'),
+    )
+
+
 class TeamCalendarFeedToken(db.Model):
     """Bearer token for a team's read-only .ics subscription feed.
 
@@ -232,5 +320,6 @@ class TeamCalendarFeedToken(db.Model):
 __all__ = [
     'db', 'Player', 'Roster', 'LineAssignment', 'Drill', 'TrainingSession',
     'LineupSession', 'Team', 'AuditEvent', 'TrainingEvent', 'AttendanceEntry', 'TeamKey', 'TeamLoginAttempt',
-    'LeagueIntegration', 'AttendanceImport', 'PaymentPeriod', 'PaymentStatus', 'TeamCalendarFeedToken'
+    'LeagueIntegration', 'AttendanceImport', 'PaymentPeriod', 'PaymentStatus', 'TeamCalendarFeedToken',
+    'PlayerRegistrationRequest', 'PasskeyCredential'
 ]

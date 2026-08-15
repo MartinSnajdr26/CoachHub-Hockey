@@ -9,6 +9,7 @@ from coach.app import app
 from coach.extensions import db
 from coach.models import Drill, Team, TeamKey
 from coach.services.keys import hash_team_key
+from coach.tests.session_helpers import login_session
 
 
 class DrillDetailMobileTest(unittest.TestCase):
@@ -33,8 +34,9 @@ class DrillDetailMobileTest(unittest.TestCase):
         db.session.remove(); db.drop_all(); self.ctx.pop()
 
     def _login(self, role='coach'):
-        with self.client.session_transaction() as s:
-            s['team_id'] = self.tid; s['team_role'] = role; s['team_login'] = True
+        # A player using the app is a passkey-VERIFIED player; the shared key
+        # only reaches onboarding (see test_player_identity.py).
+        login_session(self.client, self.tid, role)
 
     # ---- renders + reuses the single canvas ----
     def test_renders_mobile_layer_and_single_canvas(self):

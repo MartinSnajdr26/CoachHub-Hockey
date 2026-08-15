@@ -68,6 +68,7 @@ def create_app():
                 pass
     # Register team auth first so /team/auth is always available
     _reg('coach.blueprints.teamauth', 'teamauth')
+    _reg('coach.blueprints.playerauth', 'playerauth')
     _reg('coach.blueprints.public', 'public')
     _reg('coach.blueprints.legal', 'legal')
     _reg('coach.blueprints.calendar', 'calendar')
@@ -91,6 +92,8 @@ def create_app():
             ('/team/logout', 'team_logout', 'teamauth.team_logout', None),
             ('/team/create', 'team_create', 'teamauth.team_create', ['POST']),
             ('/team/keys', 'team_keys', 'teamauth.team_keys', ['GET','POST']),
+            ('/player/onboarding', 'player_onboarding', 'playerauth.onboarding', None),
+            ('/team/player-access', 'player_access', 'playerauth.player_access', None),
             ('/dochazka', 'dochazka', 'calendar.dochazka', ['GET','POST']),
             # Legal pages aliases
             ('/terms', 'terms', 'legal.terms', None),
@@ -363,6 +366,15 @@ app.config['EMAIL_TOKEN_MAX_AGE'] = int(os.getenv('EMAIL_TOKEN_MAX_AGE', '172800
 app.config['PASSWORD_RESET_TOKEN_MAX_AGE'] = int(os.getenv('PASSWORD_RESET_TOKEN_MAX_AGE', '3600'))
 # Terms & Privacy
 app.config['TERMS_VERSION'] = os.getenv('TERMS_VERSION', 'v1.0')
+# --- WebAuthn / passkeys (player identity) ---
+# RP ID is an effective DOMAIN (no scheme, no port); ORIGIN is a full origin and
+# may be a comma-separated list. Leave both unset in dev and they are derived
+# from the request host, which makes http://localhost:5000 work without relaxing
+# any verification. In production set them explicitly to the real domain so
+# verification never depends on a request header.
+app.config['WEBAUTHN_RP_ID'] = (os.getenv('WEBAUTHN_RP_ID') or '').strip()
+app.config['WEBAUTHN_RP_NAME'] = (os.getenv('WEBAUTHN_RP_NAME') or 'CoachHub Hockey').strip()
+app.config['WEBAUTHN_ORIGIN'] = (os.getenv('WEBAUTHN_ORIGIN') or '').strip()
 # Persistent session lifetime (for team sessions)
 try:
     _sess_days = int(os.getenv('SESSION_LIFETIME_DAYS', '30'))

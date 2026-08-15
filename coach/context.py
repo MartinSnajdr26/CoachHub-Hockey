@@ -69,12 +69,31 @@ def register_context(app):
             categories = []
         # role shortcuts for templates
         role = session.get('team_role') or (getattr(current_user, 'role', 'player') if current_user.is_authenticated else 'player')
+        from coach.auth_utils import is_onboarding_only_session
+        onboarding_only = is_onboarding_only_session()
+        # Coach badge for waiting player-access requests. Count only — the
+        # claimed names stay out of every shared/nav surface.
+        pending_access = 0
+        if role == 'coach' and session.get('team_id'):
+            try:
+                from coach.services.player_identity import pending_requests_for_team
+                pending_access = len(pending_requests_for_team(int(session['team_id'])))
+            except Exception:
+                db.session.rollback()
+                pending_access = 0
         return {
             'nav_drill_categories': categories,
             'team_session_login': bool(session.get('team_login')),
             'team_session_role': role,
             'is_coach': role == 'coach' or (current_user.is_authenticated and getattr(current_user, 'role', 'player') == 'coach'),
             'owner_admin_authenticated': bool(session.get('owner_admin')),
+            'pending_access_count': pending_access,
+            # True only for a passkey-verified individual player.
+            'is_verified_player': bool(session.get('auth_method') == 'passkey' and session.get('player_id')),
+            # Shared player key: team proven, person not. The nav must not offer
+            # links this session cannot follow (the global gate bounces them all
+            # back to onboarding).
+            'onboarding_only': onboarding_only,
         }
 
     @app.context_processor
@@ -112,6 +131,17 @@ def register_context(app):
             if new_msg:
                 items.append({'icon': '💬', 'text': 'Nové zprávy na nástěnce (%d)' % new_msg,
                               'url': url_for('communication.feed')})
+            # pending player-access requests (coach only). Count only, no names.
+            if is_coach:
+                try:
+                    from coach.services.player_identity import pending_requests_for_team
+                    waiting = len(pending_requests_for_team(team_id))
+                except Exception:
+                    db.session.rollback()
+                    waiting = 0
+                if waiting:
+                    items.append({'icon': '🔐', 'text': 'Žádosti o přístup hráčů: %d' % waiting,
+                                  'url': url_for('playerauth.player_access')})
             # unpaid monthly contributions (coach only)
             if is_coach:
                 period = PaymentPeriod.query.filter_by(team_id=team_id, year=today.year, month=today.month).first()

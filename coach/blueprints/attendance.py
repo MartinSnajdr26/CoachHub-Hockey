@@ -14,7 +14,8 @@ import os
 from flask import (Blueprint, render_template, request, redirect, url_for, flash,
                    current_app, jsonify, Response, abort)
 
-from coach.auth_utils import team_login_required, coach_required, get_team_id, get_team_role
+from coach.auth_utils import (team_login_required, coach_required, get_team_id,
+                              get_team_role, get_player_id, is_verified_player)
 from coach.extensions import db
 from coach.models import Player, AttendanceEntry, AttendanceImport
 from coach.services import attendance_import as ai
@@ -34,6 +35,33 @@ _CS_MONTHS_NOM = ['', 'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen'
 _CS_MONTHS_GEN = ['', 'ledna', 'února', 'března', 'dubna', 'května', 'června',
                   'července', 'srpna', 'září', 'října', 'listopadu', 'prosince']
 _KIND_LABELS = {'match': 'Zápas', 'training': 'Trénink', 'camp': 'Soustředění'}
+
+
+def _resolve_attendance_target(tid, role, posted_player_id):
+    """Decide WHICH player this session may write attendance for.
+
+    Returns (player_id, error_code). The rule, in one place for both the form and
+    the AJAX path:
+
+      coach            -> any player of their own team (team management)
+      verified player  -> THEMSELVES ONLY; the posted id is ignored outright
+      shared player key-> denied; a shared key proves no individual identity
+
+    Nothing here trusts `request.form['player_id']` for a player: the id comes
+    from the session, so forging the field changes nothing.
+    """
+    if role == 'coach':
+        player = Player.query.filter_by(id=posted_player_id, team_id=tid).first()
+        return (player.id if player else None), (None if player else 'unknown_player')
+    self_id = get_player_id()
+    if self_id is None:
+        return None, 'not_verified'
+    # Team scope is re-checked against the DB: a stale session cannot reach into
+    # another team even if its cookie survived a roster move.
+    player = Player.query.filter_by(id=self_id, team_id=tid).first()
+    if not player:
+        return None, 'unknown_player'
+    return player.id, None
 
 
 def _range_dates(which):
@@ -63,6 +91,12 @@ def attendance():
         active_player_id = int(request.args.get('player_id') or 0)
     except (TypeError, ValueError):
         active_player_id = 0
+    # A passkey-verified player is pinned to their own row: no picker, and a
+    # ?player_id= pointing at somebody else is ignored rather than honoured.
+    self_only = is_verified_player()
+    if self_only:
+        active_player_id = get_player_id()
+        players = [p for p in players if p.id == active_player_id]
     active_player = next((p for p in players if p.id == active_player_id), None)
 
     today = date.today()
@@ -113,6 +147,11 @@ def attendance():
                            players=players, active_player=active_player,
                            groups=groups, summary=summary, rng=rng,
                            is_coach=(get_team_role() == 'coach'),
+                           self_only=self_only,
+                           # Shared-key sessions may read the team's attendance
+                           # but may not change anybody's — including "their own",
+                           # which they cannot prove.
+                           can_edit=(get_team_role() == 'coach' or self_only),
                            source_labels=ai.SOURCE_LABELS)
 
 
@@ -178,8 +217,12 @@ def attendance_set():
     if status not in ('going', 'not_going', 'maybe', 'unknown'):
         flash('Neplatný stav docházky.', 'error')
         return redirect(request.referrer or url_for('attendance.attendance'))
-    player = Player.query.filter_by(id=player_id, team_id=tid).first()
-    if not player:
+    # Server-side identity: for a player this OVERWRITES whatever was posted.
+    player_id, err = _resolve_attendance_target(tid, role, player_id)
+    if err == 'not_verified':
+        flash('Docházku si může měnit jen ověřený hráč přihlášený přes passkey.', 'error')
+        return redirect(url_for('playerauth.onboarding'))
+    if err or not player_id:
         flash('Hráč nebyl nalezen.', 'error')
         return redirect(request.referrer or url_for('attendance.attendance'))
     # validate the event_key belongs to this team's known events (wide window)

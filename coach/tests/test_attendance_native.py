@@ -41,26 +41,56 @@ class NativeAttendanceTest(unittest.TestCase):
         self.ctx.pop()
 
     def _login(self, role):
+        """Shared team-key session: team scope only, no individual identity."""
         with self.client.session_transaction() as s:
             s['team_id'] = self.tid
             s['team_role'] = role
             s['team_login'] = True
+            s['auth_method'] = 'team_key'
+
+    def _login_verified_player(self, player_id):
+        """Passkey-verified individual player session."""
+        with self.client.session_transaction() as s:
+            s['team_id'] = self.tid
+            s['team_role'] = 'player'
+            s['team_login'] = True
+            s['auth_method'] = 'passkey'
+            s['player_id'] = player_id
 
     def test_native_page_renders(self):
-        self._login('player')
+        self._login_verified_player(self.player.id)
         self.assertEqual(self.client.get('/attendance').status_code, 200)
         r = self.client.get('/attendance?player_id=%d&range=upcoming' % self.player.id)
         self.assertEqual(r.status_code, 200)
         self.assertIn('Trénink', r.get_data(as_text=True))
 
-    def test_player_page_empty_state_without_player(self):
-        self._login('player')
+    def test_coach_page_empty_state_without_player(self):
+        """The 'pick a player first' state belongs to the coach now.
+
+        A verified player is pinned to their own row server-side, so they never
+        see a picker; a shared-key session never reaches this page at all.
+        """
+        self._login('coach')
         r = self.client.get('/attendance')
         self.assertEqual(r.status_code, 200)
         self.assertIn('Nejdřív vyber', r.get_data(as_text=True))
 
-    def test_player_page_filters_and_default_future(self):
+    def test_verified_player_page_is_pinned_to_self_without_a_picker(self):
+        self._login_verified_player(self.player.id)
+        r = self.client.get('/attendance')
+        self.assertEqual(r.status_code, 200)
+        h = r.get_data(as_text=True)
+        self.assertNotIn('Nejdřív vyber', h)
+        self.assertIn(self.player.name, h)
+
+    def test_shared_key_session_is_sent_to_onboarding(self):
         self._login('player')
+        r = self.client.get('/attendance')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/player/onboarding', r.headers.get('Location', ''))
+
+    def test_player_page_filters_and_default_future(self):
+        self._login_verified_player(self.player.id)
         # default (no range) shows the future event + summary + range buttons
         r = self.client.get('/attendance?player_id=%d' % self.player.id)
         h = r.get_data(as_text=True)
@@ -75,13 +105,19 @@ class NativeAttendanceTest(unittest.TestCase):
                                              % (self.player.id, rng)).status_code, 200)
 
     def test_player_page_no_events_for_filter(self):
-        self._login('player')
+        self._login_verified_player(self.player.id)
         # the only event is in the future; the 'past' filter must show empty msg
         r = self.client.get('/attendance?player_id=%d&range=past' % self.player.id)
         self.assertIn('nejsou žádné události', r.get_data(as_text=True))
 
     def test_player_sets_own_status_source_player(self):
-        self._login('player')
+        """A passkey-verified player writes their own attendance.
+
+        The shared player key no longer qualifies (it proves no individual
+        identity) — see `test_shared_key_player_cannot_set_status` below and
+        test_player_identity.py for the full identity model.
+        """
+        self._login_verified_player(self.player.id)
         r = self.client.post('/attendance/set', data={
             'player_id': self.player.id, 'event_key': self.ev_key,
             'status': 'going', 'range': 'upcoming'})
@@ -92,6 +128,15 @@ class NativeAttendanceTest(unittest.TestCase):
         self.assertEqual(e.source, ai.SOURCE_PLAYER)
         self.assertEqual(e.updated_by_role, 'player')
 
+    def test_shared_key_player_cannot_set_status(self):
+        """Legacy shared-key sessions are read-only for attendance."""
+        self._login('player')
+        r = self.client.post('/attendance/set', data={
+            'player_id': self.player.id, 'event_key': self.ev_key,
+            'status': 'going', 'range': 'upcoming'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(AttendanceEntry.query.count(), 0)
+
     def test_coach_set_status_source_coach(self):
         self._login('coach')
         self.client.post('/attendance/set', data={
@@ -101,13 +146,15 @@ class NativeAttendanceTest(unittest.TestCase):
         self.assertEqual(e.source, ai.SOURCE_COACH)
 
     def test_invalid_status_rejected(self):
-        self._login('player')
+        # Verified session, so this really tests status validation rather than
+        # bouncing off the identity gate.
+        self._login_verified_player(self.player.id)
         self.client.post('/attendance/set', data={
             'player_id': self.player.id, 'event_key': self.ev_key, 'status': 'bogus'})
         self.assertEqual(AttendanceEntry.query.count(), 0)
 
     def test_unknown_event_key_rejected(self):
-        self._login('player')
+        self._login_verified_player(self.player.id)
         self.client.post('/attendance/set', data={
             'player_id': self.player.id, 'event_key': 'local:99999', 'status': 'going'})
         self.assertEqual(AttendanceEntry.query.count(), 0)

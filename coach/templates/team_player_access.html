@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Přístup hráčů{% endblock %}
+
+{% block content %}
+{# Coach-only. Responsive .pk-* layout — same screen on mobile and desktop. #}
+<div class="pk-wrap">
+
+  <div class="pk-head">
+    <h1>Přístup hráčů</h1>
+    <p>
+      Hráč si sám vybere svoje jméno a požádá o přístup. Ty jen potvrdíš, že
+      žádost patří tomu, koho čekáš. Po schválení si hráč vytvoří passkey a jméno
+      z žádosti se smaže.
+    </p>
+  </div>
+
+  <div class="pk-section">
+    <h2>Žádosti o přístup {% if pending %}<span class="pk-badge">{{ pending|length }}</span>{% endif %}</h2>
+
+    {% if not pending %}
+      <div class="pk-empty">Žádné čekající žádosti.</div>
+    {% else %}
+      {% for r in pending %}
+      <div class="pk-req">
+        <span class="pk-av">
+          {%- set nm = r.claimed_name or '?' -%}
+          {{ nm.split()[0][0] }}{{ nm.split()[-1][0] if nm.split()|length > 1 else '' }}
+        </span>
+        <span class="pk-row-main">
+          {# The name is shown ONLY so the coach can judge the claim. It is
+             deleted from the request the moment it is approved or rejected. #}
+          <span class="pk-name">{{ r.claimed_name or 'Neznámý hráč' }}</span>
+          <span class="pk-sub">Požádáno {{ r.created_at|prague }} · platí do {{ r.expires_at|prague }}</span>
+        </span>
+        <span class="pk-req-actions">
+          <form method="POST" action="{{ url_for('playerauth.approve_request', req_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="pk-btn pk-btn--ok">Schválit</button>
+          </form>
+          <form method="POST" action="{{ url_for('playerauth.reject_request', req_id=r.id) }}"
+                class="form-confirm" data-message="Zamítnout žádost o přístup?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="pk-btn pk-btn--no">Zamítnout</button>
+          </form>
+        </span>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="pk-section">
+    <h2>Přístup podle hráče</h2>
+    {% if not rows %}
+      <div class="pk-empty">Soupiska je prázdná.</div>
+    {% else %}
+      <div class="pk-list">
+        {% for row in rows %}
+        <div class="pk-row">
+          <span class="pk-av">{{ row.player.name.split()[0][0] }}{{ row.player.name.split()[-1][0] if row.player.name.split()|length > 1 else '' }}</span>
+          <span class="pk-row-main">
+            <span class="pk-name">{{ row.player.name }}</span>
+            <span class="pk-sub">
+              {% if row.is_active %}
+                {# Deliberately no credential ids or public keys: a coach needs
+                   "active, N devices", not technical identifiers. #}
+                <span class="pk-badge pk-badge--active">Aktivní</span>
+                {{ row.device_count }} {{ 'zařízení' if row.device_count != 1 else 'zařízení' }}
+                {%- if row.last_used_at %} · naposledy {{ row.last_used_at|prague }}{% endif %}
+              {% else %}
+                <span class="pk-badge pk-badge--none">Bez přístupu</span>
+              {% endif %}
+            </span>
+          </span>
+          {% if row.is_active %}
+          <form method="POST" action="{{ url_for('playerauth.revoke_player', player_id=row.player.id) }}"
+                class="form-confirm" style="margin:0;"
+                data-message="Odebrat přístup hráči {{ row.player.name }}? Všechna jeho zařízení se odhlásí.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="pk-btn pk-btn--no">Odebrat přístup</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="pk-section">
+    <p class="pk-sub">
+      Ztracený telefon: odeber přístup a nech hráče požádat znovu. Odebraný
+      passkey se už nikdy nepřihlásí, i kdyby zařízení někdo našel.
+    </p>
+  </div>
+</div>
+{% endblock %}

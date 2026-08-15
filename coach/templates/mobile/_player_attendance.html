@@ -16,6 +16,13 @@
 
   <header class="pam-bar">
     <div class="pam-bar-title">Moje docházka</div>
+    {% if self_only %}
+      {# Verified player: identity is fixed by the passkey session — nothing to switch. #}
+      <div class="pam-who pam-who--fixed">
+        <span class="pam-who-av">{{ active_player.name.split()[0][0] }}{{ active_player.name.split()[-1][0] if active_player.name.split()|length > 1 else '' }}</span>
+        <span class="pam-who-name">{{ active_player.name }}</span>
+      </div>
+    {% else %}
     <button type="button" class="pam-who" data-pam-open-player>
       {% if active_player %}
         <span class="pam-who-av">{{ active_player.name.split()[0][0] }}{{ active_player.name.split()[-1][0] if active_player.name.split()|length > 1 else '' }}</span>
@@ -26,7 +33,15 @@
       {% endif %}
       <span class="pam-who-caret" aria-hidden="true">▾</span>
     </button>
+    {% endif %}
   </header>
+
+  {% if not can_edit %}
+  <div class="pam-readonly" role="status">
+    <b>Jen pro čtení.</b> Docházku si můžeš měnit až po ověření identity.
+    <a class="pam-cta pam-cta--sm" href="{{ url_for('playerauth.onboarding') }}">Ověřit se jako hráč</a>
+  </div>
+  {% endif %}
 
   {% if not active_player %}
     <div class="pam-empty">
@@ -53,6 +68,7 @@
         </div>
         <h2 class="pam-hero-title">{{ ns.next.title }}</h2>
         {% if ns.next.location %}<div class="pam-hero-loc">📍 {{ ns.next.location }}</div>{% endif %}
+        {% if can_edit %}
         <div class="pam-q">Jdeš?</div>
         <div class="pam-rsvp pam-rsvp--lg" data-pam-rsvp data-key="{{ ns.next.key }}">
           {% for code,label,icon in RSVP %}
@@ -61,6 +77,9 @@
           </button>
           {% endfor %}
         </div>
+        {% else %}
+        <div class="pam-hero-state pam-st-{{ ns.next.status }}">{{ ST_LABEL[ns.next.status] }}</div>
+        {% endif %}
       </article>
     </section>
     {% endif %}
@@ -97,6 +116,7 @@
           </div>
           <div class="pam-row-title">{{ e.title }}</div>
           {% if e.location %}<div class="pam-row-loc">📍 {{ e.location }}</div>{% endif %}
+          {% if can_edit %}
           <div class="pam-rsvp" data-pam-rsvp data-key="{{ e.key }}">
             {% for code,label,icon in RSVP %}
             <button type="button" class="pam-rsvp-btn pam-rsvp-btn--{{ code }} {{ 'is-active' if e.status==code }}" data-status="{{ code }}" aria-pressed="{{ 'true' if e.status==code else 'false' }}">
@@ -104,6 +124,7 @@
             </button>
             {% endfor %}
           </div>
+          {% endif %}
         </article>
         {% endif %}{% endfor %}
       </div>
@@ -112,7 +133,8 @@
   {% endif %}
 </div>
 
-{# ---- Player picker bottom sheet ---- #}
+{# ---- Player picker bottom sheet (never rendered for a verified player) ---- #}
+{% if not self_only %}
 <div class="pam-sheet" id="pamPlayerSheet" style="display:none" role="dialog" aria-modal="true" aria-label="Vyber hráče">
   <div class="pam-sheet-scrim" data-pam-close></div>
   <div class="pam-sheet-panel">
@@ -131,6 +153,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <script nonce="{{ csp_nonce }}">
 (function () {

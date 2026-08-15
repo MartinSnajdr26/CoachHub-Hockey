@@ -35,6 +35,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='help.css', v=asset_version) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css', v=asset_version) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='pwa-install.css', v=asset_version) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='playerauth.css', v=asset_version) }}">
 </head>
 <body data-page="{{ ep }}" data-team-name="{{ brand.team_name or 'CoachHub' }}" style="--brand-primary: {{ brand.primary or '#d4c76f' }}; --brand-secondary: {{ brand.secondary or '#000000' }}; --brand-tertiary: {{ brand.tertiary or '#c44747' }}; --primary: var(--brand-primary); --secondary: var(--brand-secondary); --tertiary: var(--brand-tertiary);">
 
@@ -65,7 +66,9 @@
   <nav class="modern-nav">
     <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu" aria-expanded="false">☰ Menu</button>
     <ul class="nav-left">
-      {% if current_user.is_authenticated or team_session_login %}
+      {# An onboarding-only (shared player key) session gets the inert nav: every
+         app link would be bounced back to onboarding by the global gate. #}
+      {% if (current_user.is_authenticated or team_session_login) and not onboarding_only %}
         <li><a class="nav-link {{ 'is-active' if ep == 'home' }}" {% if ep == 'home' %}aria-current="page"{% endif %} href="{{ url_for('home') }}"><span class="nav-icon">{{ nav_icon('home') }}</span><span class="nav-label">Domů</span></a></li>
         <li class="dropdown">
           <a class="nav-link {{ 'is-active' if ep in ['attendance.attendance','attendance.import_attendance','attendance.import_history','dochazka','players','edit_player','roster','lines','lineup_sessions','pokladna.pokladna','pokladna.pokladna_month'] }}" href="{{ url_for('dochazka') if is_coach else url_for('attendance.attendance') }}" aria-haspopup="true" aria-expanded="false"><span class="nav-icon">{{ nav_icon('players') }}</span><span class="nav-label">Tým</span></a>
@@ -76,6 +79,11 @@
             <a href="{{ url_for('lines') }}">⚙️ Formace</a>
             <a href="{{ url_for('lineup_sessions') }}">🗂 Seznam sestav</a>
             {% if is_coach %}<a href="{{ url_for('pokladna.pokladna') }}">💰 Pokladna</a>{% endif %}
+            {% if is_coach %}
+              <a href="{{ url_for('playerauth.player_access') }}">🔐 Přístup hráčů{% if pending_access_count %} ({{ pending_access_count }}){% endif %}</a>
+            {% else %}
+              <a href="{{ url_for('playerauth.onboarding') }}">🔐 Ověření hráče</a>
+            {% endif %}
           </div>
         </li>
         <li class="dropdown">
@@ -159,7 +167,7 @@
         {% endblock %}
 </main>
 
-    {% if current_user.is_authenticated or team_session_login %}
+    {% if (current_user.is_authenticated or team_session_login) and not onboarding_only %}
     {# ---- Mobile-only bottom navigation (hidden on desktop via inline display:none) ---- #}
     <nav class="mnav" style="display:none" aria-label="Hlavní navigace">
       <a class="{{ 'is-active' if ep == 'home' }}" href="{{ url_for('home') }}"><span class="mnav-ic" aria-hidden="true">🏠</span>Domů</a>

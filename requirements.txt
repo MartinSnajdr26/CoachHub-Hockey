@@ -33,3 +33,10 @@ Werkzeug==3.1.3
 wrapt==1.17.3
 WTForms==3.2.1
 tzdata==2024.1
+asn1crypto==1.5.1
+cbor2==6.1.4
+cffi==2.1.1
+cryptography==50.0.0
+pycparser==3.0
+pyOpenSSL==26.4.0
+webauthn==2.5.2

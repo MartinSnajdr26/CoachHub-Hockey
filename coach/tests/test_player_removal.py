@@ -11,18 +11,21 @@ left orphaned rows on SQLite, where foreign keys are not enforced).
 import os
 import sys
 import unittest
-from datetime import date
+from datetime import date, datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from coach.app import app
 from coach.extensions import db
+from coach.tests.session_helpers import login_session
 from coach.models import (
     AttendanceEntry,
     LineAssignment,
+    PasskeyCredential,
     PaymentPeriod,
     PaymentStatus,
     Player,
+    PlayerRegistrationRequest,
     Roster,
     Team,
 )
@@ -76,10 +79,9 @@ class PlayerRemovalTest(unittest.TestCase):
 
     # -- helpers ---------------------------------------------------------
     def _login(self, role, team_id=None):
-        with self.client.session_transaction() as sess:
-            sess['team_id'] = team_id or self.team.id
-            sess['team_role'] = role
-            sess['team_login'] = True
+        # A player using the app is a passkey-VERIFIED player; the shared key
+        # only reaches onboarding (see test_player_identity.py).
+        login_session(self.client, team_id or self.team.id, role)
 
     def _seed_related_rows(self, player):
         """One row in every table that references the player."""
@@ -100,6 +102,17 @@ class PlayerRemovalTest(unittest.TestCase):
                 status='going',
             ),
             PaymentStatus(team_id=player.team_id, period_id=period.id, player_id=player.id, status='paid'),
+            # Player identity rows also reference player.id — deleting a player
+            # must take their access with them, not leave a live passkey behind.
+            PlayerRegistrationRequest(
+                team_id=player.team_id, player_id=player.id, claimed_name=player.name,
+                status='activated', claim_token_hash='0' * 64,
+                created_at=datetime(2026, 6, 1), expires_at=datetime(2026, 6, 8)),
+            PasskeyCredential(
+                team_id=player.team_id, player_id=player.id, role='player',
+                credential_id='cred-%d' % player.id, public_key='pk',
+                user_handle='handle-%d' % player.id, status='active',
+                created_at=datetime(2026, 6, 1)),
         ])
         db.session.commit()
 
@@ -253,10 +266,7 @@ class PlayerRemovalMarkupTest(unittest.TestCase):
         self.ctx.pop()
 
     def _get_players_page(self, role='coach'):
-        with self.client.session_transaction() as sess:
-            sess['team_id'] = self.team.id
-            sess['team_role'] = role
-            sess['team_login'] = True
+        login_session(self.client, self.team.id, role)
         res = self.client.get('/players')
         self.assertEqual(res.status_code, 200)
         return res.get_data(as_text=True)

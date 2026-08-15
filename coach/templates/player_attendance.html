@@ -25,7 +25,21 @@
     {% endif %}
   </div>
 
+  {% if not can_edit %}
+  {# Shared player key: team-level access only. Individual attendance editing
+     needs a passkey, so point this session at onboarding instead. #}
+  <div class="pa-notice" role="status">
+    <strong>Jen pro čtení.</strong>
+    Docházku si můžeš měnit až po ověření vlastní identity.
+    <a class="btn-secondary btn-sm" href="{{ url_for('playerauth.onboarding') }}">Ověřit se jako hráč</a>
+  </div>
+  {% endif %}
+
   <form method="get" action="{{ url_for('attendance.attendance') }}" id="pa-filter" class="pa-filter">
+    {% if self_only %}
+      {# Verified player: identity comes from the session, so there is nothing to pick. #}
+      <input type="hidden" name="player_id" value="{{ active_player.id if active_player }}">
+    {% else %}
     <label class="pa-field">
       <span>Hráč</span>
       <select name="player_id" id="pa-player" class="pa-select">
@@ -35,6 +49,7 @@
         {% endfor %}
       </select>
     </label>
+    {% endif %}
     <div class="pa-ranges" role="group" aria-label="Filtr období">
       {% for key, label in [('future','Budoucí'),('past','Minulé'),('next30','Příštích 30 dní'),('all','Vše')] %}
         <button type="submit" name="range" value="{{ key }}" class="pa-range {{ 'is-active' if rng==key }}"
@@ -85,8 +100,11 @@
           <div class="pa-title">{{ e.title }}</div>
           {% if e.location %}<div class="pa-loc">📍 {{ e.location }}</div>{% endif %}
           {% if e.source_label %}<div class="pa-src">Zdroj: {{ e.source_label }}</div>{% endif %}
+          {% if can_edit %}
           <form method="post" action="{{ url_for('attendance.attendance_set') }}" class="pa-actions" data-pa-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {# Sent for the coach path only; for a player the backend derives the
+               target from the session and ignores this field entirely. #}
             <input type="hidden" name="player_id" value="{{ active_player.id }}">
             <input type="hidden" name="event_key" value="{{ e.key }}">
             <input type="hidden" name="range" value="{{ rng }}">
@@ -100,6 +118,7 @@
               </button>
             {% endfor %}
           </form>
+          {% endif %}
         </article>
         {% endfor %}
       </div>
@@ -114,7 +133,11 @@
   var form = document.getElementById('pa-filter');
   var pl = document.getElementById('pa-player');
   var params = new URLSearchParams(window.location.search);
-  if (!params.get('player_id')) {
+  // A passkey-verified player is pinned server-side; restoring a remembered
+  // player_id would only bounce the page for nothing.
+  var SELF_ONLY = {{ 'true' if self_only else 'false' }};
+  if (SELF_ONLY) { try { localStorage.removeItem('att_player'); } catch (e) {} }
+  if (!SELF_ONLY && !params.get('player_id')) {
     var lp = localStorage.getItem('att_player');
     if (lp) {
       var u = new URL(window.location.href);

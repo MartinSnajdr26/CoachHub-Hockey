@@ -785,7 +785,7 @@ class DateTimePrecisionTests(unittest.TestCase):
             self.US_KEEP)
 
     def test_migration_is_single_head(self):
-        self.assertEqual(M.expected_head(), "a4b5c6d7e8f9")
+        self.assertEqual(M.expected_head(), "b7c8d9e0f1a2")
 
     def test_downgrade_warns_about_precision_loss(self):
         import os

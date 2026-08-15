@@ -7,6 +7,7 @@ from coach.app import app
 from coach.extensions import db
 from coach.models import Player, Team, TeamKey, PaymentPeriod, PaymentStatus
 from coach.services.keys import hash_team_key
+from coach.tests.session_helpers import login_session
 
 
 class PokladnaTest(unittest.TestCase):
@@ -27,8 +28,9 @@ class PokladnaTest(unittest.TestCase):
         db.session.remove(); db.drop_all(); self.ctx.pop()
 
     def _login(self, role='coach'):
-        with self.client.session_transaction() as s:
-            s['team_id'] = self.tid; s['team_role'] = role; s['team_login'] = True
+        # A player using the app is a passkey-VERIFIED player; the shared key
+        # only reaches onboarding (see test_player_identity.py).
+        login_session(self.client, self.tid, role)
 
     def _period(self):
         return PaymentPeriod.query.filter_by(team_id=self.tid).first()

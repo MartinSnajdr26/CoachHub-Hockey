@@ -9,6 +9,7 @@ from coach.extensions import db
 from coach.models import AttendanceEntry, Player, Team, TeamKey, TrainingEvent
 from coach.services import attendance_stats as stats
 from coach.services.keys import hash_team_key
+from coach.tests.session_helpers import login_session
 
 
 def _ev(key, d, kind='training', title='T', time='18:00'):
@@ -96,8 +97,9 @@ class CellEndpointTest(unittest.TestCase):
         db.session.remove(); db.drop_all(); self.ctx.pop()
 
     def _login(self, role):
-        with self.client.session_transaction() as s:
-            s['team_id'] = self.tid; s['team_role'] = role; s['team_login'] = True
+        # A player using the app is a passkey-VERIFIED player; the shared key
+        # only reaches onboarding (see test_player_identity.py).
+        login_session(self.client, self.tid, role)
 
     def test_coach_cell_update_json(self):
         self._login('coach')

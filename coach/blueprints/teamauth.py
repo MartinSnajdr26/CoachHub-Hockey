@@ -86,11 +86,12 @@ def team_login():
         flash('Neplatný klíč.', 'error')
         log_event('auth.login_failed', team_id=team.id if team else None, role=role, level='warning', message='Invalid team key')
         return redirect(url_for('teamauth.team_auth'))
-    # establish session
-    session.permanent = True  # keep team session across browser restarts
-    session['team_id'] = team.id
-    session['team_role'] = role
-    session['team_login'] = True
+    # Establish a CLEAN session. establish_team_session clears every identity key
+    # first, so a previous coach / player A / player B login can never leave a
+    # stale player_id, role or team behind. A shared key is AUTH_TEAM_KEY and
+    # therefore never carries an individual player_id.
+    from coach.auth_utils import AUTH_TEAM_KEY, establish_team_session
+    establish_team_session(team.id, role, auth_method=AUTH_TEAM_KEY)
     # reset attempts on success
     try:
         if attempt:
@@ -112,14 +113,21 @@ def team_login():
         db.session.commit()
     except Exception:
         db.session.rollback()
+    # A shared PLAYER key identifies the team, not the person, so it must not
+    # land in the app. Same helper the global gate uses, so the redirect and the
+    # gate can never disagree. Coaches go to /app exactly as before.
+    from coach.auth_utils import is_onboarding_only_session
+    if is_onboarding_only_session():
+        return redirect(url_for('playerauth.onboarding'))
     return redirect(url_for('home'))
 
 
 @bp.route('/team/logout')
 def team_logout():
-    session.pop('team_id', None)
-    session.pop('team_role', None)
-    session.pop('team_login', None)
+    # Drop the WHOLE identity set (team, role, player_id, auth method, pending
+    # claim token, WebAuthn challenges) — not just the three legacy keys.
+    from coach.auth_utils import reset_identity_session
+    reset_identity_session()
     return redirect(url_for('teamauth.team_auth'))
 
 

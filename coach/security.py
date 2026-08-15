@@ -1,6 +1,42 @@
 from flask import g, redirect
 import secrets
 
+# Paths reachable with no team session at all (public, legal, asset, ceremony).
+PUBLIC_PATHS = frozenset({
+    '/', '/favicon.ico', '/sw.js',
+    '/team/auth', '/team/login', '/team/create',
+    '/terms', '/privacy', '/about',
+    # Passkey login is how a returning player signs in, so it must work with no
+    # session. Both are pure WebAuthn ceremony steps: they read no team data and
+    # only ever succeed against an ACTIVE stored credential.
+    '/passkey/login/options', '/passkey/login/verify',
+})
+PUBLIC_PREFIXES = ('/static/', '/owner',
+                   # Public team calendar feed: the URL token is the bearer
+                   # secret and the route 404s on an invalid/rotated token.
+                   '/calendar/team/')
+
+# The ONLY paths a shared-key (onboarding-only) player session may reach. This
+# is the whole point of the shared key: identify the team, complete onboarding,
+# nothing else. `/player/onboarding` is itself allowed, so the redirect below
+# can never loop.
+ONBOARDING_PATHS = frozenset({
+    '/player/onboarding',
+    '/player/onboarding/claim',
+    '/player/onboarding/cancel',
+    # Needed after coach approval to actually create the credential.
+    '/passkey/register/options',
+    '/passkey/register/verify',
+    '/team/logout',
+})
+
+ONBOARDING_REDIRECT = '/player/onboarding'
+
+
+def is_public_path(path: str) -> bool:
+    return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
+
+
 def register_security(app):
     """Register security-related hooks: CSP nonce, headers, and approval gate."""
 
@@ -48,23 +84,25 @@ def register_security(app):
 
     @app.before_request
     def require_approval():
-        # Team-only gate: allow team session; otherwise only static/legal/team auth pages
+        """Two gates, in order.
+
+        1. No team session -> only public paths; everything else to /team/auth.
+        2. A team session that proves a TEAM but no PERSON (the shared player
+           key) -> only the onboarding paths; everything else to
+           /player/onboarding. Typing a URL therefore cannot skip onboarding,
+           which UI-level hiding alone would not prevent.
+
+        Coaches and passkey-verified players are unaffected by gate 2.
+        """
         from flask import request, session
-        # Allow active team session
-        if session.get('team_login') and session.get('team_id'):
-            return
-        # Allow public paths (path-based to avoid endpoint resolution issues)
+        # Path-based (not endpoint-based) to avoid endpoint-resolution issues.
         p = request.path or '/'
-        if p.startswith('/static/'):
+        if is_public_path(p):
             return
-        if p.startswith('/owner'):
-            return
-        # Public team calendar feed: the URL token is the bearer secret, so the
-        # feed must be reachable without a team session. The route itself 404s on
-        # an invalid/rotated token, so this exposes no cross-team data.
-        if p.startswith('/calendar/team/'):
-            return
-        if p in ('/', '/favicon.ico', '/sw.js', '/team/auth', '/team/login', '/team/create', '/terms', '/privacy', '/about'):
+        if session.get('team_login') and session.get('team_id'):
+            from coach.auth_utils import is_onboarding_only_session
+            if is_onboarding_only_session() and p not in ONBOARDING_PATHS:
+                return redirect(ONBOARDING_REDIRECT)
             return
         # Everything else goes to team auth
         return redirect('/team/auth')

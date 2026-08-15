@@ -85,7 +85,8 @@ def delete_player(player_id):
     if not (player and team_id and player.team_id == team_id):
         flash('Není povoleno smazat hráče jiného týmu.', 'error')
         return redirect(url_for('players'))
-    from coach.models import Roster, LineAssignment, AttendanceEntry, PaymentStatus
+    from coach.models import (Roster, LineAssignment, AttendanceEntry, PaymentStatus,
+                              PlayerRegistrationRequest, PasskeyCredential)
     # EVERY table with a FK to player.id must be cleared first, otherwise the
     # DELETE violates the constraint and the request 500s (InnoDB/MySQL enforces
     # foreign keys; SQLite dev silently leaves orphans instead). PaymentStatus
@@ -94,7 +95,11 @@ def delete_player(player_id):
     # Scoped by player_id alone, not team_id+player_id: team ownership is already
     # verified above, and legacy rows may carry a NULL team_id, which the
     # team_id filter would skip and leave dangling.
-    for model in (Roster, LineAssignment, AttendanceEntry, PaymentStatus):
+    # Removing the player also removes their individual access: the credentials
+    # and any live claim go with them, so a deleted roster entry can never leave
+    # a passkey that still authenticates.
+    for model in (Roster, LineAssignment, AttendanceEntry, PaymentStatus,
+                  PlayerRegistrationRequest, PasskeyCredential):
         model.query.filter_by(player_id=player.id).delete()
     db.session.delete(player)
     db.session.commit()

@@ -1,0 +1,118 @@
+/* ============================================================================
+   Player identity: onboarding, coach approval, passkey UI.
+   Self-contained so no protected desktop stylesheet is touched. Namespaced
+   .pk-* (new screens) plus a few additive classes on the existing attendance
+   screens. Mobile-first; the media query widens the layout on desktop.
+   ========================================================================= */
+
+.pk-wrap { max-width: 760px; margin: 0 auto; padding: 4px 0 40px; }
+
+.pk-head { margin-bottom: 18px; }
+.pk-head h1 { margin: 0 0 6px; font-size: clamp(1.4rem, 5vw, 1.9rem); }
+.pk-head p { margin: 0; color: var(--text-muted); line-height: 1.5; }
+
+/* --- state banner ------------------------------------------------------- */
+.pk-state {
+  display: flex; flex-direction: column; gap: 10px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface-2, #1a1f27); padding: 16px; margin-bottom: 18px;
+}
+.pk-state-title { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+.pk-state p { margin: 0; color: var(--text-muted); line-height: 1.5; }
+.pk-state--pending { border-color: color-mix(in srgb, #e0b341 45%, transparent); }
+.pk-state--approved { border-color: color-mix(in srgb, var(--success, #38c172) 50%, transparent); }
+.pk-state--rejected,
+.pk-state--expired { border-color: color-mix(in srgb, var(--danger, #c44747) 45%, transparent); }
+
+.pk-badge {
+  display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: .02em;
+  border-radius: 999px; padding: 3px 10px; border: 1px solid var(--border);
+  color: var(--text-muted); background: var(--surface-3, #232a34);
+}
+.pk-badge--active { color: #1a1606; background: var(--success, #38c172); border-color: transparent; }
+.pk-badge--none { opacity: .8; }
+
+/* --- roster picker ------------------------------------------------------ */
+.pk-search {
+  width: 100%; box-sizing: border-box; min-height: 48px; font-size: 16px;
+  padding: 0 14px; margin-bottom: 12px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface-2, #1a1f27); color: var(--text);
+}
+.pk-list { display: flex; flex-direction: column; gap: 8px; }
+.pk-row {
+  display: flex; align-items: center; gap: 12px; margin: 0;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface-2, #1a1f27); padding: 8px 12px;
+}
+.pk-av {
+  flex: none; width: 40px; height: 40px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-3, #232a34); font-weight: 800; font-size: .82rem;
+}
+.pk-row-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pk-name { font-weight: 700; overflow-wrap: anywhere; }
+.pk-sub { font-size: .74rem; color: var(--text-muted); }
+.pk-pick {
+  flex: none; min-height: 40px; padding: 0 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--primary); color: var(--on-primary, #1a1606);
+  font-weight: 800; font-size: .84rem;
+}
+.pk-pick[disabled] { background: transparent; color: var(--text-muted); cursor: not-allowed; font-weight: 600; }
+
+/* --- coach approval inbox ---------------------------------------------- */
+.pk-section { margin-top: 26px; }
+.pk-section h2 { font-size: 1.1rem; margin: 0 0 10px; }
+.pk-req {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, #e0b341 40%, var(--border));
+  border-radius: 14px; background: var(--surface-2, #1a1f27); padding: 12px; margin-bottom: 10px;
+}
+.pk-req-actions { display: flex; gap: 8px; margin-left: auto; }
+.pk-req-actions form { margin: 0; display: inline; }
+.pk-btn {
+  min-height: 40px; padding: 0 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text);
+  font-weight: 700; font-size: .84rem;
+}
+.pk-btn--ok { background: var(--success, #38c172); color: #10230f; border-color: transparent; }
+.pk-btn--no { color: var(--danger, #c44747); border-color: color-mix(in srgb, var(--danger, #c44747) 40%, transparent); }
+.pk-btn--primary { background: var(--primary); color: var(--on-primary, #1a1606); border-color: transparent; min-height: 50px; padding: 0 22px; font-size: .95rem; font-weight: 800; }
+.pk-btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+.pk-empty { text-align: center; color: var(--text-muted); padding: 22px 12px; border: 1px dashed var(--border); border-radius: 14px; }
+
+.pk-msg { margin-top: 12px; font-size: .88rem; min-height: 1.2em; }
+.pk-msg--err { color: var(--danger, #c44747); }
+.pk-msg--ok { color: var(--success, #38c172); }
+
+/* --- passkey login entry point on the auth page ------------------------- */
+.pk-login { margin-top: 14px; text-align: center; }
+.pk-login-btn {
+  width: 100%; min-height: 50px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--border, #33383f); background: transparent; color: inherit;
+  font-weight: 700; font-size: .95rem;
+}
+.pk-login-hint { margin: 8px 0 0; font-size: .78rem; opacity: .75; }
+
+/* --- additive bits on the existing attendance screens ------------------- */
+.pa-notice {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, #e0b341 40%, var(--border));
+  border-radius: 12px; background: var(--surface-2, #1a1f27);
+  padding: 10px 14px; margin-bottom: 14px; font-size: .9rem;
+}
+.pam-readonly {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, #e0b341 40%, var(--border));
+  border-radius: 12px; background: var(--surface-2, #1a1f27);
+  padding: 10px 12px; margin-bottom: 12px; font-size: .84rem;
+}
+.pam-who--fixed { display: inline-flex; align-items: center; gap: 8px; }
+.pam-cta--sm { min-height: 36px; padding: 0 12px; font-size: .8rem; display: inline-flex; align-items: center; }
+.pam-hero-state { margin-top: 10px; font-weight: 800; }
+
+@media (min-width: 769px) {
+  .pk-wrap { padding-top: 10px; }
+  .pk-row { padding: 10px 14px; }
+  .pk-av { width: 44px; height: 44px; }
+}
