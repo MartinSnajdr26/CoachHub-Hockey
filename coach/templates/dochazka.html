@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Docházka{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='attendance_lock.css', v=asset_version) }}">
 {% set team = view.team %}
 {# Mobile-only native screen (Phase 3). Renders alongside the desktop matrix;
    shown only <=768px. Desktop .am-wrap / matrix DOM/CSS untouched. #}
@@ -57,6 +58,24 @@
   </form>
 
   {% if view.events and view.players %}
+  {% if is_coach %}
+  {# Coach-only edit lock. A UX guard against accidental taps while swiping the
+     matrix on a phone — NOT an authorization mechanism: /attendance/cell stays
+     coach-gated and team-scoped server-side. Deliberately a direct child of
+     .am-wrap (sibling of .am-grid) so it survives the mobile table-first rule
+     that hides the desktop head, and so it sits directly above the table on
+     both layouts. Always renders LOCKED; the state lives only in JS memory and
+     is never persisted, so every page load starts locked again. #}
+  <div class="am-lock">
+    <button type="button" class="am-lock-btn" id="amLockToggle" aria-pressed="false"
+            aria-describedby="amLockHint">
+      <span class="am-lock-ic" aria-hidden="true">🔒</span>
+      <span class="am-lock-state">Úpravy zamčené</span>
+      <span class="am-lock-cta">Odemknout úpravy</span>
+    </button>
+    <span class="am-lock-hint" id="amLockHint">Tabulku můžeš procházet i zamčenou.</span>
+  </div>
+  {% endif %}
   {# Freeze-panes via 4 synchronized panes (position:sticky on table cells is
      unreliable in this scroll structure — verified broken in real Chromium).
      The MAIN pane owns scrolling; JS syncs header.scrollLeft / left.scrollTop. #}

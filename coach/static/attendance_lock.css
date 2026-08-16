@@ -1,0 +1,92 @@
+/* ============================================================================
+   Team attendance matrix — coach edit lock (.am-lock).
+
+   A UX safety guard only: while swiping the matrix on a phone it is very easy
+   to land a tap on a status cell and silently change someone's attendance. The
+   matrix therefore opens LOCKED and the coach must explicitly unlock.
+
+   NOT authorization. /attendance/cell remains coach-gated and team-scoped on
+   the server; this file only changes what the UI offers.
+
+   Scoped to .am-* (the attendance matrix); no generic element rules.
+   ========================================================================= */
+
+.am-lock {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 0 0 10px;
+}
+
+.am-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* comfortable touch target without becoming a banner */
+  min-height: 40px;
+  width: auto;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 999px;
+  background: var(--surface-2, #1a1f27);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background var(--transition, .15s), border-color var(--transition, .15s);
+}
+.am-lock-btn:hover { background: var(--surface-3, #232a34); }
+.am-lock-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.am-lock-ic { font-size: 1rem; line-height: 1; }
+.am-lock-state { font-weight: 800; }
+/* the action label reads as the button's verb, slightly de-emphasised */
+.am-lock-cta {
+  color: var(--text-muted);
+  font-weight: 600;
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+.am-lock-hint { color: var(--text-muted); font-size: 0.78rem; }
+
+/* --- unlocked: obvious, but not alarming ------------------------------- */
+.am-lock-btn[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--text);
+}
+.am-lock-btn[aria-pressed="true"] .am-lock-cta {
+  color: var(--text);
+  border-left-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+/* a quiet ring on the grid so "editing is live" is visible at the table itself */
+.am-wrap:not(.am-edit-locked) .am-grid {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 42%, transparent);
+}
+
+/* --- locked: kill ONLY the interactive cells --------------------------- *
+   `pointer-events: none` is applied to the status buttons and nothing else, so
+   a touch that lands on a cell passes straight through to the scrolling pane
+   and still scrolls. The panes, headers, player names and the whole scroll
+   structure keep their events — the table stays fully swipeable in both axes
+   and every value stays readable (no dimming of the data).                */
+.am-wrap.am-edit-locked .am-cell {
+  pointer-events: none;
+  cursor: default;
+}
+/* no hover affordance while locked (the rule it neutralises lives in style.css) */
+.am-wrap.am-edit-locked .am-cell:hover:not([disabled]) { filter: none; }
+
+@media (max-width: 768px) {
+  .am-lock { margin: 0 0 8px; gap: 6px 10px; }
+  .am-lock-btn { min-height: 44px; font-size: 0.85rem; padding: 0 12px; }
+  /* the hint would push the table down on a small screen; the pill says it all */
+  .am-lock-hint { display: none; }
+}
+@media (max-width: 360px) {
+  /* keep the pill on one line at 320px instead of forcing a horizontal scroll */
+  .am-lock-btn { font-size: 0.8rem; padding: 0 10px; gap: 6px; }
+  .am-lock-cta { padding-left: 8px; }
+}

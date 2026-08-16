@@ -77,8 +77,45 @@
   function setKpi(i, val) { var el = document.querySelectorAll('.am-kpi .am-kpi-v')[i]; if (el) el.textContent = val; }
   function cssEsc(s) { return (s || '').replace(/"/g, '\\"'); }
 
+  // ---- edit lock (coach-only UX guard) ----
+  // Single source of truth for whether the matrix may mutate. It starts LOCKED
+  // on every page load and is deliberately NEVER persisted (no localStorage /
+  // sessionStorage / cookie), so reopening or reloading the page always returns
+  // to the safe state. This only gates the UI: /attendance/cell is still
+  // coach-gated and team-scoped server-side.
+  var editUnlocked = false;
+  var lockBtn = document.getElementById('amLockToggle');
+  var wrap = document.querySelector('.am-wrap');
+
+  function canEdit() { return !!CFG.isCoach && editUnlocked; }
+
+  function applyLockState() {
+    // Locked styling is coach-only; a player's cells are already rendered
+    // `disabled` by the server and need no client-side treatment.
+    if (wrap) wrap.classList.toggle('am-edit-locked', !!CFG.isCoach && !editUnlocked);
+    if (!lockBtn) return;
+    lockBtn.setAttribute('aria-pressed', editUnlocked ? 'true' : 'false');
+    var ic = lockBtn.querySelector('.am-lock-ic');
+    var st = lockBtn.querySelector('.am-lock-state');
+    var cta = lockBtn.querySelector('.am-lock-cta');
+    if (ic) ic.textContent = editUnlocked ? '🔓' : '🔒';
+    if (st) st.textContent = editUnlocked ? 'Úpravy povolené' : 'Úpravy zamčené';
+    if (cta) cta.textContent = editUnlocked ? 'Zamknout úpravy' : 'Odemknout úpravy';
+  }
+
+  if (CFG.isCoach && lockBtn) {
+    lockBtn.addEventListener('click', function () {
+      editUnlocked = !editUnlocked;
+      applyLockState();
+    });
+  }
+  applyLockState();          // render the locked state immediately
+
   // ---- cell editing ----
   function setCell(btn, next) {
+    // Authoritative client-side guard: every mutation path goes through here,
+    // so a future caller cannot bypass the lock by accident.
+    if (!canEdit()) return;
     var pid = parseInt(btn.getAttribute('data-pid'), 10), key = btn.getAttribute('data-key');
     var prev = statusOf(pid, key);
     status[pid] = status[pid] || {}; status[pid][key] = next;
@@ -178,7 +215,7 @@
   if (mainPane) {
     mainPane.addEventListener('click', function (ev) {
       var cell = ev.target.closest('.am-cell');
-      if (cell && CFG.isCoach && !cell.disabled) { setCell(cell, CYCLE[cell.getAttribute('data-status')] || 'going'); }
+      if (cell && canEdit() && !cell.disabled) { setCell(cell, CYCLE[cell.getAttribute('data-status')] || 'going'); }
     });
   }
   // event header click -> event panel
