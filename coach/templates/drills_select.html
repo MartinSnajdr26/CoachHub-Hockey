@@ -2,6 +2,7 @@
 {% block title %}Vybrat tréninky k exportu{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='drills_select.css', v=asset_version) }}">
 {# Mobile-only app bar + reflow (via mobile.css); desktop selection form reused. #}
 {% include 'mobile/_drills_select.html' %}
 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
@@ -16,24 +17,32 @@
   </ul>
 </div>
 
-<form method="get" style="margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-  <input type="text" name="q" value="{{ query }}" placeholder="Hledat podle názvu, popisu, kategorie" style="padding:6px 10px; width:320px; border-radius:6px; border:1px solid #ccc;">
+{# These controls must stay DIRECT children of the form: mobile.css reflows them
+   as flex children of `form[method="get"]`, so a wrapper element would break the
+   mobile layout. Left/right grouping is done with .ds-nav-start instead. #}
+<form method="get" class="ds-search">
+  <input type="text" name="q" value="{{ query }}" class="ds-input ds-search-input"
+         placeholder="Hledat podle názvu, popisu, kategorie">
   <button type="submit">🔍 Hledat</button>
   <a class="btn-secondary" href="{{ url_for('drills_select') }}">✖️ Vyčistit</a>
-  <a href="{{ url_for('drills') }}" class="link-contrast" style="margin-left:auto;">← Zpět na kategorie</a>
+  <a href="{{ url_for('drills') }}" class="link-contrast ds-nav-start">← Zpět na kategorie</a>
   <a href="{{ url_for('new_drill') }}" class="link-contrast">➕ Nové cvičení</a>
   </form>
 
 <form method="post" action="{{ url_for('export_drills_pdf') }}" id="exportForm">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <label>
+  {# Must remain the FIRST div child of #exportForm — mobile.css targets it as
+     `#exportForm > div:first-of-type` (and its helper `span`). #}
+  <div class="ds-export-row">
+    <label class="ds-export-label">
       Název exportu:
-      <input type="text" name="session_title" value="{{ default_title }}" placeholder="Tréninková jednotka YYYY-MM-DD" style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; min-width:280px;">
+      <input type="text" name="session_title" value="{{ default_title }}" class="ds-input ds-title-input"
+             placeholder="Tréninková jednotka YYYY-MM-DD">
     </label>
-    <span style="font-size:12px; opacity:0.8;">Pořadí: menší číslo = dříve v PDF</span>
+    <span class="ds-hint">Pořadí: menší číslo = dříve v PDF</span>
   </div>
-  <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+  {# Must remain the SECOND div child — mobile.css targets `> div:nth-of-type(2)`. #}
+  <div class="ds-actions">
     {% if is_coach %}
       <button type="submit">📄 Vytvořit PDF</button>
       <button type="submit" formaction="{{ url_for('drills.save_session') }}">📁 Uložit trénink (bez PDF)</button>
@@ -43,36 +52,46 @@
     {% endif %}
     <button type="button" class="btn-toggle-all" data-state="true">☑️ Zaškrtnout vše</button>
     <button type="button" class="btn-toggle-all" data-state="false">⬜ Odškrtnout vše</button>
-    <span id="selCount" style="font-size:14px; opacity:0.8;">0 vybráno</span>
+    <span id="selCount" class="ds-count">0 vybráno</span>
   </div>
 
   <input type="hidden" name="selection_order" id="selectionOrder" value="">
 
   <div class="cards">
     {% for d in drills %}
-      <div class="card" style="position:relative;" data-card-index="{{ loop.index0 }}">
-        <div class="selection-toolbar">
-          <label style="cursor:pointer; display:flex; align-items:center; gap:6px; margin:0;">
-            <input type="checkbox" name="drill_ids" value="{{ d.id }}" class="drill-check"> Vybrat
-          </label>
-          <label title="Pořadí v PDF">
-            #
-            <input type="number" name="order[{{ d.id }}]" class="order-input" data-drill-id="{{ d.id }}" min="1" step="1" style="width:56px; padding:2px 6px; border-radius:4px; border:1px solid #888;">
-          </label>
+      <div class="card ds-card" data-card-index="{{ loop.index0 }}">
+        {# Card header: the toolbar is a real flex item here, no longer absolutely
+           positioned over the card, so it can never cover the drill name. DOM
+           order (toolbar, then title) is deliberately UNCHANGED so the mobile
+           stack is identical to before; desktop renders it title-left /
+           controls-right via `flex-direction: row-reverse`. #}
+        <div class="ds-card-head">
+          <div class="selection-toolbar">
+            <label>
+              <input type="checkbox" name="drill_ids" value="{{ d.id }}" class="drill-check"> Vybrat
+            </label>
+            <label title="Pořadí v PDF">
+              #
+              <input type="number" name="order[{{ d.id }}]" class="ds-input order-input" data-drill-id="{{ d.id }}" min="1" step="1">
+            </label>
+          </div>
+          <h2 class="ds-card-title">{{ d.name }}</h2>
         </div>
-        <h2>{{ d.name }}</h2>
-        <p><b>Kategorie:</b> {{ d.category or '-' }} | <b>Čas:</b> {{ d.duration or 0 }} min</p>
+        {# stays a DIRECT child of .card — mobile.css styles `.card > p` #}
+        <p class="ds-meta"><b>Kategorie:</b> {{ d.category or '-' }} | <b>Čas:</b> {{ d.duration or 0 }} min</p>
         {% if d.image_data %}
-          <img src="{{ d.image_data }}" style="max-width:100%; border:2px solid var(--primary, #d4c76f); border-radius:8px; margin:10px 0;">
+          <img src="{{ d.image_data }}" class="ds-thumb" alt="Náhled cvičení {{ d.name }}">
         {% else %}
-          <p><i>Bez náhledu</i></p>
+          <p class="ds-empty"><i>Bez náhledu</i></p>
         {% endif %}
       </div>
     {% else %}
-      <p><i>Žádné cvičení nenalezeno</i></p>
+      <p class="ds-empty"><i>Žádné cvičení nenalezeno</i></p>
     {% endfor %}
   </div>
-  <div style="margin-top:12px;">
+  {# Must stay the div immediately after .cards — mobile.css pins it as the
+     sticky action bar via `#exportForm > .cards + div`. #}
+  <div class="ds-actions ds-actions--bottom">
     {% if is_coach %}
       <button type="submit">📄 Vytvořit PDF</button>
       <button type="submit" formaction="{{ url_for('drills.save_session') }}">📁 Uložit trénink (bez PDF)</button>

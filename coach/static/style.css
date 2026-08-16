@@ -609,8 +609,14 @@ a:hover {
     color: inherit;
 }
 
-/* Odkazy, které leží na primárním pozadí (zlaté) – nastav tmavou barvu kvůli kontrastu */
-.link-contrast { color: var(--on-primary) !important; font-weight: 700; }
+/* Standalone link sitting on the PAGE background — not on a --primary fill.
+   It used `--on-primary` (#08101a), which is the foreground meant to sit ON the
+   gold primary (as .btn-primary/.btn-warning correctly do); on the dark page
+   that is near-black on near-black, i.e. invisible, and the !important blocked
+   every later override. Use the normal foreground instead. */
+.link-contrast { color: var(--text); font-weight: 700; }
+.link-contrast:hover,
+.link-contrast:focus-visible { color: var(--primary); text-decoration: underline; }
 /* Globální: obrázky responsivní */
 img { max-width: 100%; height: auto; }
 

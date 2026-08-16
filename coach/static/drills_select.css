@@ -1,0 +1,181 @@
+/* ============================================================================
+   Drill export selection (/drills/select) — presentation only.
+
+   Everything is scoped to `body[data-page="drills_select"]` so no rule here can
+   reach another page, and no generic `.card` / `a` / `button` / `input` rule is
+   touched. Loaded only by templates/drills_select.html (same pattern as
+   lines.css / roster.css). Replaces the inline styles that used to live there.
+
+   FENCING RULE, and why it matters:
+   mobile.css's `.dsm-*` reflow was written against those inline styles and in
+   places supplies only PART of a rule — e.g. it sets `gap`/`flex-wrap` on
+   `#exportForm > div:nth-of-type(2)` but never `display: flex`, because the
+   inline style provided it. So any declaration that was previously inline (and
+   therefore active at EVERY width) stays unfenced here; only genuinely new
+   desktop layout goes inside `min-width: 769px`. Below that, mobile.css stays
+   in charge and the DOM order is unchanged, so mobile renders as before.
+   ========================================================================= */
+
+/* ------------------------------------------------- previously inline: all widths
+   These reproduce the inline styles the template used to carry. Removing them
+   from the desktop side alone would silently break the mobile reflow. */
+
+body[data-page="drills_select"] .ds-search,
+body[data-page="drills_select"] .ds-export-row,
+body[data-page="drills_select"] .ds-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+body[data-page="drills_select"] .ds-search { gap: 8px; margin-bottom: 16px; }
+body[data-page="drills_select"] .ds-export-row,
+body[data-page="drills_select"] .ds-actions { margin-bottom: 10px; }
+body[data-page="drills_select"] .ds-actions--bottom { margin-top: 12px; margin-bottom: 0; }
+
+/* the order box must not fall back to the global `input { width: 100% }` */
+body[data-page="drills_select"] .order-input {
+  width: 56px;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+body[data-page="drills_select"] .drill-check { width: auto; margin: 0; }
+
+/* The toolbar labels carried `display:flex; align-items:center; gap:6px` inline
+   at every width, so this stays unfenced to keep the mobile toolbar spacing
+   pixel-identical. (mobile.css's `label:first-child { flex: 1 1 auto }` acts on
+   the label as a flex ITEM and is unaffected by its own inner display.) */
+body[data-page="drills_select"] .selection-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  cursor: pointer;
+}
+
+body[data-page="drills_select"] .ds-thumb {
+  display: block;
+  max-width: 100%;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+/* --------------------------------------------------------- colour / typography
+   Safe at every width: no layout, only readable theme tokens. */
+
+body[data-page="drills_select"] .ds-hint {
+  font-size: 0.78rem;
+  /* was opacity:0.8 over the inherited --text, which reads washed-out; the
+     dedicated muted token is readable and theme-consistent. */
+  color: var(--text-muted);
+}
+body[data-page="drills_select"] .ds-count {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* One-off #ccc / #888 borders replaced by the theme token. The global `input`
+   rule already supplies --field-bg / --field-text, so these stay
+   light-background + dark-text; restated so the page's light --text can never
+   be inherited into a value. */
+body[data-page="drills_select"] .ds-input {
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--field-text);
+  border-radius: 6px;
+}
+
+/* long drill names wrap instead of pushing the controls out of the card */
+body[data-page="drills_select"] .ds-card-title {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------- desktop --
+   >=769px only: new layout, none of which existed inline before. */
+@media (min-width: 769px) {
+
+  /* ---- search / navigation row ----
+     Search controls grouped left, the two nav links right. Done with an auto
+     margin rather than wrapper elements, because mobile.css targets these as
+     DIRECT flex children of `form[method="get"]` (`input[name="q"] { flex: 1 1
+     100% }` etc.) and a wrapper would break that reflow. Wraps cleanly when the
+     viewport narrows. */
+  body[data-page="drills_select"] .ds-search-input {
+    flex: 0 1 320px;
+    width: min(320px, 100%);
+    padding: 6px 10px;
+  }
+  body[data-page="drills_select"] .ds-nav-start { margin-left: auto; }
+  body[data-page="drills_select"] .ds-search .link-contrast {
+    white-space: nowrap;
+    padding: 6px 2px;
+  }
+
+  /* ---- export name row ---- */
+  body[data-page="drills_select"] .ds-export-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    /* keep "Název exportu:" on one line; the input absorbs the squeeze instead */
+    white-space: nowrap;
+  }
+  body[data-page="drills_select"] .ds-title-input {
+    /* Explicit width, not flex-basis: the input sits inside .ds-export-label
+       (its own inline-flex context), so a basis there does not resolve against
+       the row. Wide enough to show the whole default title without clipping it,
+       and it still shrinks on a narrow row. */
+    width: 340px;
+    max-width: 100%;
+    flex: 0 1 auto;
+    padding: 6px 10px;
+  }
+
+  /* ---- drill card ----
+     The real fix for the title overlap. The toolbar used to be
+     `position: absolute; top/right: 10px` (style.css), so the <h2> flowed
+     underneath it and long names vanished behind the controls. It is now a
+     normal flex item in a card header: the two can never overlap, and no
+     artificial top padding is involved. */
+  body[data-page="drills_select"] .ds-card-head {
+    display: flex;
+    /* DOM order is toolbar-then-title (unchanged, so the mobile stack is
+       untouched); row-reverse renders it as title-left / controls-right. */
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin-bottom: 6px;
+  }
+  body[data-page="drills_select"] .ds-card-head .ds-card-title {
+    flex: 1 1 12ch;
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.25;
+  }
+  /* Neutralise the overlay. Higher specificity than `.card .selection-toolbar`,
+     so the absolute positioning is overridden rather than fought with
+     !important. */
+  body[data-page="drills_select"] .ds-card .selection-toolbar {
+    position: static;
+    top: auto;
+    right: auto;
+    flex: 0 0 auto;
+    margin: 0;
+  }
+  body[data-page="drills_select"] .ds-card .selection-toolbar label { white-space: nowrap; }
+
+  body[data-page="drills_select"] .ds-meta {
+    margin: 0 0 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  body[data-page="drills_select"] .ds-meta b { color: var(--text); }
+  body[data-page="drills_select"] .ds-thumb { margin: 4px 0 0; }
+  body[data-page="drills_select"] .ds-empty { color: var(--text-muted); }
+}

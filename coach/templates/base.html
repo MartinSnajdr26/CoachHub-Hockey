@@ -203,6 +203,12 @@
           <a href="{{ url_for('lines') }}"><span class="msheet-ic">⚙️</span> Formace</a>
           <a href="{{ url_for('lineup_sessions') }}"><span class="msheet-ic">🗂</span> Sestavy</a>
           {% if is_coach %}<a href="{{ url_for('pokladna.pokladna') }}"><span class="msheet-ic">💰</span> Pokladna</a>{% endif %}
+          {# Permanent coach entry, mirroring the desktop Team dropdown. Gated on
+             `is_coach` ONLY — never on pending_access_count — so a coach can open
+             the access overview at any time; previously mobile could reach it only
+             via a notification, which exists only while a request is pending. The
+             count is a badge on the same link, not a condition for showing it. #}
+          {% if is_coach %}<a href="{{ url_for('playerauth.player_access') }}"><span class="msheet-ic">🔐</span> Přístup hráčů{% if pending_access_count %} ({{ pending_access_count }}){% endif %}</a>{% endif %}
           <a href="{{ url_for('settings') }}"><span class="msheet-ic">🔧</span> Nastavení</a>
           {% if is_coach %}<a href="{{ url_for('audit_log') }}"><span class="msheet-ic">📋</span> Audit log</a>{% endif %}
           {% if is_coach %}<a href="{{ url_for('players.import_tymuj') }}"><span class="msheet-ic">⬇️</span> Import z Týmuj</a>{% endif %}
